@@ -1,0 +1,75 @@
+/* GitHub alerts (`> [!NOTE]` …) rendered inside the Milkdown editor.
+   Colors come from the active VS Code theme's chart palette, so the banners
+   follow whatever theme the user has applied. */
+
+.milkdown .github-alert {
+  --alert-color: var(--accent);
+  border-left: 3px solid var(--alert-color);
+  border-radius: 0 var(--radius-control) var(--radius-control) 0;
+  background: color-mix(in srgb, var(--alert-color) 7%, transparent);
+  padding: 12px;
+  margin: 12px 0;
+}
+
+.milkdown .github-alert-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--alert-color);
+  font-family: var(--font-sans);
+  font-size: 0.82em;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  margin-bottom: 6px;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: default;
+}
+
+.milkdown .github-alert-icon {
+  display: inline-flex;
+  align-items: center;
+}
+
+.milkdown .github-alert-icon svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+/* The body is the ProseMirror content hole: keep its first and last blocks
+   flush so the banner's padding is the only spacing. */
+.milkdown .github-alert-body > :first-child {
+  margin-top: 0;
+}
+
+.milkdown .github-alert-body > :last-child {
+  margin-bottom: 0;
+}
+
+.milkdown .github-alert[data-kind="note"] {
+  --alert-color: var(--vscode-charts-blue, var(--accent));
+}
+
+.milkdown .github-alert[data-kind="tip"] {
+  --alert-color: var(--vscode-charts-green, var(--accent));
+}
+
+.milkdown .github-alert[data-kind="important"] {
+  --alert-color: var(--vscode-charts-purple, var(--accent));
+}
+
+.milkdown .github-alert[data-kind="warning"] {
+  --alert-color: var(--vscode-charts-yellow, var(--vscode-editorWarning-foreground));
+}
+
+.milkdown .github-alert[data-kind="caution"] {
+  --alert-color: var(--vscode-charts-red, var(--danger));
+}
+
+/* Dark and high-contrast themes need a little more tint to read. */
+body.vscode-dark .milkdown .github-alert,
+body.vscode-high-contrast .milkdown .github-alert {
+  background: color-mix(in srgb, var(--alert-color) 12%, transparent);
+}

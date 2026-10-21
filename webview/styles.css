@@ -1,0 +1,951 @@
+/* Ken's Markdown editor layout and typography, coloured by the active VS Code
+   theme. Every colour token below resolves to a `--vscode-*` variable, so the
+   editor follows whatever theme the user has applied (light, dark, high
+   contrast), and updates live when it changes. */
+
+:root {
+  /* Overridden at runtime from the kenMarkdown.* settings. */
+  --font-serif: "Newsreader", Georgia, serif;
+  --font-sans: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+  --md-font-size: 16px;
+  --md-line-height: 1.85;
+  --md-max-width: 720px;
+
+  /* Semantic tokens Ken's styles are written against, mapped onto the theme. */
+  --surface: var(--vscode-editor-background);
+  --paper: var(--vscode-editor-background);
+  --ink: var(--vscode-editor-foreground);
+  --ink-2: var(--vscode-textPreformat-foreground, var(--vscode-editor-foreground));
+  --ink-secondary: var(--vscode-descriptionForeground);
+  --ink-tertiary: var(--vscode-disabledForeground, var(--vscode-descriptionForeground));
+  --sunken: var(--vscode-textCodeBlock-background, var(--vscode-editorWidget-background));
+  --border: var(--vscode-editorGroup-border, var(--vscode-panel-border));
+  --border-strong: var(--vscode-editorWidget-border, var(--vscode-panel-border, var(--vscode-editorGroup-border)));
+  --accent: var(--vscode-textLink-foreground);
+  --accent-deep: var(--vscode-textLink-activeForeground, var(--vscode-textLink-foreground));
+  --danger: var(--vscode-errorForeground);
+  --selection-bg: var(--vscode-editor-selectionBackground);
+  --shadow-card: 0 1px 2px var(--vscode-widget-shadow, transparent);
+  --shadow-overlay: 0 4px 16px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.3));
+  --radius-control: 6px;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--vscode-editor-background);
+  color: var(--vscode-editor-foreground);
+  font-family: var(--font-sans);
+}
+
+/* No flash of an unstyled document before the editor mounts. */
+body:not(.ready) .editor-scroll {
+  visibility: hidden;
+}
+
+.editor-scroll {
+  height: 100%;
+  box-sizing: border-box;
+}
+
+/* ------------------------------------------------------------------------ */
+/* Ported from Ken's MarkdownEditor.svelte                                   */
+/* ------------------------------------------------------------------------ */
+
+  /* A clicked citation's block, flashed so the eye lands on it. */
+  .milkdown .ken-reveal {
+    background: color-mix(in srgb, var(--accent) 16%, transparent);
+    border-radius: 4px;
+    transition: background 1.2s ease-out;
+  }
+  .editor-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    /* Makes the pane a query container so a table can size itself against the
+       pane rather than the 720px text column (`100cqw` below). The pane's own
+       width comes from the flex parent, so inline-size containment is safe. */
+    container-type: inline-size;
+  }
+  /* Files dragged in from the OS: the whole pane takes them. Same accent
+     treatment as a file-tree drop target. */
+  .editor-scroll.file-drop {
+    background: color-mix(in srgb, var(--accent) 5%, transparent);
+    outline: 1px solid var(--accent);
+    outline-offset: -1px;
+  }
+  .measure {
+    max-width: var(--md-max-width);
+    margin: 0 auto;
+    padding: 24px clamp(20px, 5%, 48px) 80px;
+  }
+
+  /* Theme tokens over Crepe's frame theme */
+  .measure .milkdown {
+    --crepe-color-background: var(--surface);
+    --crepe-color-on-background: var(--ink);
+    --crepe-color-surface: var(--surface);
+    --crepe-color-surface-low: var(--paper);
+    --crepe-color-on-surface: var(--ink);
+    --crepe-color-on-surface-variant: var(--ink-secondary);
+    --crepe-color-outline: var(--border-strong);
+    --crepe-color-primary: var(--accent);
+    --crepe-color-secondary: var(--sunken);
+    --crepe-color-on-secondary: var(--ink);
+    --crepe-color-inverse: var(--ink);
+    --crepe-color-on-inverse: var(--paper);
+    /* Code in ink, links in the accent: the two never look alike. */
+    --crepe-color-inline-code: var(--ink-2);
+    --crepe-color-error: var(--danger);
+    --crepe-color-hover: var(--sunken);
+    --crepe-color-selected: var(--selection-bg);
+    --crepe-color-inline-area: var(--sunken);
+    --crepe-font-title: var(--font-serif);
+    --crepe-font-default: var(--font-sans);
+    --crepe-font-code: var(--font-mono);
+    --crepe-shadow-1: var(--shadow-card);
+    --crepe-shadow-2: var(--shadow-overlay);
+    background: transparent;
+  }
+  .measure .milkdown .ProseMirror {
+    padding: 0;
+    font-size: var(--md-font-size);
+    line-height: var(--md-line-height);
+  }
+  .measure .milkdown .ProseMirror p {
+    font-size: 1em;
+    line-height: var(--md-line-height);
+  }
+  .measure .milkdown h1,
+  .measure .milkdown h2,
+  .measure .milkdown h3,
+  .measure .milkdown h4 {
+    font-family: var(--font-serif);
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    /* A touch more breathing room after headings. */
+    margin-bottom: 0.55em;
+  }
+
+  /* --- Links -------------------------------------------------------------- */
+  /* Every link in the document reads as one, the table of contents included:
+     accent ink and an underline. Crepe's reset says as much already, but the
+     app-wide `a` rule (no underline) and the TOC's own styling both pull
+     against it, so Ken states it once here, with the app's deeper hover. */
+  .measure .milkdown .ProseMirror a {
+    color: var(--accent);
+    text-decoration: underline;
+  }
+  .measure .milkdown .ProseMirror a:hover {
+    color: var(--accent-deep);
+  }
+
+  /* --- Crepe controls ----------------------------------------------------- */
+  /* Crepe draws every button glyph in `--crepe-color-outline`, the same token
+     it uses for hairlines. Mapped to Ken's `--border-strong` that is right for
+     the borders but leaves the icons all but invisible, worst of all in dark
+     mode. The token stays a border colour; the glyphs are recoloured one rule
+     at a time to the secondary ink, rising to full ink on hover. Active and
+     primary states keep Crepe's accent. */
+  .measure .milkdown .milkdown-block-handle .operation-item svg,
+  .measure .milkdown .milkdown-toolbar .toolbar-item svg,
+  .measure .milkdown .milkdown-slash-menu .menu-groups .menu-group li svg,
+  .measure
+    .milkdown .milkdown-code-block .tools .language-button .expand-icon svg,
+  .measure .milkdown .milkdown-link-preview > .link-preview > .link-icon > svg,
+  .measure .milkdown .milkdown-link-preview > .link-preview > .button > svg,
+  .measure .milkdown .milkdown-link-edit > .link-edit > .button > svg,
+  .measure .milkdown .milkdown-image-block .image-edit .image-icon svg,
+  .measure
+    .milkdown .milkdown-image-inline .empty-image-inline .image-icon svg {
+    color: var(--ink-secondary);
+    fill: var(--ink-secondary);
+  }
+  .measure .milkdown .milkdown-image-block .image-edit .image-icon {
+    color: var(--ink-secondary);
+  }
+  .measure .milkdown .milkdown-block-handle .operation-item:hover svg,
+  .measure
+    .milkdown .milkdown-toolbar .toolbar-item:not(.active):hover svg,
+  .measure
+    .milkdown .milkdown-slash-menu .menu-groups .menu-group li:hover svg,
+  .measure
+    .milkdown .milkdown-slash-menu .menu-groups .menu-group li.active svg,
+  .measure
+    .milkdown .milkdown-code-block .tools .language-button:hover .expand-icon svg,
+  .measure
+    .milkdown .milkdown-link-preview > .link-preview > .link-icon:hover > svg,
+  .measure
+    .milkdown .milkdown-link-preview > .link-preview > .button:hover > svg,
+  .measure .milkdown .milkdown-link-edit > .link-edit > .button:hover > svg {
+    color: var(--ink);
+    fill: var(--ink);
+  }
+  /* Crepe paints its floating popups in `--crepe-color-surface`, which is
+     Ken's `--surface` — the pane's own colour — so a menu read as a hole in
+     the page rather than something above it. Each overlay gets its own
+     surface, a step of ink mixed into the pane (darker on paper, lighter in
+     dark mode), a real edge, and a hover a further step on so rows stay
+     distinguishable. Scoped to the overlays: in-document blocks (code, table
+     cells) keep the page surface. */
+  .measure .milkdown .milkdown-slash-menu,
+  .measure .milkdown .milkdown-toolbar,
+  .measure .milkdown .milkdown-link-preview,
+  .measure .milkdown .milkdown-link-edit,
+  .measure .milkdown .milkdown-code-block .list-wrapper,
+  .measure .milkdown .milkdown-table-block .cell-handle .button-group {
+    --crepe-color-surface: color-mix(in srgb, var(--ink) 7%, var(--surface));
+    --crepe-color-surface-low: var(--crepe-color-surface);
+    --crepe-color-hover: color-mix(in srgb, var(--ink) 14%, var(--surface));
+  }
+  .measure .milkdown .milkdown-slash-menu,
+  .measure .milkdown .milkdown-toolbar,
+  .measure .milkdown .milkdown-link-preview > .link-preview,
+  .measure .milkdown .milkdown-link-edit > .link-edit,
+  .measure .milkdown .milkdown-code-block .list-wrapper,
+  .measure .milkdown .milkdown-table-block .cell-handle .button-group {
+    border: 1px solid var(--border-strong);
+  }
+
+  /* The rules above outrank Crepe's own, so its accent for an active format
+     (bold, italic…) is restated. */
+  .measure .milkdown .milkdown-toolbar .toolbar-item.active svg {
+    color: var(--accent);
+    fill: var(--accent);
+  }
+  /* The same token colours the text caret in Crepe's small inputs (code
+     language search, image URL) and the virtual cursor beside marks. */
+  .measure .milkdown .milkdown-code-block .tools input,
+  .measure .milkdown .milkdown-image-block input,
+  .measure .milkdown .milkdown-image-inline input {
+    caret-color: var(--ink);
+  }
+  .measure .milkdown .ProseMirror-focused {
+    --prosemirror-virtual-cursor-color: var(--ink);
+  }
+
+  /* --- Mermaid ------------------------------------------------------------ */
+  /* In diagram mode (preview only: the CodeMirror host is hidden) the toolbar
+     is a distraction, so it only fades in while the block is hovered or has
+     focus. In code mode it stays put, as it always has. */
+  .measure
+    .milkdown .milkdown-code-block:has(.codemirror-host.hidden) .tools {
+    opacity: 0;
+    transition: opacity 120ms ease;
+  }
+  .measure
+    .milkdown .milkdown-code-block:has(.codemirror-host.hidden):hover .tools,
+  .measure
+    .milkdown
+        .milkdown-code-block:has(.codemirror-host.hidden):focus-within
+        .tools {
+    opacity: 1;
+  }
+  .measure .milkdown .mermaid-preview {
+    display: flex;
+    justify-content: center;
+  }
+  .measure .milkdown .mermaid-preview svg {
+    max-width: 100%;
+    height: auto;
+    background: transparent;
+  }
+  /* Mermaid sizes its label boxes itself and renders the text in a
+     foreignObject; the editor's generous paragraph line-height would overflow
+     those boxes and clip descenders. */
+  .measure .milkdown .mermaid-preview foreignObject p,
+  .measure .milkdown .mermaid-preview foreignObject div,
+  .measure .milkdown .mermaid-preview foreignObject span {
+    margin: 0;
+    line-height: inherit;
+  }
+  .measure .milkdown .mermaid-error {
+    padding: 8px 12px;
+    border-left: 3px solid var(--danger);
+    color: var(--danger);
+    font-family: var(--font-mono);
+    font-size: 0.8em;
+  }
+
+  /* --- Tables ------------------------------------------------------------- */
+  /* A table never scrolls sideways and never pushes the pane wider: it shrinks
+     to the space it is given and its cells wrap. By default that space is the
+     text column. The hover toggle (and the right-click menu) switch a table
+     into full-width mode, where it fills the pane's gutters up to 1200px and
+     centres on the text column — `left`/`translateX` rather than auto margins,
+     so it stays centred even when it is wider than its containing block. The
+     choice is stored in the markdown as an HTML comment (see
+     markdown/tableFullWidth.ts) and arrives here as `data-full-width`. */
+  .measure .milkdown .milkdown-table-block {
+    position: relative;
+    /* Shrink-to-fit, capped at the text column. */
+    width: fit-content;
+    max-width: 100%;
+    /* Tables need more air than a paragraph to read as their own block. */
+    margin: 1.5em 0;
+  }
+  .measure .milkdown .milkdown-table-block[data-full-width="true"] {
+    width: min(calc(100cqw - 2 * clamp(20px, 5cqw, 48px)), 1200px);
+    max-width: min(calc(100cqw - 2 * clamp(20px, 5cqw, 48px)), 1200px);
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  .measure .milkdown .milkdown-table-block .table-wrapper {
+    /* Deliberately not `auto`: a table that outgrows its cap wraps its text
+       rather than hiding columns behind a scrollbar. */
+    overflow: visible;
+  }
+  /* ProseMirror's stylesheet pins tables to `width: 100%; table-layout: fixed`,
+     which divides the column evenly however long the headings are. `auto` plus
+     a `max-width` lets the browser size columns to their content and then
+     squeeze them back inside the cap.
+
+     That auto layout is only the starting point a table is painted with:
+     markdown/tableLayout.ts then measures each column's content and writes
+     exact widths to a `<colgroup>`, switching the table to
+     `table-layout: fixed` inline so they are honoured to the pixel. See that
+     file for why the browser's own auto layout cannot be left to do it. */
+  .measure .milkdown .milkdown-table-block table.children {
+    width: auto;
+    min-width: 0;
+    max-width: 100%;
+    table-layout: auto;
+  }
+  .measure
+    .milkdown .milkdown-table-block[data-full-width="true"] table.children {
+    width: 100%;
+  }
+
+  /* Crepe's cell borders are the outline colour at 20% opacity, which all but
+     disappears on paper. Ken draws the full hairline instead, with a heavier
+     rule under the header row. Long cells wrap; `anywhere` is what lets a
+     single unbroken token (a URL, an id) give way rather than spill out of a
+     column that tableLayout.ts has had to make narrower than it. */
+  .measure .milkdown .milkdown-table-block th,
+  .measure .milkdown .milkdown-table-block td {
+    border: 1px solid var(--border-strong);
+    /* Roomy on a wide pane; tighter on a narrow one, where the padding of a
+       many-columned table is what would stop it fitting at all. */
+    padding: 6px clamp(7px, 1.2cqw, 16px);
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: normal;
+  }
+  .measure .milkdown .milkdown-table-block th {
+    background: var(--sunken);
+    border-bottom-color: var(--ink-tertiary);
+  }
+
+  /* Hover-only, like the mermaid toolbar: the width toggle sits just above the
+     table's top-right corner so it never covers a cell. */
+  .measure .milkdown .milkdown-table-block .ken-table-width-toggle {
+    position: absolute;
+    top: -12px;
+    right: 0;
+    z-index: 40;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    background: var(--surface);
+    color: var(--ink-secondary);
+    box-shadow: var(--shadow-card);
+    opacity: 0;
+    transition: opacity 120ms ease;
+  }
+  .measure
+    .milkdown .milkdown-table-block:hover .ken-table-width-toggle,
+  .measure
+    .milkdown .milkdown-table-block .ken-table-width-toggle:focus-visible {
+    opacity: 1;
+  }
+  .measure
+    .milkdown .milkdown-table-block .ken-table-width-toggle:hover {
+    color: var(--ink);
+    border-color: var(--ink-tertiary);
+  }
+
+  /* Crepe draws the row/column handles in `--crepe-color-outline`, which maps
+     to Ken's hairline `--border-strong` and left them all but invisible against
+     the paper. Give the pills a readable glyph and an edge so they read as
+     controls; everything else in the table block is Crepe's. */
+  .measure .milkdown .milkdown-table-block .cell-handle,
+  .measure .milkdown .milkdown-table-block .line-handle .add-button {
+    color: var(--ink-secondary);
+    border: 1px solid var(--border-strong);
+  }
+  .measure .milkdown .milkdown-table-block .cell-handle svg,
+  .measure
+    .milkdown .milkdown-table-block .line-handle .add-button svg {
+    fill: var(--ink-secondary);
+  }
+  .measure .milkdown .milkdown-table-block .cell-handle:hover,
+  .measure
+    .milkdown .milkdown-table-block .line-handle .add-button:hover {
+    border-color: var(--ink-tertiary);
+  }
+  .measure
+    .milkdown .milkdown-table-block .cell-handle .button-group svg {
+    fill: var(--ink-secondary);
+  }
+
+  /* --- GitHub-flavored markdown ------------------------------------------ */
+  .measure .milkdown .ProseMirror del {
+    color: var(--ink-secondary);
+  }
+  /* A ticked task reads as done. */
+  .measure .milkdown .list-item:has(> .label-wrapper .label.checked) {
+    color: var(--ink-secondary);
+  }
+  /* Crepe draws bullet dots and ordinals in its outline colour, which reads as
+     chrome; a list marker belongs to the text it marks, so it follows the item's
+     own ink (the drawn bullets below use `currentcolor`). Task checkboxes are
+     controls; see below. */
+  .measure .milkdown .milkdown-list-item-block li .label-wrapper {
+    color: inherit;
+  }
+  /* Task checkboxes are controls, so they keep a control's colour rather than
+     the text's — but Crepe's outline colour is a hairline, too faint to read
+     as a box, so they take the same secondary ink as Crepe's other buttons. */
+  .measure
+    .milkdown .milkdown-list-item-block li .label-wrapper .label.checked svg,
+  .measure
+    .milkdown .milkdown-list-item-block li .label-wrapper .label.unchecked svg {
+    fill: var(--ink-secondary);
+  }
+  /* Crepe sets an ordinal in a fixed 32px box at the editor's inherited
+     14.5px, while its paragraphs are 16px on a 1.85 line — so "1." sat smaller
+     than its text and a few pixels high. The marker's box mirrors the
+     paragraph's instead (Crepe's `p`: 16px, `padding: 4px 0`; Ken's line
+     height), which puts ordinals on the text's baseline and centres bullets
+     and task checkboxes on its first line (Crepe's own 32px box left the
+     checkbox 2px high of it). */
+  .measure
+    .milkdown .milkdown-list-item-block li .label-wrapper:has(> .label.ordered),
+  .measure
+    .milkdown .milkdown-list-item-block li .label-wrapper:has(> .label.bullet),
+  .measure
+    .milkdown .milkdown-list-item-block li .label-wrapper:has(> .label.checked),
+  .measure
+    .milkdown
+        .milkdown-list-item-block
+        li
+        .label-wrapper:has(> .label.unchecked) {
+    height: auto;
+    align-items: flex-start;
+  }
+  .measure .milkdown .milkdown-list-item-block li .label.ordered,
+  .measure .milkdown .milkdown-list-item-block li .label.bullet,
+  .measure .milkdown .milkdown-list-item-block li .label.checked,
+  .measure .milkdown .milkdown-list-item-block li .label.unchecked {
+    box-sizing: border-box;
+    height: calc(var(--md-line-height) * 1em + 8px);
+    padding: 4px 0;
+    font-size: var(--md-font-size);
+    line-height: var(--md-line-height);
+  }
+  .measure .milkdown .milkdown-list-item-block li .label.ordered {
+    /* "10." and up are wider than the 24px gutter; end-aligned flex lets
+       them run left into the indent rather than wrap or push the text. */
+    display: flex;
+    justify-content: flex-end;
+    white-space: nowrap;
+  }
+  /* Bullets alternate with depth, as a word processor's do: disc, open
+     circle, square, then round again. Crepe's node view doesn't know an
+     item's depth, so it is counted here in `ul` ancestors only — the first
+     bullets under a numbered item are discs, not circles. Each extra `ul` in
+     a selector also raises its specificity, so the deepest match wins. Task
+     items (`.checked`/`.unchecked`) aren't `.bullet`, and the TOC hides its
+     labels, so neither is touched. Crepe's SVG dot is replaced by a drawn
+     one; both follow the item's ink. */
+  .measure .milkdown .milkdown-list-item-block li .label.bullet,
+  .measure .milkdown .milkdown-list-item-block li .label.checked,
+  .measure .milkdown .milkdown-list-item-block li .label.unchecked {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  /* The checkbox glyph keeps its own size inside the taller box. */
+  .measure .milkdown .milkdown-list-item-block li .label.checked svg,
+  .measure .milkdown .milkdown-list-item-block li .label.unchecked svg {
+    flex: none;
+  }
+  .measure .milkdown .milkdown-list-item-block li .label.bullet svg {
+    display: none;
+  }
+  .measure .milkdown ul .milkdown-list-item-block li .label.bullet::before,
+  .measure
+    .milkdown ul ul ul ul .milkdown-list-item-block li .label.bullet::before {
+    content: "";
+    box-sizing: border-box;
+    width: 6px;
+    height: 6px;
+    border: none;
+    border-radius: 50%;
+    background: currentcolor;
+  }
+  .measure
+    .milkdown ul ul .milkdown-list-item-block li .label.bullet::before,
+  .measure
+    .milkdown ul ul ul ul ul .milkdown-list-item-block li .label.bullet::before {
+    border: 1.25px solid currentcolor;
+    border-radius: 50%;
+    background: transparent;
+  }
+  .measure
+    .milkdown ul ul ul .milkdown-list-item-block li .label.bullet::before,
+  .measure
+    .milkdown ul ul ul ul ul ul .milkdown-list-item-block li .label.bullet::before {
+    /* A square reads heavier than a disc of the same width. */
+    width: 5px;
+    height: 5px;
+    border: none;
+    border-radius: 0;
+    background: currentcolor;
+  }
+  /* A seventh level and deeper is a disc again. */
+  .measure
+    .milkdown
+        ul
+        ul
+        ul
+        ul
+        ul
+        ul
+        ul
+        .milkdown-list-item-block
+        li
+        .label.bullet::before {
+    width: 6px;
+    height: 6px;
+    border: none;
+    border-radius: 50%;
+    background: currentcolor;
+  }
+  /* Footnote definitions read as an aside, not as body copy. */
+  .measure .milkdown dl[data-type="footnote_definition"] {
+    border-top: 1px solid var(--border);
+    margin-top: 24px;
+    padding-top: 12px;
+    font-size: 0.82em;
+    color: var(--ink-secondary);
+  }
+
+  /* A wider scale than Crepe's, so the outline of a document reads at a glance.
+     Line height tightens as the type grows, and the space above each heading
+     grows with it, so nothing crowds. */
+  .measure .milkdown h1 {
+    font-size: 2.25em;
+    line-height: 1.18;
+    margin-top: 0.9em;
+  }
+  .measure .milkdown h2 {
+    font-size: 1.75em;
+    line-height: 1.24;
+    margin-top: 1.1em;
+  }
+  .measure .milkdown h3 {
+    font-size: 1.45em;
+    line-height: 1.3;
+    margin-top: 1.2em;
+  }
+  .measure .milkdown h4 {
+    font-size: 1.25em;
+    line-height: 1.36;
+    margin-top: 1.3em;
+  }
+  .measure .milkdown h5 {
+    font-size: 1.1em;
+    line-height: 1.42;
+    margin-top: 1.4em;
+  }
+  .measure .milkdown h6 {
+    font-size: 1em;
+    line-height: 1.5;
+    margin-top: 1.5em;
+    color: var(--ink-secondary);
+  }
+  /* The document's own title has nothing to separate itself from. */
+  .measure .milkdown .ProseMirror > h1:first-child,
+  .measure .milkdown .ProseMirror > h2:first-child,
+  .measure .milkdown .ProseMirror > h3:first-child {
+    margin-top: 0;
+  }
+
+  /* --- Heading links ------------------------------------------------------ */
+  /* A hover-only "copy link" button in the text column's left gutter. It is a
+     ProseMirror widget, so it is never part of the document.
+
+     Crepe's block drag/insert handle already sits in that gutter, from 82px to
+     16px left of the text, and appears on the same hover — so the button goes
+     further out still, leaving both clickable. How far out is what the gutter
+     allows: `(100cqw - 100%) / 2` is the distance from the text column's edge
+     to the pane's, against `.editor-scroll` as the query container. Wide
+     panes give the full 110px, which clears Crepe's handle; narrower ones
+     slide the button in towards the text until it is flush with the pane
+     edge, where it still clears the text (and sits above Crepe's handle,
+     which is itself clipped at those widths). */
+  .measure .milkdown h1,
+  .measure .milkdown h2,
+  .measure .milkdown h3,
+  .measure .milkdown h4,
+  .measure .milkdown h5,
+  .measure .milkdown h6 {
+    position: relative;
+  }
+  /* Table of contents (markdown/toc.ts). On disk it is a plain nested bullet
+     list of anchor links; here it reads as a section of the document itself:
+     a heading that matches the document's own H1, then an indented index of
+     links flush with the text column. Nothing about the document changes —
+     the caption is a `::before`, not a node. */
+  .measure .milkdown ul.ken-toc {
+    margin: 1.5em 0;
+    padding: 0;
+    list-style: none;
+    font-family: var(--font-sans);
+    user-select: none;
+  }
+  /* Styled as `.milkdown h1` is, so it reads as the document's own heading. */
+  .measure .milkdown ul.ken-toc::before {
+    content: "Table of Contents";
+    display: block;
+    font-family: var(--font-serif);
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    font-size: 2.25em;
+    line-height: 1.18;
+    margin-bottom: 0.55em;
+    color: var(--ink);
+  }
+  .measure .milkdown ul.ken-toc ul {
+    margin: 0;
+    padding-left: 1.75em;
+    list-style: none;
+  }
+  /* Crepe's list-item node view gives every item a paragraph's worth of air
+     and a bullet in a fixed-width gutter; a table of contents wants to read as
+     a compact index of plain links instead, starting at the text column's own
+     left edge. */
+  .measure .milkdown ul.ken-toc li.list-item {
+    margin: 0;
+    gap: 0;
+  }
+  .measure .milkdown ul.ken-toc .label-wrapper {
+    width: 0;
+    height: auto;
+  }
+  .measure .milkdown ul.ken-toc .milkdown-icon.label {
+    display: none;
+  }
+  .measure .milkdown ul.ken-toc li p {
+    margin: 0;
+    padding: 0.35em 0;
+    line-height: 1.6;
+  }
+  /* An entry for an `h1` carries the weight its heading does. The decoration
+     covers the item's nested list too, so those links take it back. */
+  .measure .milkdown ul.ken-toc .ken-toc-h1 a {
+    font-weight: 600;
+  }
+  .measure .milkdown ul.ken-toc .ken-toc-h1 ul a {
+    font-weight: 400;
+  }
+  /* The entries sit a touch below body size; the caption keeps the document's
+     own scale, so `2.25em` above resolves against it and matches a real H1. */
+  .measure .milkdown ul.ken-toc a {
+    font-size: 0.95em;
+    cursor: pointer;
+  }
+
+  .measure .milkdown .ken-heading-link {
+    position: absolute;
+    left: calc(-1 * clamp(28px, (100cqw - 100%) / 2 - 4px, 110px));
+    /* Centred on the heading's first line, whatever its size. A button does
+       not inherit the font size by default, so `em` would otherwise resolve
+       against the UA's 13.3px rather than the heading's type. */
+    font-size: inherit;
+    top: 0.62em;
+    transform: translateY(-50%);
+    z-index: 5;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    box-shadow: none;
+    color: var(--ink-secondary);
+    opacity: 0;
+    transition: opacity 120ms ease;
+    user-select: none;
+    line-height: 1;
+  }
+  .measure .milkdown h1:hover .ken-heading-link,
+  .measure .milkdown h2:hover .ken-heading-link,
+  .measure .milkdown h3:hover .ken-heading-link,
+  .measure .milkdown h4:hover .ken-heading-link,
+  .measure .milkdown h5:hover .ken-heading-link,
+  .measure .milkdown h6:hover .ken-heading-link,
+  .measure .milkdown .ken-heading-link:focus-visible {
+    opacity: 1;
+  }
+  .measure .milkdown .ken-heading-link:hover {
+    color: var(--ink);
+    background: var(--sunken);
+  }
+  .measure .milkdown .ken-heading-link.copied {
+    opacity: 1;
+    color: var(--accent-deep);
+  }
+
+  /* --- Lightbox affordance ------------------------------------------------ */
+  .measure .milkdown .mermaid-preview,
+  .measure .milkdown .milkdown-image-block img,
+  .measure .milkdown .milkdown-image-block .image-wrapper {
+    cursor: zoom-in;
+  }
+
+/* ------------------------------------------------------------------------ */
+/* VS Code integration                                                       */
+/* ------------------------------------------------------------------------ */
+
+/* Floating popups use VS Code's widget surfaces rather than the page colour,
+   so they read as above the document, like VS Code's own hovers and menus. */
+.measure .milkdown .milkdown-slash-menu,
+.measure .milkdown .milkdown-toolbar,
+.measure .milkdown .milkdown-link-preview,
+.measure .milkdown .milkdown-link-edit,
+.measure .milkdown .milkdown-code-block .list-wrapper,
+.measure .milkdown .milkdown-table-block .cell-handle .button-group {
+  --crepe-color-surface: var(--vscode-editorWidget-background);
+  --crepe-color-surface-low: var(--vscode-editorWidget-background);
+  --crepe-color-on-surface: var(--vscode-editorWidget-foreground, var(--vscode-editor-foreground));
+  --crepe-color-hover: var(--vscode-list-hoverBackground);
+  --crepe-color-selected: var(--vscode-list-activeSelectionBackground);
+}
+.measure .milkdown .milkdown-slash-menu,
+.measure .milkdown .milkdown-toolbar,
+.measure .milkdown .milkdown-link-preview > .link-preview,
+.measure .milkdown .milkdown-link-edit > .link-edit,
+.measure .milkdown .milkdown-code-block .list-wrapper,
+.measure .milkdown .milkdown-table-block .cell-handle .button-group {
+  border-color: var(--vscode-editorWidget-border, var(--vscode-widget-border, var(--border-strong)));
+}
+
+.measure .milkdown {
+  --crepe-color-inline-code: var(--vscode-textPreformat-foreground, var(--ink));
+  --crepe-color-inline-area: var(--vscode-textCodeBlock-background, var(--sunken));
+  --crepe-color-secondary: var(--vscode-list-hoverBackground);
+  --crepe-color-on-secondary: var(--vscode-editor-foreground);
+  --crepe-color-inverse: var(--vscode-editor-foreground);
+  --crepe-color-on-inverse: var(--vscode-editor-background);
+  --crepe-color-hover: var(--vscode-list-hoverBackground);
+}
+
+.measure .milkdown .ProseMirror ::selection {
+  background: var(--vscode-editor-selectionBackground);
+}
+.measure .milkdown .ProseMirror {
+  caret-color: var(--vscode-editorCursor-foreground, var(--ink));
+}
+
+/* Block quotes use the theme's own quote colours, as VS Code's preview does. */
+.measure .milkdown .ProseMirror blockquote {
+  border-left-color: var(--vscode-textBlockQuote-border, var(--border-strong));
+}
+
+/* Code blocks: the theme's code background, scaled from the base font size. */
+.measure .milkdown .milkdown-code-block {
+  background: var(--vscode-textCodeBlock-background, var(--sunken));
+}
+.measure .milkdown .milkdown-code-block .cm-editor {
+  font-size: 0.875em;
+}
+.measure .milkdown hr {
+  border-color: var(--vscode-textSeparator-foreground, var(--border-strong));
+}
+
+/* Scrollbars in VS Code's style. */
+.editor-scroll::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.editor-scroll::-webkit-scrollbar-thumb {
+  background: var(--vscode-scrollbarSlider-background);
+}
+.editor-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--vscode-scrollbarSlider-hoverBackground);
+}
+.editor-scroll::-webkit-scrollbar-thumb:active {
+  background: var(--vscode-scrollbarSlider-activeBackground);
+}
+
+/* --- Context menu (tables) -------------------------------------------------- */
+.ken-context-menu {
+  position: fixed;
+  z-index: 1000;
+  min-width: 200px;
+  padding: 4px;
+  border: 1px solid var(--vscode-menu-border, var(--vscode-editorWidget-border, transparent));
+  border-radius: 6px;
+  background: var(--vscode-menu-background, var(--vscode-editorWidget-background));
+  color: var(--vscode-menu-foreground, var(--vscode-editor-foreground));
+  box-shadow: 0 2px 8px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.3));
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size, 13px);
+}
+.ken-context-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 4px 10px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.ken-context-menu-item:hover,
+.ken-context-menu-item:focus-visible {
+  outline: none;
+  background: var(--vscode-menu-selectionBackground, var(--vscode-list-hoverBackground));
+  color: var(--vscode-menu-selectionForeground, inherit);
+}
+.ken-context-menu-item.danger {
+  color: var(--vscode-errorForeground);
+}
+.ken-context-menu-item:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.ken-context-menu-icon {
+  flex: none;
+  opacity: 0.85;
+}
+.ken-context-menu-separator {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--vscode-menu-separatorBackground, var(--vscode-editorWidget-border));
+}
+
+/* --- Lightbox --------------------------------------------------------------- */
+.ken-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  background: color-mix(in srgb, var(--vscode-editor-background) 85%, transparent);
+  cursor: zoom-out;
+}
+.ken-lightbox img,
+.ken-lightbox-svg {
+  max-width: 100%;
+  max-height: 100%;
+  box-shadow: var(--shadow-overlay);
+  background: var(--vscode-editor-background);
+}
+.ken-lightbox-svg svg {
+  max-width: 90vw;
+  max-height: 90vh;
+  height: auto;
+}
+
+/* --- Wiki links -------------------------------------------------------------- */
+.measure .milkdown .ken-wikilink {
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+/* --- Raw HTML (markdown/htmlView.ts) ---------------------------------------- */
+.measure .milkdown .ken-html {
+  cursor: default;
+}
+.measure .milkdown .ken-html-raw,
+.measure .milkdown .ken-html-comment {
+  font-family: var(--font-mono);
+  font-size: 0.8em;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--vscode-textCodeBlock-background, var(--sunken));
+  color: var(--vscode-descriptionForeground);
+  white-space: pre-wrap;
+}
+.measure .milkdown .ken-html-comment {
+  font-style: italic;
+  opacity: 0.75;
+}
+.measure .milkdown .ken-html-rendered {
+  display: inline-block;
+  max-width: 100%;
+}
+/* A block of HTML on its own line renders as a block, as on GitHub. */
+.measure .milkdown p > .ken-html-rendered:only-child {
+  display: block;
+}
+.measure .milkdown .ken-html-rendered img {
+  max-width: 100%;
+}
+.measure .milkdown .ken-html-rendered kbd,
+.measure .milkdown kbd {
+  font-family: var(--font-mono);
+  font-size: 0.8em;
+  padding: 1px 5px;
+  border: 1px solid var(--vscode-keybindingLabel-border, var(--border-strong));
+  border-bottom-color: var(--vscode-keybindingLabel-bottomBorder, var(--border-strong));
+  border-radius: 4px;
+  background: var(--vscode-keybindingLabel-background, transparent);
+  color: var(--vscode-keybindingLabel-foreground, inherit);
+}
+.measure .milkdown .ken-html.ProseMirror-selectednode {
+  outline: 2px solid var(--vscode-focusBorder);
+  outline-offset: 1px;
+}
+.measure .milkdown .ken-html-editing {
+  display: block;
+}
+.measure .milkdown .ken-html-input {
+  box-sizing: border-box;
+  width: 100%;
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  padding: 6px 8px;
+  border: 1px solid var(--vscode-focusBorder);
+  border-radius: 4px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  resize: vertical;
+  outline: none;
+}
+/* Paired inline tags: hidden unless the caret is at the pair. */
+.measure .milkdown .ken-html-tag-hidden {
+  display: none;
+}
+.measure .milkdown mark.ken-html-inline {
+  background: var(--vscode-editor-findMatchHighlightBackground);
+  color: inherit;
+}
+/* One panel per code block: the editor inside takes the block's background. */
+.measure .milkdown .milkdown-code-block .cm-editor,
+.measure .milkdown .milkdown-code-block .cm-gutters {
+  background: transparent;
+}

@@ -1,0 +1,452 @@
+// The editor webview: Ken's Crepe-based Markdown editor, bound to a VS Code
+// TextDocument through postMessage. VS Code owns the file (save, autosave,
+// dirty state, backups); this side only ever reports the edited Markdown.
+import { Crepe } from "@milkdown/crepe";
+import { editorViewCtx, parserCtx, serializerCtx } from "@milkdown/kit/core";
+import type { Ctx } from "@milkdown/kit/ctx";
+import { Plugin, PluginKey, TextSelection, type Transaction } from "@milkdown/kit/prose/state";
+import { $prose } from "@milkdown/kit/utils";
+import { Fragment, type Node as ProseNode, type Schema } from "@milkdown/kit/prose/model";
+import type { EditorView } from "@milkdown/kit/prose/view";
+import { undo } from "@milkdown/kit/prose/history";
+import type { Uploader } from "@milkdown/kit/plugin/upload";
+
+import "@fontsource/newsreader/400.css";
+import "@fontsource/newsreader/500.css";
+import "@fontsource/newsreader/400-italic.css";
+import "@fontsource/hanken-grotesk/400.css";
+import "@fontsource/hanken-grotesk/500.css";
+import "@fontsource/hanken-grotesk/600.css";
+import "@fontsource/hanken-grotesk/700.css";
+import "@fontsource/jetbrains-mono/400.css";
+import "@fontsource/jetbrains-mono/500.css";
+
+import type { LinkClick } from "./markdown/wikiLinks";
+import { buildEditor } from "./editorSetup";
+import {
+  attachmentName,
+  docDir,
+  encodeHref,
+  isImageFile,
+  relativeTo,
+  resolveSrc,
+  type AttachmentAdapter,
+} from "./markdown/attachments";
+import { closeLightbox, showLightbox } from "./lightbox";
+import type { EditorConfig, HostMessage, TestAction, WebviewMessage } from "../src/protocol";
+import "@milkdown/crepe/theme/common/style.css";
+import "@milkdown/crepe/theme/frame.css";
+import "./markdown/githubAlert.css";
+import "./styles.css";
+
+declare function acquireVsCodeApi(): { postMessage(message: unknown): void };
+
+const vscode = acquireVsCodeApi();
+const post = (message: WebviewMessage) => vscode.postMessage(message);
+
+const scroll = document.getElementById("scroll") as HTMLDivElement;
+const host = document.getElementById("editor") as HTMLDivElement;
+
+let crepe: Crepe | undefined;
+let view: EditorView | null = null;
+let docPath = "README.md";
+/** The full document text (frontmatter included) the editor last agreed with the host on. */
+let lastText = "";
+/** Serialized body Markdown for the current state; a change from it is a user edit. */
+let lastSerialized = "";
+/** Frontmatter is set aside and put back on every save (the editor would mangle it). */
+let front = "";
+
+const FRONT = /^---\r?\n[\s\S]*?\r?\n---[ \t]*(\r?\n|$)/;
+const splitFront = (text: string) => text.match(FRONT)?.[0] ?? "";
+// The serializer escapes `[` in text, turning every [[wiki link]] into \[\[text]]: put them back.
+const unescapeWikiLinks = (md: string) => md.replace(/\\\[\\\[([^\n]+?)\\?\]\\?\]/g, "[[$1]]");
+
+// --- Settings ----------------------------------------------------------------
+
+function applyConfig(config: EditorConfig) {
+  const root = document.documentElement.style;
+  if (config.bodyFontFamily) root.setProperty("--font-sans", config.bodyFontFamily);
+  if (config.headingFontFamily) root.setProperty("--font-serif", config.headingFontFamily);
+  if (config.codeFontFamily) root.setProperty("--font-mono", config.codeFontFamily);
+  root.setProperty("--md-font-size", `${config.fontSize}px`);
+  root.setProperty("--md-line-height", String(config.lineHeight));
+  root.setProperty("--md-max-width", `${config.maxWidth}px`);
+}
+
+// --- Request/response with the host --------------------------------------------
+
+let seq = 0;
+const waiting = new Map<number, (m: HostMessage) => void>();
+function request<T extends HostMessage>(build: (id: number) => WebviewMessage): Promise<T> {
+  const id = ++seq;
+  return new Promise((resolve) => {
+    waiting.set(id, resolve as (m: HostMessage) => void);
+    post(build(id));
+  });
+}
+
+// --- Attachments -----------------------------------------------------------------
+// Pasted or dropped files are written beside the document by the host and
+// linked with a relative path, so the .md stays portable.
+
+const attachments: AttachmentAdapter = {
+  async save(file) {
+    const data = new Uint8Array(await file.arrayBuffer());
+    const reply = await request<Extract<HostMessage, { type: "attachmentSaved" }>>((id) => ({
+      type: "saveAttachment",
+      id,
+      name: file.name,
+      data,
+    }));
+    if (!reply.path) throw new Error(reply.error ?? "save failed");
+    return reply.path;
+  },
+  async resolve(target) {
+    const reply = await request<Extract<HostMessage, { type: "resolved" }>>((id) => ({
+      type: "resolve",
+      id,
+      path: target,
+    }));
+    if (!reply.url) throw new Error(`cannot resolve ${target}`);
+    return reply.url;
+  },
+};
+
+async function saveBeside(file: File) {
+  const name = attachmentName(file, docPath, new Date());
+  const named = name === file.name ? file : new File([file], name, { type: file.type });
+  const saved = await attachments.save(named);
+  return { saved, href: encodeHref(relativeTo(docDir(docPath), saved)) };
+}
+
+function attachmentNode(schema: Schema, href: string, target: string, image: boolean) {
+  if (image) {
+    const imageType = schema.nodes["image-block"] ?? schema.nodes.image;
+    return imageType?.createAndFill({ src: href }) ?? null;
+  }
+  const label = target.slice(target.lastIndexOf("/") + 1);
+  const link = schema.marks.link.create({ href });
+  return schema.nodes.paragraph.create(null, schema.text(label, [link]));
+}
+
+async function importFiles(files: File[], schema: Schema): Promise<ProseNode[]> {
+  const settled = await Promise.allSettled(
+    files.map(async (file) => {
+      const { saved, href } = await saveBeside(file);
+      return attachmentNode(schema, href, saved, isImageFile(file));
+    }),
+  );
+  const nodes: ProseNode[] = [];
+  for (const result of settled) {
+    if (result.status === "fulfilled" && result.value) nodes.push(result.value);
+    else if (result.status === "rejected") post({ type: "error", message: `attachment: ${result.reason}` });
+  }
+  return nodes;
+}
+
+const uploader: Uploader = (files, schema) => importFiles(Array.from(files), schema);
+
+async function uploadFromImageBlock(file: File): Promise<string> {
+  return (await saveBeside(file)).href;
+}
+
+const resolved = new Map<string, string>();
+/** A document-relative image src becomes a webview URL; anything else passes through. */
+function proxyImageSrc(src: string): string | Promise<string> {
+  const target = resolveSrc(docPath, src);
+  if (!target) return src;
+  const hit = resolved.get(target);
+  if (hit) return hit;
+  return Promise.resolve()
+    .then(() => attachments.resolve(target))
+    .then((url) => {
+      resolved.set(target, url);
+      return url;
+    })
+    .catch(() => src);
+}
+
+/** Insert dropped nodes without splitting the paragraph they land in. */
+function insertDropped(tr: Transaction, pos: number, nodes: ProseNode[], inline = true): Transaction {
+  const target = tr.doc.resolve(pos);
+  const parent = target.parent;
+  const link = tr.doc.type.schema.marks.link;
+  const only = nodes.length === 1 ? nodes[0] : null;
+  if (inline && only?.type.name === "paragraph" && parent.inlineContent && parent.type.allowsMarkType(link)) {
+    return tr.insert(pos, only.content);
+  }
+  const content = Fragment.from(nodes);
+  if (nodes.every((n) => n.isBlock) && parent.isTextblock && target.depth > 0) {
+    if (parent.content.size === 0) return tr.replaceWith(target.before(), target.after(), content);
+    return tr.insert(target.parentOffset === 0 ? target.before() : target.after(), content);
+  }
+  return tr.replaceWith(pos, pos, content);
+}
+
+// Files dropped in the margins, outside ProseMirror's own element.
+function hasFiles(dt: DataTransfer | null): boolean {
+  return !!dt && Array.from(dt.types).includes("Files");
+}
+scroll.addEventListener("dragover", (e) => {
+  if (!hasFiles(e.dataTransfer) || !view) return;
+  e.preventDefault();
+  e.dataTransfer!.dropEffect = "copy";
+  scroll.classList.add("file-drop");
+});
+scroll.addEventListener("dragleave", (e) => {
+  if (!scroll.contains(e.relatedTarget as Node | null)) scroll.classList.remove("file-drop");
+});
+scroll.addEventListener("drop", async (e) => {
+  scroll.classList.remove("file-drop");
+  if (e.defaultPrevented || !hasFiles(e.dataTransfer) || !view) return;
+  e.preventDefault();
+  const v = view;
+  const rect = v.dom.getBoundingClientRect();
+  const left = Math.min(Math.max(e.clientX, rect.left + 1), rect.right - 1);
+  const top = Math.min(Math.max(e.clientY, rect.top + 1), rect.bottom - 1);
+  const at = v.posAtCoords({ left, top })?.pos ?? v.state.doc.content.size;
+  const nodes = await importFiles(Array.from(e.dataTransfer!.files), v.state.schema);
+  if (nodes.length === 0) return;
+  const pos = Math.min(at, v.state.doc.content.size);
+  v.dispatch(insertDropped(v.state.tr, pos, nodes, false).scrollIntoView());
+  v.focus();
+});
+
+// --- Lightbox ----------------------------------------------------------------------
+
+let pointerStart: { x: number; y: number } | null = null;
+scroll.addEventListener("pointerdown", (e) => {
+  pointerStart = { x: e.clientX, y: e.clientY };
+});
+scroll.addEventListener("click", (event) => {
+  if (event.defaultPrevented || event.button !== 0) return;
+  if (pointerStart && (Math.abs(event.clientX - pointerStart.x) > 4 || Math.abs(event.clientY - pointerStart.y) > 4)) {
+    return;
+  }
+  const target = event.target;
+  if (!(target instanceof Element)) return;
+  if (target.closest("button, input, .image-resize-handle, .operation")) return;
+  const svg = target.closest(".mermaid-preview")?.querySelector("svg");
+  if (svg) {
+    event.preventDefault();
+    showLightbox({ kind: "svg", svg: svg.outerHTML });
+    return;
+  }
+  const block = target.closest(".milkdown-image-block, .image-wrapper");
+  const image = target instanceof HTMLImageElement ? target : block?.querySelector("img");
+  if (image instanceof HTMLImageElement && (image.currentSrc || image.src)) {
+    event.preventDefault();
+    showLightbox({ kind: "img", src: image.currentSrc || image.src, alt: image.alt });
+  }
+});
+
+// --- Editor ------------------------------------------------------------------------
+
+function openLink(link: LinkClick): boolean {
+  if (link.kind === "wiki") post({ type: "openWikiLink", target: link.target });
+  else if (link.kind === "href") post({ type: "openLink", href: link.href });
+  else return false;
+  return true;
+}
+
+// --- Change reporting ---------------------------------------------------------------
+// Every document change schedules a sync; the host can also ask for one right
+// before VS Code saves, so the last keystroke always makes it to disk.
+
+const SYNC_DELAY_MS = 120;
+let dirty = false;
+let syncTimer: ReturnType<typeof setTimeout> | undefined;
+/** Set while the host's own text is being applied, which is not an edit. */
+let applyingExternal = false;
+
+const changePlugin = $prose(
+  () =>
+    new Plugin({
+      key: new PluginKey("ken-vscode-sync"),
+      view: () => ({
+        update(v, prev) {
+          if (applyingExternal || v.state.doc.eq(prev.doc)) return;
+          dirty = true;
+          clearTimeout(syncTimer);
+          syncTimer = setTimeout(() => sync(), SYNC_DELAY_MS);
+        },
+      }),
+    }),
+);
+
+/** The full text if the editor changed since the last sync; posts it unless `silent`. */
+function sync(silent = false): string | null {
+  clearTimeout(syncTimer);
+  if (!dirty || !crepe) return null;
+  dirty = false;
+  let markdown = "";
+  crepe.editor.action((ctx) => {
+    markdown = serialize(ctx);
+  });
+  if (markdown === lastSerialized) return null;
+  lastSerialized = markdown;
+  const text = front + unescapeWikiLinks(markdown);
+  if (text === lastText) return null;
+  lastText = text;
+  if (!silent) post({ type: "edit", text });
+  return text;
+}
+
+function serialize(ctx: Ctx): string {
+  return ctx.get(serializerCtx)(ctx.get(editorViewCtx).state.doc);
+}
+
+async function createEditor(text: string) {
+  front = splitFront(text);
+  lastText = text;
+  crepe = buildEditor({
+    root: host,
+    markdown: text.slice(front.length),
+    onLink: openLink,
+    uploader,
+    onUpload: uploadFromImageBlock,
+    proxyDomURL: proxyImageSrc,
+  });
+  crepe.editor.use(changePlugin);
+  await crepe.create();
+  crepe.editor.action((ctx) => {
+    view = ctx.get(editorViewCtx);
+    // Opening a file is not an edit: the editor's normalised form of it is the baseline.
+    lastSerialized = serialize(ctx);
+  });
+}
+
+/**
+ * Bring the editor in line with text changed outside it (the source editor,
+ * VS Code's undo, git). Only the differing range of the document is replaced,
+ * so the caret and scroll position survive.
+ */
+function applyExternal(text: string) {
+  // Unsynced keystrokes go first, so the host's text is compared with the editor's latest.
+  sync();
+  if (!crepe || text === lastText) return;
+  lastText = text;
+  front = splitFront(text);
+  crepe.editor.action((ctx) => {
+    const v = ctx.get(editorViewCtx);
+    const next = ctx.get(parserCtx)(text.slice(front.length));
+    if (!next) return;
+    const doc = v.state.doc;
+    const start = doc.content.findDiffStart(next.content);
+    if (start !== null && start !== undefined) {
+      let { a: endA, b: endB } = doc.content.findDiffEnd(next.content)!;
+      const overlap = start - Math.min(endA, endB);
+      if (overlap > 0) {
+        endA += overlap;
+        endB += overlap;
+      }
+      const tr = v.state.tr.replace(start, endA, next.slice(start, endB));
+      tr.setMeta("addToHistory", false);
+      applyingExternal = true;
+      try {
+        v.dispatch(tr);
+      } finally {
+        applyingExternal = false;
+      }
+    }
+    lastSerialized = serialize(ctx);
+  });
+}
+
+// --- Test hooks (driven by the integration tests through the host) ----------------
+
+function runTest(action: TestAction): unknown {
+  switch (action.kind) {
+    case "getMarkdown":
+      sync();
+      return lastText;
+    case "insertText": {
+      if (!view) return false;
+      const { state } = view;
+      const sel =
+        action.at === "start"
+          ? TextSelection.atStart(state.doc)
+          : TextSelection.atEnd(state.doc);
+      view.dispatch(state.tr.setSelection(sel).insertText(action.text));
+      return true;
+    }
+    case "getStyle": {
+      const el = document.querySelector(action.selector);
+      return el ? getComputedStyle(el).getPropertyValue(action.property) : null;
+    }
+    case "count":
+      return document.querySelectorAll(action.selector).length;
+    case "getAttr":
+      return document.querySelector(action.selector)?.getAttribute(action.name) ?? null;
+    case "undo":
+      return view ? undo(view.state, view.dispatch) : false;
+    case "key": {
+      if (!view) return false;
+      view.focus();
+      const init = {
+        key: action.key,
+        code: action.code,
+        metaKey: !!action.meta,
+        ctrlKey: !!action.ctrl,
+        shiftKey: !!action.shift,
+        bubbles: true,
+        cancelable: true,
+      };
+      view.dom.dispatchEvent(new KeyboardEvent("keydown", init));
+      view.dom.dispatchEvent(new KeyboardEvent("keyup", init));
+      return true;
+    }
+  }
+}
+
+// --- Wiring --------------------------------------------------------------------------
+
+window.addEventListener("message", async (event: MessageEvent<HostMessage>) => {
+  const m = event.data;
+  switch (m.type) {
+    case "init":
+      docPath = m.docPath;
+      applyConfig(m.config);
+      if (!crepe) {
+        try {
+          await createEditor(m.text);
+        } catch (err) {
+          post({ type: "error", message: String(err) });
+        }
+      } else {
+        applyExternal(m.text);
+      }
+      document.body.classList.add("ready");
+      return;
+    case "update":
+      applyExternal(m.text);
+      return;
+    case "config":
+      applyConfig(m.config);
+      return;
+    case "flush":
+      post({ type: "flushed", id: m.id, text: sync(true) });
+      return;
+    case "attachmentSaved":
+    case "resolved":
+      waiting.get(m.id)?.(m);
+      waiting.delete(m.id);
+      return;
+    case "test": {
+      post({ type: "testResult", id: m.id, result: runTest(m.action) });
+      return;
+    }
+  }
+});
+
+window.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeLightbox();
+});
+
+// Losing focus (switching tabs, clicking the source view) syncs immediately.
+window.addEventListener("blur", () => sync());
+
+window.addEventListener("error", (e) => post({ type: "error", message: String(e.message) }));
+
+post({ type: "ready" });

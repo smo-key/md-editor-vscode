@@ -1,0 +1,169 @@
+{
+  "name": "ken-markdown-editor",
+  "displayName": "Ken Markdown Editor",
+  "description": "A calm WYSIWYG Markdown editor in the style of Ken's editor, themed by your VS Code color theme.",
+  "version": "0.1.0",
+  "publisher": "arthur-pachachura",
+  "license": "UNLICENSED",
+  "private": true,
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "markdown",
+    "wysiwyg",
+    "editor",
+    "milkdown"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [],
+  "contributes": {
+    "customEditors": [
+      {
+        "viewType": "kenMarkdown.editor",
+        "displayName": "Ken Markdown Editor",
+        "selector": [
+          {
+            "filenamePattern": "*.md"
+          },
+          {
+            "filenamePattern": "*.markdown"
+          }
+        ],
+        "priority": "default"
+      }
+    ],
+    "commands": [
+      {
+        "command": "kenMarkdown.openEditor",
+        "title": "Open in Ken Markdown Editor",
+        "category": "Ken Markdown",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "kenMarkdown.openSource",
+        "title": "Open Markdown Source",
+        "category": "Ken Markdown",
+        "icon": "$(go-to-file)"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "kenMarkdown.openSource",
+          "when": "activeCustomEditorId == kenMarkdown.editor",
+          "group": "navigation"
+        },
+        {
+          "command": "kenMarkdown.openEditor",
+          "when": "editorLangId == markdown && activeCustomEditorId != kenMarkdown.editor",
+          "group": "navigation"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "kenMarkdown.openEditor",
+          "when": "resourceExtname == .md || resourceExtname == .markdown",
+          "group": "navigation"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "kenMarkdown.openEditor",
+          "when": "editorLangId == markdown || activeCustomEditorId == kenMarkdown.editor"
+        },
+        {
+          "command": "kenMarkdown.openSource",
+          "when": "activeCustomEditorId == kenMarkdown.editor"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Ken Markdown Editor",
+      "properties": {
+        "kenMarkdown.fontSize": {
+          "type": "number",
+          "default": 16,
+          "minimum": 8,
+          "maximum": 40,
+          "markdownDescription": "Base font size of body text, in pixels. Headings, code and lists scale from it."
+        },
+        "kenMarkdown.bodyFontFamily": {
+          "type": "string",
+          "default": "\"Hanken Grotesk\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+          "markdownDescription": "CSS font stack for body text. `Hanken Grotesk` is bundled; any font installed on your system works too."
+        },
+        "kenMarkdown.headingFontFamily": {
+          "type": "string",
+          "default": "\"Newsreader\", Georgia, serif",
+          "markdownDescription": "CSS font stack for headings. `Newsreader` is bundled."
+        },
+        "kenMarkdown.codeFontFamily": {
+          "type": "string",
+          "default": "\"JetBrains Mono\", ui-monospace, SFMono-Regular, Consolas, monospace",
+          "markdownDescription": "CSS font stack for inline code and code blocks. `JetBrains Mono` is bundled."
+        },
+        "kenMarkdown.lineHeight": {
+          "type": "number",
+          "default": 1.85,
+          "minimum": 1,
+          "maximum": 3,
+          "markdownDescription": "Line height of body text, as a multiple of the font size."
+        },
+        "kenMarkdown.maxWidth": {
+          "type": "number",
+          "default": 720,
+          "minimum": 320,
+          "maximum": 2400,
+          "markdownDescription": "Maximum width of the text column, in pixels."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "typecheck": "tsc --noEmit -p . && tsc --noEmit -p webview",
+    "test": "vitest run",
+    "test:integration": "npm run build && tsc -p test/integration && node out/test/integration/runTest.js",
+    "package": "npm run build -- --production && vsce package --no-dependencies",
+    "vscode:prepublish": "npm run build -- --production",
+    "screenshot": "node harness/screenshot.mjs"
+  },
+  "dependencies": {
+    "@codemirror/language": "^6.13.1",
+    "@codemirror/view": "^6.43.15",
+    "@fontsource/hanken-grotesk": "^5.3.0",
+    "@fontsource/jetbrains-mono": "^5.3.0",
+    "@fontsource/newsreader": "^5.3.0",
+    "@lezer/highlight": "^1.2.5",
+    "@milkdown/crepe": "^7.21.2",
+    "@milkdown/kit": "^7.21.2",
+    "dompurify": "^3.4.17",
+    "lucide": "^1.60.0",
+    "mermaid": "^11.17.2"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^22.20.5",
+    "@types/vscode": "^1.90.0",
+    "@vscode/test-electron": "^3.1.0",
+    "@vscode/vsce": "^4.0.0",
+    "esbuild": "^0.28.2",
+    "happy-dom": "^20.10.6",
+    "mocha": "^12.0.3",
+    "playwright": "^1.64.1",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  },
+  "overrides": {
+    "prosemirror-model": "1.25.11"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/arthur-pachachura/md-editor-vscode"
+  }
+}

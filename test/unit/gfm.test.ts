@@ -3,36 +3,12 @@
 // saving writes it back without changing what GitHub would show.
 import { readFileSync } from "fs";
 import { join } from "path";
-import { beforeAll, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
+import { stubLayout } from "./editorEnv";
 import { buildEditor } from "../../webview/editorSetup";
 import { isSelfContained } from "../../webview/markdown/htmlView";
 
-beforeAll(() => {
-  // happy-dom lacks a few layout APIs ProseMirror and Ken's table layout call.
-  const range = globalThis.Range.prototype as unknown as Record<string, unknown>;
-  range.getClientRects ??= () => [];
-  range.getBoundingClientRect ??= () => ({ x: 0, y: 0, top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 });
-  const el = globalThis.Element.prototype as unknown as Record<string, unknown>;
-  el.getClientRects ??= () => [];
-  const define = (proto: object, name: string, get: (this: HTMLElement) => unknown) =>
-    Object.defineProperty(proto, name, { configurable: true, get });
-  const probe = document.createElement("table");
-  probe.innerHTML = "<tbody><tr><td></td></tr></tbody>";
-  if (!probe.tBodies?.[0]?.rows) {
-    define(HTMLElement.prototype, "rows", function () {
-      return this.querySelectorAll(":scope > tr, :scope > tbody > tr, :scope > thead > tr");
-    });
-  }
-  const table = HTMLTableElement.prototype as unknown as Record<string, unknown>;
-  if (!document.createElement("table").tBodies) {
-    Object.defineProperty(table, "tBodies", {
-      configurable: true,
-      get(this: HTMLTableElement) {
-        return this.querySelectorAll(":scope > tbody");
-      },
-    });
-  }
-});
+stubLayout();
 
 async function load(markdown: string) {
   const root = document.createElement("div");

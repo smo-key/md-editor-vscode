@@ -7,6 +7,7 @@ export interface EditorConfig {
   codeFontFamily: string;
   lineHeight: number;
   maxWidth: number;
+  toolbar: boolean;
 }
 
 export type HostMessage =
@@ -20,10 +21,12 @@ export type HostMessage =
 
 export type TestAction =
   | { kind: "getMarkdown" }
-  | { kind: "insertText"; text: string; at: "start" | "end" }
+  | { kind: "insertText"; text: string; at: "start" | "end" | "caret" }
   | { kind: "getStyle"; selector: string; property: string }
   | { kind: "count"; selector: string }
   | { kind: "getAttr"; selector: string; name: string }
+  | { kind: "click"; selector: string }
+  | { kind: "caretAfter"; text: string }
   | { kind: "undo" }
   | { kind: "key"; key: string; code: string; meta?: boolean; ctrl?: boolean; shift?: boolean };
 

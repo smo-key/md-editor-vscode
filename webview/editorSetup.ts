@@ -5,13 +5,10 @@
  * tests exercise the same editor that ships.
  */
 import { Crepe } from "@milkdown/crepe";
-import { editorViewCtx, remarkStringifyOptionsCtx } from "@milkdown/kit/core";
-import type { Ctx } from "@milkdown/kit/ctx";
-import { TextSelection } from "@milkdown/kit/prose/state";
+import { remarkStringifyOptionsCtx } from "@milkdown/kit/core";
 import { uploadConfig, type Uploader } from "@milkdown/kit/plugin/upload";
-import { blockquoteSchema, paragraphSchema } from "@milkdown/kit/preset/commonmark";
 
-import { addGithubAlertMenuGroup, githubAlertPlugins } from "./markdown/githubAlert";
+import { githubAlertPlugins } from "./markdown/githubAlert";
 import { disableHeadingDowngrade, headingBackspace } from "./markdown/headingBackspace";
 import { mermaidPreviewToggleText, renderMermaidPreview } from "./markdown/mermaid";
 import { slashShortcutInputRule, slashShortcutKeys } from "./markdown/slashShortcuts";
@@ -20,12 +17,16 @@ import { headingLinkPlugin } from "./markdown/headingLink";
 import { wikiLinkPlugin, type LinkClick } from "./markdown/wikiLinks";
 import { tableContextMenu } from "./markdown/tableMenu";
 import { tableFullWidthPlugins } from "./markdown/tableFullWidth";
-import { addTocMenuItem, tocPlugins } from "./markdown/toc";
+import { tocPlugins } from "./markdown/toc";
 import { tableLayoutPlugin } from "./markdown/tableLayout";
 import { configureListDelimiter, listStylePlugins } from "./markdown/listStyles";
-import { imageBlockAltSchema, tightListJoin } from "./markdown/gfmFidelity";
+import { emptyTableCellSchemas, imageBlockAltSchema, tightListJoin } from "./markdown/gfmFidelity";
 import { htmlViewPlugin, inlineHtmlPlugin } from "./markdown/htmlView";
 import { vscodeCodeTheme } from "./codeTheme";
+import { slashMenuPlugin } from "./slashMenu";
+import { useTaskHandle } from "./taskHandle";
+import { tableCellClickFix, tableKeys } from "./tableKeys";
+import { toolbarPlugin } from "./toolbar";
 
 export interface EditorOptions {
   root: HTMLElement;
@@ -38,23 +39,8 @@ export interface EditorOptions {
   onUpload?: (file: File) => Promise<string>;
   /** Display URL for an image src (document-relative paths need one). */
   proxyDomURL?: (src: string) => string | Promise<string>;
-}
-
-/**
- * Replace the current block with `blockquote(paragraph)`. Crepe's stock Quote
- * item wraps instead, which silently does nothing when no wrapping fits.
- */
-function insertQuote(ctx: Ctx) {
-  const editorView = ctx.get(editorViewCtx);
-  const { state } = editorView;
-  const pos = state.selection.$from;
-  const node = blockquoteSchema.type(ctx).createAndFill(null, paragraphSchema.type(ctx).create());
-  if (!node) return;
-  const start = pos.before(pos.depth);
-  const tr = state.tr.replaceWith(start, pos.after(pos.depth), node);
-  tr.setSelection(TextSelection.near(tr.doc.resolve(start + 2)));
-  editorView.dispatch(tr.scrollIntoView());
-  editorView.focus();
+  /** Where to mount the bottom toolbar; none without it. */
+  toolbarHost?: HTMLElement;
 }
 
 /** A configured, not yet created, editor: call `create()` on it. */
@@ -65,6 +51,9 @@ export function buildEditor(options: EditorOptions): Crepe {
     features: {
       // `$…$` (two dollar amounts in a sentence) stays literal text.
       [Crepe.Feature.Latex]: false,
+      // Crepe's block handle, "+" button and slash menu are replaced by
+      // slashMenu.ts, taskHandle.ts (checklists only) and the bottom toolbar.
+      [Crepe.Feature.BlockEdit]: false,
     },
     featureConfigs: {
       [Crepe.Feature.CodeMirror]: {
@@ -74,18 +63,6 @@ export function buildEditor(options: EditorOptions): Crepe {
         previewToggleText: mermaidPreviewToggleText,
         // Follows the VS Code theme instead of Crepe's One Dark.
         theme: vscodeCodeTheme,
-      },
-      [Crepe.Feature.BlockEdit]: {
-        listGroup: { taskList: { label: "Checklist" } },
-        buildMenu: (builder) => {
-          const quote = builder
-            .build()
-            .find((group) => group.key === "text")
-            ?.items.find((item) => item.key === "quote");
-          if (quote) quote.onRun = insertQuote;
-          addTocMenuItem(builder);
-          addGithubAlertMenuGroup(builder);
-        },
       },
       // Covers inline images too: Crepe hands the same config to both.
       [Crepe.Feature.ImageBlock]: {
@@ -118,9 +95,15 @@ export function buildEditor(options: EditorOptions): Crepe {
   crepe.editor.use(tableContextMenu);
   // After Crepe's image block feature: replaces its schema by name.
   crepe.editor.use(imageBlockAltSchema);
+  crepe.editor.use(emptyTableCellSchemas);
   // Raw HTML renders as GitHub shows it, and is editable as source.
   crepe.editor.use(htmlViewPlugin(options.proxyDomURL));
   crepe.editor.use(inlineHtmlPlugin);
+  crepe.editor.use(slashMenuPlugin);
+  crepe.editor.use(tableKeys);
+  crepe.editor.use(tableCellClickFix);
+  useTaskHandle(crepe.editor);
+  if (options.toolbarHost) crepe.editor.use(toolbarPlugin(options.toolbarHost));
   crepe.editor.config(disableHeadingDowngrade);
   // House style is `- ` bullets; remark-stringify would otherwise write `*`.
   // Tight lists are kept tight (see gfmFidelity.ts).

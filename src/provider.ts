@@ -13,6 +13,7 @@ export function readConfig(scope?: vscode.Uri): EditorConfig {
     codeFontFamily: c.get<string>("codeFontFamily", ""),
     lineHeight: c.get<number>("lineHeight", 1.85),
     maxWidth: c.get<number>("maxWidth", 720),
+    toolbar: c.get<boolean>("toolbar", true),
   };
 }
 
@@ -278,6 +279,7 @@ class EditorSession {
 </head>
 <body>
 <div class="editor-scroll" id="scroll"><div class="measure" id="editor"></div></div>
+<div class="ken-toolbar-host" id="toolbar"></div>
 <script type="module" nonce="${nonce}" src="${script}"></script>
 </body>
 </html>`;

@@ -44,22 +44,53 @@ you edit them; opening a file never changes it.
 Math (`$…$`) is intentionally left as plain text, as in Ken, so prices like
 `$5 and $10` stay literal.
 
-## Ken's editing extras
+## Editing
 
-- Slash shortcuts: type `/h1 `…`/h6 `, `/quote `, `/code `, `/divider `,
-  `/bullet `, `/number `, `/todo `, `/note `, `/tip `, `/important `,
-  `/warning `, `/caution ` or `/toc ` at the start of an empty line.
-- The block handle (`+` and drag) and slash menu, including a generated table
-  of contents and alert blocks.
-- Backspace at the start of a heading turns it into a paragraph in one step.
-- Ordered lists keep their numbering style (`1.`, `a.`, `i.`, `1)`).
-- Tables size their columns to their content; toggle full-width per table.
+- **Slash menu.** Type `/` at the start of a line or after a space (in
+  paragraphs, headings, lists, quotes, alerts or table cells) and a compact
+  menu opens on that keystroke: text and headings, lists and checklists,
+  quote, code block, table, divider, image, Mermaid diagram, table of contents
+  and the five alerts. Keep typing to filter; <kbd>↑</kbd>/<kbd>↓</kbd> and
+  <kbd>Enter</kbd> or <kbd>Tab</kbd> to pick; <kbd>Esc</kbd> to dismiss.
+  Ken's direct shortcuts still work too: `/h1 `…`/h6 `, `/quote `, `/code `,
+  `/divider `, `/bullet `, `/number `, `/todo `, `/note `, `/tip `,
+  `/important `, `/warning `, `/caution `, `/toc ` (with the trailing space).
+- **Bottom toolbar** with the essentials: undo/redo, headings 1–3, bold,
+  italic, strikethrough, inline code, link (<kbd>⌘K</kbd>), bulleted /
+  numbered lists and checklists (each toggles, and converts one list kind to
+  another in place), quote, code block, table, divider and image. Buttons
+  show the state at the caret. Hide it with `kenMarkdown.toolbar`.
+- **Drag handles only on checklist items**: hover a task to drag it (with its
+  sub-items) somewhere else. Other blocks have no handle and there is no `+`
+  button.
+- Backspace at the start of a heading turns it into a paragraph in one step;
+  ordered lists keep their numbering style (`1.`, `a.`, `i.`, `1)`).
 - Copy-link buttons on headings; `#anchor` links scroll within the document.
 - `[[Wiki links]]` and relative links open the target file in VS Code; web
   links open in your browser.
 - Paste or drop images and files: they are saved next to the document and
-  linked with a relative path.
-- Click an image or diagram to zoom.
+  linked with a relative path. Click an image or diagram to zoom.
+
+## Tables
+
+With the caret in a table, the bottom toolbar switches to the table's
+actions; right-clicking a cell offers the same list:
+
+- insert a row above / below, a column left / right;
+- move the row up / down, the column left / right;
+- align the column left / center / right (GFM alignment);
+- toggle full width (the table fills the pane instead of the text column);
+- delete the row, the column or the table.
+
+Keys: <kbd>Tab</kbd> / <kbd>⇧Tab</kbd> move between cells, and <kbd>Tab</kbd>
+in the last cell adds a row; <kbd>Enter</kbd> moves to the cell below and,
+from the last row, leaves the table; <kbd>⌘Enter</kbd> leaves it from
+anywhere. Clicking a cell puts the caret where you clicked. Hovering a table
+also shows Crepe's row and column handles for dragging rows and columns
+around. Columns size to their content, and empty cells are saved empty.
+
+The header row is GFM's: it stays first and cannot be deleted on its own
+(delete the table instead).
 
 ## Settings
 
@@ -71,6 +102,7 @@ Math (`$…$`) is intentionally left as plain text, as in Ken, so prices like
 | `kenMarkdown.codeFontFamily` | `"JetBrains Mono", ui-monospace, …` | Inline code and code block font stack. |
 | `kenMarkdown.lineHeight` | `1.85` | Body line height. |
 | `kenMarkdown.maxWidth` | `720` | Width of the text column in px. |
+| `kenMarkdown.toolbar` | `true` | Show the formatting toolbar at the bottom. |
 
 Hanken Grotesk, Newsreader and JetBrains Mono (Ken's fonts) are bundled; any
 font installed on your machine works too. Changes apply immediately.
@@ -90,7 +122,7 @@ To make the plain text editor the default for Markdown instead, use
 npm install
 npm run build             # bundle extension + webview into dist/
 npm run typecheck
-npm test                  # unit tests (vitest): Ken's editor plugins, GFM round-trips, sync
+npm test                  # unit tests (vitest): Ken's plugins, GFM round-trips, commands, tables, sync
 npm run test:integration  # launches VS Code and drives the real editor
 npm run package           # produces ken-markdown-editor-<version>.vsix
 ```
@@ -98,11 +130,14 @@ npm run package           # produces ken-markdown-editor-<version>.vsix
 Press <kbd>F5</kbd> in VS Code to launch an Extension Development Host with
 the fixtures in `test/fixtures` open.
 
-`harness/screenshot.mjs` renders a document with the real webview bundle in
-Chromium under a theme captured from VS Code, for visual checks:
+`harness/` runs the real webview bundle in Chromium under a theme captured
+from VS Code: `check-editing.mjs` drives the slash menu, toolbar, checklist
+handles and tables with real keystrokes and clicks; `screenshot.mjs` renders a
+document for visual checks.
 
 ```sh
 KEN_DUMP_THEMES=/tmp/themes npm run test:integration   # captures Light/Dark Modern
+node harness/check-editing.mjs /tmp/themes/Default-Dark-Modern.json
 node harness/screenshot.mjs /tmp/themes/Default-Dark-Modern.json test/fixtures/gfm.md /tmp/out.png
 ```
 
@@ -110,6 +145,9 @@ node harness/screenshot.mjs /tmp/themes/Default-Dark-Modern.json test/fixtures/g
 
 - `src/` – extension host: the custom editor provider and document sync.
 - `webview/` – the editor: `editorSetup.ts` configures Crepe as Ken does;
+  `commands.ts` is the one list of editing commands that `slashMenu.ts`,
+  `toolbar.ts` and the table menu draw from; `taskHandle.ts` and
+  `tableKeys.ts` are the checklist handle and table keys;
   `markdown/` holds Ken's editor plugins (ported from
   `ken/src/files/markdown`) plus `gfmFidelity.ts` and `htmlView.ts`;
   `styles.css` is Ken's editor stylesheet with every colour mapped to the VS

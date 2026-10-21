@@ -23,6 +23,7 @@ import "@fontsource/jetbrains-mono/500.css";
 
 import type { LinkClick } from "./markdown/wikiLinks";
 import { buildEditor } from "./editorSetup";
+import { normalizeTrailingNewlines } from "./markdown/gfmFidelity";
 import {
   attachmentName,
   docDir,
@@ -46,6 +47,7 @@ const post = (message: WebviewMessage) => vscode.postMessage(message);
 
 const scroll = document.getElementById("scroll") as HTMLDivElement;
 const host = document.getElementById("editor") as HTMLDivElement;
+const toolbarHost = document.getElementById("toolbar") as HTMLDivElement;
 
 let crepe: Crepe | undefined;
 let view: EditorView | null = null;
@@ -72,6 +74,7 @@ function applyConfig(config: EditorConfig) {
   root.setProperty("--md-font-size", `${config.fontSize}px`);
   root.setProperty("--md-line-height", String(config.lineHeight));
   root.setProperty("--md-max-width", `${config.maxWidth}px`);
+  document.body.classList.toggle("no-toolbar", config.toolbar === false);
 }
 
 // --- Request/response with the host --------------------------------------------
@@ -294,7 +297,7 @@ function sync(silent = false): string | null {
 }
 
 function serialize(ctx: Ctx): string {
-  return ctx.get(serializerCtx)(ctx.get(editorViewCtx).state.doc);
+  return normalizeTrailingNewlines(ctx.get(serializerCtx)(ctx.get(editorViewCtx).state.doc));
 }
 
 async function createEditor(text: string) {
@@ -307,6 +310,7 @@ async function createEditor(text: string) {
     uploader,
     onUpload: uploadFromImageBlock,
     proxyDomURL: proxyImageSrc,
+    toolbarHost,
   });
   crepe.editor.use(changePlugin);
   await crepe.create();
@@ -367,7 +371,9 @@ function runTest(action: TestAction): unknown {
       const sel =
         action.at === "start"
           ? TextSelection.atStart(state.doc)
-          : TextSelection.atEnd(state.doc);
+          : action.at === "caret"
+            ? state.selection
+            : TextSelection.atEnd(state.doc);
       view.dispatch(state.tr.setSelection(sel).insertText(action.text));
       return true;
     }
@@ -377,6 +383,25 @@ function runTest(action: TestAction): unknown {
     }
     case "count":
       return document.querySelectorAll(action.selector).length;
+    case "click": {
+      const el = document.querySelector<HTMLElement>(action.selector);
+      el?.click();
+      return !!el;
+    }
+    case "caretAfter": {
+      if (!view) return false;
+      let found = -1;
+      view.state.doc.descendants((node, pos) => {
+        if (found >= 0) return false;
+        const i = node.isText ? node.text!.indexOf(action.text) : -1;
+        if (i >= 0) found = pos + i + action.text.length;
+        return found < 0;
+      });
+      if (found < 0) return false;
+      view.focus();
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, found)));
+      return true;
+    }
     case "getAttr":
       return document.querySelector(action.selector)?.getAttribute(action.name) ?? null;
     case "undo":

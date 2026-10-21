@@ -225,6 +225,38 @@ describe("Ken Markdown Editor", function () {
     void original;
   });
 
+  it("opens the slash menu on / and runs the chosen command", async () => {
+    const uri = fixture("sample.md");
+    const doc = await openEditor(uri);
+    assert.ok(await webview(uri, { kind: "caretAfter", text: "Alerts render as banners." }));
+    await webview(uri, { kind: "insertText", text: " /", at: "caret" });
+    assert.strictEqual(await webview(uri, { kind: "count", selector: ".ken-slash-menu:not([hidden])" }), 1);
+    await webview(uri, { kind: "insertText", text: "div", at: "caret" });
+    assert.ok(await webview(uri, { kind: "click", selector: '.ken-slash-item[data-id="divider"]' }));
+    await until("divider written", () => doc.getText(), (t) => /Alerts render as banners\. ?\n>\n> \*\*\*\n/.test(t));
+    assert.ok(!doc.getText().includes("/div"), "the slash text is removed");
+  });
+
+  it("has a bottom toolbar whose edits reach the document", async () => {
+    const uri = fixture("sample.md");
+    const doc = await openEditor(uri);
+    assert.ok((await webview(uri, { kind: "count", selector: ".ken-toolbar .ken-toolbar-button" })) as number >= 15);
+    // No block drag handles or "+" buttons outside checklists.
+    assert.strictEqual(await webview(uri, { kind: "count", selector: ".milkdown-block-handle" }), 0);
+    assert.ok(await webview(uri, { kind: "caretAfter", text: "A paragraph with" }));
+    await webview(uri, { kind: "click", selector: '.ken-toolbar-button[data-id="heading2"]' });
+    await until("heading written", () => doc.getText(), (t) => t.includes("## A paragraph with"));
+    // In a table the toolbar offers the table actions.
+    assert.ok(await webview(uri, { kind: "caretAfter", text: "1" }));
+    await until(
+      "table toolbar",
+      () => webview(uri, { kind: "getAttr", selector: ".ken-toolbar", name: "data-mode" }),
+      (m) => m === "table",
+    );
+    await webview(uri, { kind: "click", selector: '.ken-toolbar-button[data-id="row-below"]' });
+    await until("row added", () => doc.getText(), (t) => /\| a +\| 1 +\|\n\| +\| +\|/.test(t));
+  });
+
   it("keeps CRLF line endings", async () => {
     const uri = fixture("crlf.md");
     const doc = await openEditor(uri);

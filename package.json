@@ -119,6 +119,11 @@
           "minimum": 320,
           "maximum": 2400,
           "markdownDescription": "Maximum width of the text column, in pixels."
+        },
+        "kenMarkdown.toolbar": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Show the formatting toolbar at the bottom of the editor."
         }
       }
     }

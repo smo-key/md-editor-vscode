@@ -244,7 +244,8 @@ describe("Ken Markdown Editor", function () {
     // No block drag handles or "+" buttons outside checklists.
     assert.strictEqual(await webview(uri, { kind: "count", selector: ".milkdown-block-handle" }), 0);
     assert.ok(await webview(uri, { kind: "caretAfter", text: "A paragraph with" }));
-    await webview(uri, { kind: "click", selector: '.ken-toolbar-button[data-id="heading2"]' });
+    await webview(uri, { kind: "click", selector: '[data-id="heading-menu"]' });
+    await webview(uri, { kind: "click", selector: '.ken-heading-item[data-id="heading2"]' });
     await until("heading written", () => doc.getText(), (t) => t.includes("## A paragraph with"));
     // In a table the toolbar offers the table actions.
     assert.ok(await webview(uri, { kind: "caretAfter", text: "1" }));
@@ -539,6 +540,31 @@ describe("Ken Markdown Editor", function () {
         await config.update("imageFolder", undefined, vscode.ConfigurationTarget.Global);
       }
     });
+  });
+
+  it("has a heading control that remembers the last level picked, across editors", async () => {
+    const uri = fixture("attach.md");
+    const doc = await openEditor(uri);
+    assert.ok(await webview(uri, { kind: "caretAfter", text: "Second line." }));
+    await webview(uri, { kind: "click", selector: '[data-id="heading-menu"]' });
+    assert.strictEqual(await webview(uri, { kind: "count", selector: ".ken-heading-item" }), 7, "Text + H1–H6");
+    await webview(uri, { kind: "click", selector: '.ken-heading-item[data-id="heading5"]' });
+    await until("h5", () => doc.getText(), (t) => t.includes("##### Second line."));
+    // In a plain paragraph the button now offers H5.
+    assert.ok(await webview(uri, { kind: "caretAfter", text: "Paste target" }));
+    assert.strictEqual(await webview(uri, { kind: "getAttr", selector: '[data-id="heading"]', name: "data-level" }), "5");
+    await webview(uri, { kind: "click", selector: '[data-id="heading"]' });
+    await until("button applies h5", () => doc.getText(), (t) => t.startsWith("##### Paste target"));
+    // No formatting bubble over selected text.
+    assert.ok(await webview(uri, { kind: "selectText", text: "target" }));
+    await sleep(300);
+    assert.strictEqual(await webview(uri, { kind: "count", selector: ".milkdown-toolbar" }), 0);
+    await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor");
+    // Another editor starts with the remembered level.
+    const other = fixture("docs/nested.md");
+    await openEditor(other);
+    assert.ok(await webview(other, { kind: "caretAfter", text: "A nested page." }));
+    assert.strictEqual(await webview(other, { kind: "getAttr", selector: '[data-id="heading"]', name: "data-level" }), "5");
   });
 
   it("keeps CRLF line endings", async () => {

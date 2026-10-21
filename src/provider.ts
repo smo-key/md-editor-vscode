@@ -1,6 +1,14 @@
 import * as vscode from "vscode";
 import * as path from "path";
-import type { EditorConfig, HostMessage, LinkedUri, ShortcutLabels, TestAction, WebviewMessage } from "./protocol";
+import type {
+  EditorConfig,
+  EditorPrefs,
+  HostMessage,
+  LinkedUri,
+  ShortcutLabels,
+  TestAction,
+  WebviewMessage,
+} from "./protocol";
 import { classifyHref, imageFolder, minimalChange, toEOL, toLF, uniqueName } from "./sync";
 
 export const VIEW_TYPE = "kenMarkdown.editor";
@@ -119,7 +127,11 @@ class EditorSession {
           config: readConfig(this.document.uri),
           docPath: this.docPath,
           shortcuts: this.host.shortcutLabels(),
+          prefs: this.host.prefs(),
         });
+        return;
+      case "setPrefs":
+        this.host.setPrefs(m.prefs);
         return;
       case "focus":
         this.setFocused(m.focused);
@@ -370,6 +382,8 @@ function makeNonce(): string {
 /** What sessions need from the provider. */
 interface SessionHost {
   shortcutLabels(): ShortcutLabels;
+  prefs(): EditorPrefs;
+  setPrefs(prefs: EditorPrefs): void;
   focusChanged(): void;
 }
 
@@ -395,6 +409,14 @@ export class KenMarkdownEditorProvider implements vscode.CustomTextEditorProvide
 
   shortcutLabels(): ShortcutLabels {
     return this.labels;
+  }
+
+  prefs(): EditorPrefs {
+    return this.context.globalState.get<EditorPrefs>("kenMarkdown.prefs", {});
+  }
+
+  setPrefs(prefs: EditorPrefs) {
+    void this.context.globalState.update("kenMarkdown.prefs", { ...this.prefs(), ...prefs });
   }
 
   /** New effective keybindings: refresh every open editor's hints. */

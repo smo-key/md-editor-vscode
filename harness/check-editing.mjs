@@ -77,6 +77,28 @@ await check("toolbar formats and converts", async () => {
   assert.match(await lastText(), /\n\nSome text here\.\n\n/);
 });
 
+await check("heading control: menu of Text + H1–H6, remembers the pick; no selection bubble", async () => {
+  await page.click(".ProseMirror p:has-text('Some text here.')");
+  await page.click('[data-id="heading-menu"]');
+  assert.equal(await page.locator(".ken-heading-item").count(), 7);
+  await page.click('.ken-heading-item[data-id="heading5"]');
+  await settle();
+  assert.match(await lastText(), /\n##### Some text here\.\n/);
+  assert.equal(await page.getAttribute('[data-id="heading"]', "data-level"), "5");
+  // Inside an H2 the button shows that level.
+  await page.click(".ProseMirror h2");
+  await settle();
+  assert.equal(await page.getAttribute('[data-id="heading"]', "data-level"), "2");
+  await page.click(".ProseMirror h5");
+  await settle();
+  await page.click('[data-id="heading"]');
+  await settle();
+  assert.match(await lastText(), /\n\nSome text here\.\n/);
+  await page.dblclick(".ProseMirror >> text=Some");
+  await settle();
+  assert.equal(await page.locator(".milkdown-toolbar").count(), 0);
+});
+
 await check("clicking a cell places the caret; toolbar switches to table mode", async () => {
   await page.click(".ProseMirror td >> text=1");
   await settle();

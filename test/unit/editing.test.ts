@@ -190,6 +190,23 @@ describe("toolbar commands", () => {
     expect(toolbar.dataset.mode).toBe("table");
     host.querySelector<HTMLButtonElement>('[data-id="row-below"]')!.click();
     expect(ed.markdown()).toContain("| 1 | 2 |\n|   |   |");
+    // Heading control: the menu lists Text and H1–H6; picking one applies it
+    // and becomes the button's level.
+    caretAfter(view, "text");
+    expect(toolbar.dataset.mode).toBe("main");
+    host.querySelector<HTMLButtonElement>('[data-id="heading-menu"]')!.click();
+    const items = [...document.querySelectorAll<HTMLElement>(".ken-heading-item")].map((e) => e.dataset.id);
+    expect(items).toEqual(["paragraph", "heading1", "heading2", "heading3", "heading4", "heading5", "heading6"]);
+    document.querySelector<HTMLButtonElement>('.ken-heading-item[data-id="heading6"]')!.click();
+    expect(ed.markdown().startsWith("###### text")).toBe(true);
+    expect(document.querySelector(".ken-heading-menu")).toBeNull();
+    const main = host.querySelector<HTMLButtonElement>('[data-id="heading"]')!;
+    expect(main.dataset.level).toBe("6");
+    expect(main.classList.contains("active")).toBe(true);
+    main.click();
+    expect(ed.markdown().startsWith("text")).toBe(true);
+    expect(main.dataset.level).toBe("6");
+    expect(main.classList.contains("active")).toBe(false);
     await ed.destroy();
     host.remove();
   });

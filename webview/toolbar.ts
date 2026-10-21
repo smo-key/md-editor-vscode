@@ -1,6 +1,7 @@
 /**
  * The bottom toolbar: quick access to the essential commands, with their
- * state (active, disabled) following the caret. Inside a table it swaps the
+ * state (active, disabled) following the caret. Headings are one segmented
+ * control (headingControl.ts). Inside a table it swaps the
  * list and insert groups (which do not apply there) for every table action.
  */
 import type { Ctx } from "@milkdown/kit/ctx";
@@ -12,10 +13,14 @@ import { createElement } from "lucide";
 import { COMMANDS, command, currentCell, execute, onShortcutLabels, shortcutFor, type EditorCommand } from "./commands";
 import { Keyboard } from "lucide";
 import { toggleShortcutsPanel } from "./shortcutsPanel";
+import { HeadingControl } from "./headingControl";
+
+/** Placeholder for the heading control (headingControl.ts). */
+const HEADING = "#heading";
 
 const MAIN = [
   ["undo", "redo"],
-  ["heading1", "heading2", "heading3"],
+  [HEADING],
   ["bold", "italic", "strike", "inline-code", "link"],
   ["bullet-list", "ordered-list", "task-list"],
   ["quote", "code-block", "table", "divider", "image"],
@@ -34,6 +39,7 @@ class Toolbar {
   readonly el: HTMLElement;
   private mode: "main" | "table" | null = null;
   private buttons = new Map<string, HTMLButtonElement>();
+  private heading: HeadingControl | null = null;
 
   constructor(
     private readonly ctx: Ctx,
@@ -59,6 +65,8 @@ class Toolbar {
   private build(mode: "main" | "table") {
     this.mode = mode;
     this.buttons.clear();
+    this.heading?.destroy();
+    this.heading = null;
     this.el.replaceChildren();
     this.el.dataset.mode = mode;
     const groups = mode === "table" ? TABLE : MAIN;
@@ -74,7 +82,14 @@ class Toolbar {
         sep.className = "ken-toolbar-separator";
         this.el.append(sep);
       }
-      for (const id of ids) this.el.append(this.button(command(id)));
+      for (const id of ids) {
+        if (id === HEADING) {
+          this.heading = new HeadingControl(this.ctx);
+          this.el.append(this.heading.el);
+        } else {
+          this.el.append(this.button(command(id)));
+        }
+      }
     });
     this.el.append(this.shortcutsButton());
   }
@@ -112,6 +127,7 @@ class Toolbar {
     this.lastState = state;
     const mode = currentCell(state) ? "table" : "main";
     if (mode !== this.mode) this.build(mode);
+    this.heading?.update(state);
     for (const [id, b] of this.buttons) {
       const cmd = COMMANDS.find((c) => c.id === id)!;
       const enabled = !cmd.isEnabled || cmd.isEnabled(state);
@@ -124,6 +140,7 @@ class Toolbar {
 
   destroy() {
     this.stopListening();
+    this.heading?.destroy();
     this.el.remove();
   }
 }

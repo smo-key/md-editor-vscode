@@ -35,6 +35,7 @@ import {
 } from "./markdown/attachments";
 import { closeLightbox, showLightbox } from "./lightbox";
 import { installKeyRouting } from "./keys";
+import { onLastHeadingLevel, setLastHeadingLevel } from "./headingControl";
 import { command, execute, setShortcutLabels } from "./commands";
 import { closeShortcutsPanel, initShortcutsPanel, isShortcutsPanelOpen, toggleShortcutsPanel } from "./shortcutsPanel";
 import type { EditorConfig, HostMessage, TestAction, WebviewMessage } from "../src/protocol";
@@ -447,6 +448,7 @@ function runTest(action: TestAction): unknown {
 // to this editor (`kenMarkdown.editorFocused`).
 installKeyRouting();
 initShortcutsPanel(post);
+onLastHeadingLevel((level) => post({ type: "setPrefs", prefs: { lastHeading: level } }));
 window.addEventListener("focus", () => post({ type: "focus", focused: true }));
 window.addEventListener("blur", () => post({ type: "focus", focused: false }));
 
@@ -462,6 +464,7 @@ window.addEventListener("message", async (event: MessageEvent<HostMessage>) => {
     case "init":
       docPath = m.docPath;
       setShortcutLabels(m.shortcuts ?? {});
+      setLastHeadingLevel(m.prefs?.lastHeading ?? 1);
       applyConfig(m.config);
       if (!crepe) {
         try {

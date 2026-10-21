@@ -1223,3 +1223,86 @@ body.no-toolbar .ken-toolbar-host {
   background: transparent;
   opacity: 0.5;
 }
+
+/* --- Heading control (headingControl.ts) ------------------------------------- */
+.ken-heading-control {
+  flex: none;
+  display: inline-flex;
+  align-items: stretch;
+  border-radius: 5px;
+  box-shadow: inset 0 0 0 1px var(--vscode-editorWidget-border, var(--vscode-widget-border, transparent));
+}
+.ken-heading-control .ken-toolbar-button {
+  border-radius: 0;
+}
+.ken-heading-main {
+  width: 30px;
+  border-top-left-radius: 5px !important;
+  border-bottom-left-radius: 5px !important;
+}
+.ken-heading-arrow {
+  width: 18px;
+  border-left: 1px solid var(--vscode-editorWidget-border, var(--vscode-widget-border, transparent)) !important;
+  border-top-right-radius: 5px !important;
+  border-bottom-right-radius: 5px !important;
+}
+.ken-heading-arrow.open {
+  background: var(--vscode-toolbar-activeBackground, var(--vscode-toolbar-hoverBackground));
+}
+.ken-heading-menu {
+  position: fixed;
+  z-index: 1000;
+  min-width: 210px;
+  padding: 3px;
+  border: 1px solid var(--vscode-menu-border, var(--vscode-editorWidget-border, transparent));
+  border-radius: 6px;
+  background: var(--vscode-menu-background, var(--vscode-editorWidget-background));
+  color: var(--vscode-menu-foreground, var(--vscode-editor-foreground));
+  box-shadow: 0 2px 8px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.3));
+}
+.ken-heading-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 26px;
+  padding: 2px 8px 2px 4px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.ken-heading-item.active {
+  background: var(--vscode-menu-selectionBackground, var(--vscode-list-hoverBackground));
+  color: var(--vscode-menu-selectionForeground, inherit);
+}
+.ken-heading-check {
+  display: inline-flex;
+  width: 14px;
+  justify-content: center;
+}
+.ken-heading-label {
+  flex: 1;
+  font-family: var(--font-serif);
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+/* Each style previewed at (a compact version of) its size. */
+.ken-heading-label-0 { font-family: var(--font-sans); font-weight: 400; font-size: 13px; }
+.ken-heading-label-1 { font-size: 20px; }
+.ken-heading-label-2 { font-size: 18px; }
+.ken-heading-label-3 { font-size: 16px; }
+.ken-heading-label-4 { font-size: 14.5px; }
+.ken-heading-label-5 { font-size: 13.5px; }
+.ken-heading-label-6 { font-size: 13px; color: var(--vscode-descriptionForeground); }
+.ken-heading-hint {
+  flex: none;
+  padding-left: 12px;
+  font-family: var(--vscode-font-family);
+  font-size: 11px;
+  opacity: 0.6;
+}

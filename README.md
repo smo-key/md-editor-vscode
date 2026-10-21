@@ -81,12 +81,19 @@ Math (`$…$`) is intentionally left as plain text, as in Ken, so prices like
   Ken's direct shortcuts still work too: `/h1 `…`/h6 `, `/quote `, `/code `,
   `/divider `, `/bullet `, `/number `, `/todo `, `/note `, `/tip `,
   `/important `, `/warning `, `/caution `, `/toc ` (with the trailing space).
-- **Bottom toolbar** with the essentials: undo/redo, headings 1–3, bold,
-  italic, strikethrough, inline code, link (<kbd>⌘K</kbd>), bulleted /
-  numbered lists and checklists (each toggles, and converts one list kind to
-  another in place), quote, code block, table, divider and image, and the
-  keyboard shortcut list. Buttons show the state at the caret. Hide it with
-  `kenMarkdown.toolbar`.
+- **Bottom toolbar** with the essentials: undo/redo; the heading control;
+  bold, italic, strikethrough, inline code, link; bulleted / numbered lists
+  and checklists (each toggles, and converts one list kind to another in
+  place); quote, code block, table, divider and image; and the keyboard
+  shortcut list. Buttons show the state at the caret. Hide it with
+  `kenMarkdown.toolbar`. There is no formatting bubble over selected text:
+  use the toolbar or the shortcuts.
+- **Heading control** (a split button): the left half applies a heading
+  level. It shows the caret's own level inside a heading, otherwise the
+  level you last picked; clicking it on a heading of that level turns it back
+  into text. The ▾ half opens a menu of Text and Heading 1–6, each previewed
+  at its size with its shortcut; picking a heading also makes it the left
+  half's level from then on (remembered across files and sessions).
 - **Drag handles only on checklist items**: hover a task to drag it (with its
   sub-items) somewhere else. Other blocks have no handle and there is no `+`
   button.

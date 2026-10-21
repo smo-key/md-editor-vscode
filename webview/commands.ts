@@ -166,7 +166,8 @@ function listKind(state: EditorState): "bullet" | "ordered" | "task" | null {
   return null;
 }
 
-function headingLevel(state: EditorState): number {
+/** The caret block's heading level, 0 when it is not a heading. */
+export function headingLevel(state: EditorState): number {
   const parent = state.selection.$from.parent;
   return parent.type.name === "heading" ? (parent.attrs.level as number) : 0;
 }

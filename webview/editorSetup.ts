@@ -54,6 +54,9 @@ export function buildEditor(options: EditorOptions): Crepe {
       // Crepe's block handle, "+" button and slash menu are replaced by
       // slashMenu.ts, taskHandle.ts (checklists only) and the bottom toolbar.
       [Crepe.Feature.BlockEdit]: false,
+      // No formatting bubble over selected text: the bottom toolbar and the
+      // keyboard shortcuts cover it.
+      [Crepe.Feature.Toolbar]: false,
     },
     featureConfigs: {
       [Crepe.Feature.CodeMirror]: {

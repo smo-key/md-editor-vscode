@@ -257,6 +257,146 @@ describe("Ken Markdown Editor", function () {
     await until("row added", () => doc.getText(), (t) => /\| a +\| 1 +\|\n\| +\| +\|/.test(t));
   });
 
+  describe("keyboard shortcuts", () => {
+    it("runs editor commands from VS Code commands (what keybindings invoke)", async () => {
+      const uri = fixture("attach.md");
+      const doc = await openEditor(uri);
+      assert.ok(await webview(uri, { kind: "selectText", text: "target" }));
+      await vscode.commands.executeCommand("kenMarkdown.bold");
+      await until("bold", () => doc.getText(), (t) => t.includes("Paste **target** paragraph"));
+      await vscode.commands.executeCommand("kenMarkdown.italic");
+      await until("bold italic", () => doc.getText(), (t) => /Paste (\*\*\*target\*\*\*|\*\*\*target\*\*\*|_\*\*target\*\*_|\*\*\*target\*\*\*)/.test(t) || t.includes("***target***"));
+      await vscode.commands.executeCommand("kenMarkdown.undo");
+      await vscode.commands.executeCommand("kenMarkdown.undo");
+      await until("undone", () => doc.getText(), (t) => t.includes("Paste target paragraph"));
+      assert.ok(await webview(uri, { kind: "caretAfter", text: "Second" }));
+      await vscode.commands.executeCommand("kenMarkdown.heading2");
+      await until("heading", () => doc.getText(), (t) => t.includes("## Second line."));
+      await vscode.commands.executeCommand("kenMarkdown.checklist");
+      // A heading cannot open a list item: it becomes the item's text.
+      await until("checklist", () => doc.getText(), (t) => t.includes("- [ ] Second line."));
+    });
+
+    it("leaves Cmd/Ctrl+letter keys to VS Code instead of handling them twice", async () => {
+      const uri = fixture("attach.md");
+      const doc = await openEditor(uri);
+      assert.ok(await webview(uri, { kind: "selectText", text: "target" }));
+      const mod = process.platform === "darwin" ? { meta: true } : { ctrl: true };
+      await webview(uri, { kind: "key", key: "b", code: "KeyB", ...mod });
+      await webview(uri, { kind: "key", key: "i", code: "KeyI", ...mod });
+      await sleep(600);
+      assert.ok(doc.getText().includes("Paste target paragraph"), `the editor itself did not bold or italicize: ${JSON.stringify(doc.getText())}`);
+      assert.ok(!doc.isDirty);
+    });
+
+    it("lists every shortcut, with the current keys", async () => {
+      const uri = fixture("attach.md");
+      await openEditor(uri);
+      await vscode.commands.executeCommand("kenMarkdown.showShortcuts");
+      await until("panel", () => webview(uri, { kind: "count", selector: ".ken-shortcuts" }), (n) => n === 1);
+      const rows = (await webview(uri, { kind: "count", selector: ".ken-shortcuts-row" })) as number;
+      assert.ok(rows >= 50, `${rows} rows`);
+      const boldKey = process.platform === "darwin" ? "⌘B" : "Ctrl+B";
+      assert.strictEqual(
+        await webview(uri, { kind: "count", selector: ".ken-shortcuts-row kbd:not(.unbound)" }) as number > 20,
+        true,
+      );
+      const first = await webview(uri, { kind: "getStyle", selector: ".ken-shortcuts", property: "display" });
+      assert.strictEqual(first, "flex");
+      // The toolbar's tooltips show the keys too.
+      const title = await webview(uri, { kind: "getAttr", selector: '.ken-toolbar-button[data-id="bold"]', name: "title" });
+      assert.strictEqual(title, `Bold (${boldKey})`);
+      await vscode.commands.executeCommand("kenMarkdown.showShortcuts");
+      await until("closed", () => webview(uri, { kind: "count", selector: ".ken-shortcuts" }), (n) => n === 0);
+    });
+
+    // Interactive (KEN_TEST_REAL_KEYS=1): VS Code only acts on genuine key
+    // presses forwarded from a webview, so harness/real-keys.mjs (or a
+    // person) presses the keys; progress goes to $KEN_TEST_REAL_KEYS_LOG.
+    const realKeys = process.env.KEN_TEST_REAL_KEYS === "1";
+    (realKeys ? it : it.skip)("routes real key presses to the editor's commands", async function () {
+      this.timeout(600000);
+      const fs = await import("fs");
+      const log = (step: string) => fs.writeFileSync(process.env.KEN_TEST_REAL_KEYS_LOG ?? "/tmp/ken-keys.log", step);
+      const uri = fixture("keys.md");
+      const doc = await openEditor(uri);
+      const wait = (what: string, ok: (t: string) => boolean) => until(what, () => doc.getText(), ok, 240000);
+      assert.ok(await webview(uri, { kind: "selectText", text: "me" }));
+      log("1 press cmd+b");
+      await wait("cmd+b bolds", (t) => t.startsWith("Select **me** please."));
+      log("2 press cmd+alt+2");
+      await wait("cmd+alt+2 makes a heading", (t) => t.startsWith("## Select **me** please."));
+      log("3 press cmd+z");
+      await wait("cmd+z undoes once", (t) => t.startsWith("Select **me** please."));
+      await sleep(1500);
+      assert.ok(doc.getText().startsWith("Select **me** please."), "one undo per key press");
+      log("4 press cmd+/");
+      await until("cmd+/ lists shortcuts", () => webview(uri, { kind: "count", selector: ".ken-shortcuts" }), (n) => n === 1, 240000);
+      log("5 press Escape");
+      await until("Escape closes it", () => webview(uri, { kind: "count", selector: ".ken-shortcuts" }), (n) => n === 0, 240000);
+      assert.ok(await webview(uri, { kind: "caretAfter", text: "Second paragraph." }));
+      log("6 press cmd+alt+9");
+      await wait("cmd+alt+9 makes a checklist", (t) => t.includes("- [ ] Second paragraph."));
+      assert.ok(await webview(uri, { kind: "selectText", text: "please" }));
+      log("7 press cmd+k");
+      await until(
+        "cmd+k opens the link editor (not a VS Code chord)",
+        () => webview(uri, { kind: "count", selector: ".milkdown-link-edit[data-show='true']" }),
+        (n) => n === 1,
+        240000,
+      );
+      const textBefore = doc.getText();
+      log("8 focus the Explorer and press cmd+b");
+      const flag = `${process.env.KEN_TEST_REAL_KEYS_LOG ?? "/tmp/ken-keys.log"}.finished`;
+      await until("driver finished", () => fs.existsSync(flag), Boolean, 240000);
+      fs.rmSync(flag, { force: true });
+      assert.strictEqual(doc.getText(), textBefore, "Cmd+B outside the editor is VS Code's, not ours");
+      log("done");
+    });
+
+    it("shows the user's own bindings once they customize them", async () => {
+      const fs = await import("fs");
+      const pathMod = await import("path");
+      const ext = vscode.extensions.all.find((e) => e.id.toLowerCase() === "arthur-pachachura.ken-markdown-editor")!;
+      const uri = fixture("attach.md");
+      await openEditor(uri);
+      // The file Keyboard Shortcuts writes, as the extension locates it.
+      const file = await vscode.commands.executeCommand<string>("kenMarkdown._testKeybindingsFile");
+      const userDir = pathMod.dirname(file);
+      console.log("keybindings file:", file);
+      const original = fs.existsSync(file) ? fs.readFileSync(file, "utf8") : null;
+      const mac = process.platform === "darwin";
+      fs.mkdirSync(userDir, { recursive: true });
+      fs.writeFileSync(
+        file,
+        `// test\n[{ "key": "${mac ? "cmd+shift+8" : "ctrl+shift+8"}", "command": "kenMarkdown.bold" },
+          { "key": "${mac ? "cmd+b" : "ctrl+b"}", "command": "-kenMarkdown.bold" },]`,
+      );
+      try {
+        const expected = mac ? "Bold (⇧⌘8)" : "Bold (Ctrl+Shift+8)";
+        await until(
+          "tooltip follows the new key",
+          () => webview(uri, { kind: "getAttr", selector: '.ken-toolbar-button[data-id="bold"]', name: "title" }),
+          (t) => t === expected,
+          10000,
+        );
+      } finally {
+        if (original === null) fs.rmSync(file, { force: true });
+        else fs.writeFileSync(file, original);
+      }
+    });
+
+    it("contributes keybindings VS Code can show and customize", async () => {
+      const ext = vscode.extensions.all.find((e) => e.id.toLowerCase() === "arthur-pachachura.ken-markdown-editor")!;
+      const keybindings = ext.packageJSON.contributes.keybindings as { command: string; mac: string; key: string; when: string }[];
+      const bold = keybindings.find((k) => k.command === "kenMarkdown.bold")!;
+      assert.strictEqual(bold.mac, "cmd+b");
+      assert.strictEqual(bold.key, "ctrl+b");
+      const all = await vscode.commands.getCommands(true);
+      for (const k of keybindings) assert.ok(all.includes(k.command), k.command);
+    });
+  });
+
   describe("pasting and dropping files", () => {
     const PNG = "iVBORw0KGgoAAAANSUhEUgAAAAQAAAADCAIAAAA7ljmRAAAAD0lEQVR4nGNgaGhAIJwcAOQnDAFPds4oAAAAAElFTkSuQmCC";
     const b64 = (text: string) => Buffer.from(text).toString("base64");

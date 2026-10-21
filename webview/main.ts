@@ -34,6 +34,9 @@ import {
   type AttachmentAdapter,
 } from "./markdown/attachments";
 import { closeLightbox, showLightbox } from "./lightbox";
+import { installKeyRouting } from "./keys";
+import { command, execute, setShortcutLabels } from "./commands";
+import { closeShortcutsPanel, initShortcutsPanel, isShortcutsPanelOpen, toggleShortcutsPanel } from "./shortcutsPanel";
 import type { EditorConfig, HostMessage, TestAction, WebviewMessage } from "../src/protocol";
 import "@milkdown/crepe/theme/common/style.css";
 import "@milkdown/crepe/theme/frame.css";
@@ -397,6 +400,20 @@ function runTest(action: TestAction): unknown {
       }
       return true;
     }
+    case "selectText": {
+      if (!view) return false;
+      let from = -1;
+      view.state.doc.descendants((node, pos) => {
+        if (from >= 0) return false;
+        const i = node.isText ? node.text!.indexOf(action.text) : -1;
+        if (i >= 0) from = pos + i;
+        return from < 0;
+      });
+      if (from < 0) return false;
+      view.focus();
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, from, from + action.text.length)));
+      return true;
+    }
     case "images":
       return [...document.querySelectorAll<HTMLImageElement>(".ProseMirror img:not(.ProseMirror-separator)")].map(
         (img) => ({ src: img.getAttribute("src"), loaded: img.complete && img.naturalWidth > 0 }),
@@ -426,11 +443,25 @@ function runTest(action: TestAction): unknown {
 
 // --- Wiring --------------------------------------------------------------------------
 
+// Keys VS Code owns (see keys.ts), and focus, which scopes those keybindings
+// to this editor (`kenMarkdown.editorFocused`).
+installKeyRouting();
+initShortcutsPanel(post);
+window.addEventListener("focus", () => post({ type: "focus", focused: true }));
+window.addEventListener("blur", () => post({ type: "focus", focused: false }));
+
+function runCommand(id: string) {
+  if (!crepe) return;
+  if (isShortcutsPanelOpen()) closeShortcutsPanel();
+  crepe.editor.action((ctx) => execute(ctx, command(id)));
+}
+
 window.addEventListener("message", async (event: MessageEvent<HostMessage>) => {
   const m = event.data;
   switch (m.type) {
     case "init":
       docPath = m.docPath;
+      setShortcutLabels(m.shortcuts ?? {});
       applyConfig(m.config);
       if (!crepe) {
         try {
@@ -448,6 +479,15 @@ window.addEventListener("message", async (event: MessageEvent<HostMessage>) => {
       return;
     case "config":
       applyConfig(m.config);
+      return;
+    case "command":
+      runCommand(m.id);
+      return;
+    case "shortcuts":
+      setShortcutLabels(m.labels);
+      return;
+    case "showShortcuts":
+      toggleShortcutsPanel();
       return;
     case "flush":
       post({ type: "flushed", id: m.id, text: sync(true) });
@@ -468,6 +508,9 @@ window.addEventListener("message", async (event: MessageEvent<HostMessage>) => {
 window.addEventListener("keydown", (e) => {
   if (e.key === "Escape") closeLightbox();
 });
+
+// Already focused when the page loads (e.g. a reopened editor).
+if (document.hasFocus()) post({ type: "focus", focused: true });
 
 // Losing focus (switching tabs, clicking the source view) syncs immediately.
 window.addEventListener("blur", () => sync());

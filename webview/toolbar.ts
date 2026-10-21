@@ -9,7 +9,9 @@ import type { EditorView } from "@milkdown/kit/prose/view";
 import { $prose } from "@milkdown/kit/utils";
 import { createElement } from "lucide";
 
-import { COMMANDS, command, currentCell, execute, type EditorCommand } from "./commands";
+import { COMMANDS, command, currentCell, execute, onShortcutLabels, shortcutFor, type EditorCommand } from "./commands";
+import { Keyboard } from "lucide";
+import { toggleShortcutsPanel } from "./shortcutsPanel";
 
 const MAIN = [
   ["undo", "redo"],
@@ -44,7 +46,15 @@ class Toolbar {
     // Clicking a button must not take focus or the selection from the text.
     this.el.addEventListener("mousedown", (e) => e.preventDefault());
     host.append(this.el);
+    // Tooltips show the current keys: rebuild when the user rebinds them.
+    this.stopListening = onShortcutLabels(() => {
+      this.mode = null;
+      if (this.lastState) this.update(this.lastState);
+    });
   }
+
+  private readonly stopListening: () => void;
+  private lastState: EditorState | null = null;
 
   private build(mode: "main" | "table") {
     this.mode = mode;
@@ -66,6 +76,21 @@ class Toolbar {
       }
       for (const id of ids) this.el.append(this.button(command(id)));
     });
+    this.el.append(this.shortcutsButton());
+  }
+
+  /** Opens the keyboard shortcut list; pushed to the far end of the bar. */
+  private shortcutsButton(): HTMLButtonElement {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "ken-toolbar-button ken-toolbar-shortcuts";
+    b.dataset.id = "shortcuts";
+    const key = shortcutFor("kenMarkdown.showShortcuts");
+    b.title = key ? `Keyboard shortcuts (${key})` : "Keyboard shortcuts";
+    b.setAttribute("aria-label", "Keyboard shortcuts");
+    b.append(createElement(Keyboard, { width: 16, height: 16, "stroke-width": 1.75 }));
+    b.addEventListener("click", () => toggleShortcutsPanel());
+    return b;
   }
 
   private button(cmd: EditorCommand): HTMLButtonElement {
@@ -74,7 +99,8 @@ class Toolbar {
     b.className = "ken-toolbar-button";
     if (cmd.danger) b.classList.add("danger");
     b.dataset.id = cmd.id;
-    b.title = cmd.shortcut ? `${cmd.label} (${cmd.shortcut})` : cmd.label;
+    const key = shortcutFor(cmd.id);
+    b.title = key ? `${cmd.label} (${key})` : cmd.label;
     b.setAttribute("aria-label", cmd.label);
     b.append(createElement(cmd.icon, { width: 16, height: 16, "stroke-width": 1.75 }));
     b.addEventListener("click", () => execute(this.ctx, cmd));
@@ -83,6 +109,7 @@ class Toolbar {
   }
 
   update(state: EditorState) {
+    this.lastState = state;
     const mode = currentCell(state) ? "table" : "main";
     if (mode !== this.mode) this.build(mode);
     for (const [id, b] of this.buttons) {
@@ -96,6 +123,7 @@ class Toolbar {
   }
 
   destroy() {
+    this.stopListening();
     this.el.remove();
   }
 }

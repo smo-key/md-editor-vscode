@@ -1111,3 +1111,115 @@ body.no-toolbar .ken-toolbar-host {
 .ken-task-handle:active {
   cursor: grabbing;
 }
+
+/* --- Keyboard shortcut list (shortcutsPanel.ts) ------------------------------ */
+.ken-toolbar-shortcuts {
+  margin-left: 10px;
+  opacity: 0.8;
+}
+.ken-shortcuts-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: color-mix(in srgb, var(--vscode-editor-background) 55%, transparent);
+}
+.ken-shortcuts {
+  display: flex;
+  flex-direction: column;
+  width: min(760px, 100%);
+  max-height: min(640px, 100%);
+  border: 1px solid var(--vscode-editorWidget-border, var(--vscode-widget-border, transparent));
+  border-radius: 8px;
+  background: var(--vscode-editorWidget-background);
+  color: var(--vscode-editorWidget-foreground, var(--vscode-editor-foreground));
+  box-shadow: 0 8px 32px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.35));
+  font-family: var(--vscode-font-family);
+  font-size: 12.5px;
+  outline: none;
+}
+.ken-shortcuts header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px 10px 16px;
+  border-bottom: 1px solid var(--vscode-editorWidget-border, var(--vscode-widget-border, transparent));
+}
+.ken-shortcuts h2 {
+  flex: 1;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+.ken-shortcuts-customize {
+  padding: 3px 10px;
+  border: 1px solid var(--vscode-button-border, transparent);
+  border-radius: 4px;
+  background: var(--vscode-button-secondaryBackground, var(--vscode-button-background));
+  color: var(--vscode-button-secondaryForeground, var(--vscode-button-foreground));
+  font: inherit;
+  cursor: pointer;
+}
+.ken-shortcuts-customize:hover {
+  background: var(--vscode-button-secondaryHoverBackground, var(--vscode-button-hoverBackground));
+}
+.ken-shortcuts-close {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+.ken-shortcuts-close:hover {
+  background: var(--vscode-toolbar-hoverBackground, var(--vscode-list-hoverBackground));
+}
+.ken-shortcuts-body {
+  overflow-y: auto;
+  padding: 6px 16px 14px;
+  columns: 2 300px;
+  column-gap: 28px;
+}
+.ken-shortcuts section {
+  break-inside: avoid;
+  padding-top: 8px;
+}
+.ken-shortcuts h3 {
+  margin: 0 0 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--vscode-descriptionForeground);
+}
+.ken-shortcuts-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 22px;
+}
+.ken-shortcuts-row kbd {
+  flex: none;
+  padding: 1px 5px;
+  border: 1px solid var(--vscode-keybindingLabel-border, var(--vscode-widget-border, transparent));
+  border-bottom-color: var(--vscode-keybindingLabel-bottomBorder, var(--vscode-widget-border, transparent));
+  border-radius: 3px;
+  background: var(--vscode-keybindingLabel-background, transparent);
+  color: var(--vscode-keybindingLabel-foreground, inherit);
+  font-family: var(--vscode-font-family);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.ken-shortcuts-row kbd.unbound {
+  border-color: transparent;
+  background: transparent;
+  opacity: 0.5;
+}

@@ -84,8 +84,9 @@ Math (`$…$`) is intentionally left as plain text, as in Ken, so prices like
 - **Bottom toolbar** with the essentials: undo/redo, headings 1–3, bold,
   italic, strikethrough, inline code, link (<kbd>⌘K</kbd>), bulleted /
   numbered lists and checklists (each toggles, and converts one list kind to
-  another in place), quote, code block, table, divider and image. Buttons
-  show the state at the caret. Hide it with `kenMarkdown.toolbar`.
+  another in place), quote, code block, table, divider and image, and the
+  keyboard shortcut list. Buttons show the state at the caret. Hide it with
+  `kenMarkdown.toolbar`.
 - **Drag handles only on checklist items**: hover a task to drag it (with its
   sub-items) somewhere else. Other blocks have no handle and there is no `+`
   button.
@@ -115,6 +116,77 @@ Math (`$…$`) is intentionally left as plain text, as in Ken, so prices like
   for all editors: without Shift, VS Code opens the dropped file instead.
 - An image copied from a web page pastes as a link to the original rather than
   a saved copy.
+
+## Keyboard shortcuts
+
+Every editing action is a VS Code command, so its keys live in VS Code's
+**Keyboard Shortcuts** editor and can be changed, removed or added there
+(search `Ken Markdown`, or click *Customize…* in the shortcut list). They
+apply only while a Ken Markdown editor has focus, and there they take
+precedence over VS Code's own use of the same keys. ⌘B bolds instead of
+toggling the sidebar, and ⌘K opens the link editor instead of starting a
+chord. Outside the editor those keys do what they always did.
+
+Press **⌘/** (Ctrl+/) or the keyboard button at the right of the toolbar to
+see every shortcut with its current keys, including any you've changed.
+Toolbar tooltips and slash-menu hints show your current keys too.
+
+Defaults:
+
+| Command | macOS | Windows / Linux | Command ID |
+| --- | --- | --- | --- |
+| Bold | ⌘B | Ctrl+B | `kenMarkdown.bold` |
+| Italic | ⌘I | Ctrl+I | `kenMarkdown.italic` |
+| Strikethrough | ⌥⌘X | Ctrl+Alt+X | `kenMarkdown.strikethrough` |
+| Inline Code | ⌘E | Ctrl+E | `kenMarkdown.inlineCode` |
+| Link | ⌘K | Ctrl+K | `kenMarkdown.link` |
+| Text (Paragraph) | ⌥⌘0 | Ctrl+Alt+0 | `kenMarkdown.paragraph` |
+| Heading 1 | ⌥⌘1 | Ctrl+Alt+1 | `kenMarkdown.heading1` |
+| Heading 2 | ⌥⌘2 | Ctrl+Alt+2 | `kenMarkdown.heading2` |
+| Heading 3 | ⌥⌘3 | Ctrl+Alt+3 | `kenMarkdown.heading3` |
+| Heading 4 | ⌥⌘4 | Ctrl+Alt+4 | `kenMarkdown.heading4` |
+| Heading 5 | ⌥⌘5 | Ctrl+Alt+5 | `kenMarkdown.heading5` |
+| Heading 6 | ⌥⌘6 | Ctrl+Alt+6 | `kenMarkdown.heading6` |
+| Numbered List | ⌥⌘7 | Ctrl+Alt+7 | `kenMarkdown.numberedList` |
+| Bulleted List | ⌥⌘8 | Ctrl+Alt+8 | `kenMarkdown.bulletedList` |
+| Checklist | ⌥⌘9 | Ctrl+Alt+9 | `kenMarkdown.checklist` |
+| Quote | ⇧⌘B | Ctrl+Shift+B | `kenMarkdown.quote` |
+| Code Block | ⌥⌘C | Ctrl+Alt+C | `kenMarkdown.codeBlock` |
+| Insert Table | — | — | `kenMarkdown.insertTable` |
+| Insert Divider | — | — | `kenMarkdown.insertDivider` |
+| Insert Image | — | — | `kenMarkdown.insertImage` |
+| Insert Mermaid Diagram | — | — | `kenMarkdown.insertDiagram` |
+| Insert Table of Contents | — | — | `kenMarkdown.insertTableOfContents` |
+| Insert Note Alert | — | — | `kenMarkdown.alertNote` |
+| Insert Tip Alert | — | — | `kenMarkdown.alertTip` |
+| Insert Important Alert | — | — | `kenMarkdown.alertImportant` |
+| Insert Warning Alert | — | — | `kenMarkdown.alertWarning` |
+| Insert Caution Alert | — | — | `kenMarkdown.alertCaution` |
+| Undo | ⌘Z | Ctrl+Z | `kenMarkdown.undo` |
+| Redo | ⇧⌘Z | Ctrl+Y, Ctrl+Shift+Z | `kenMarkdown.redo` |
+| Table: Insert Row Above | — | — | `kenMarkdown.table.insertRowAbove` |
+| Table: Insert Row Below | — | — | `kenMarkdown.table.insertRowBelow` |
+| Table: Insert Column Left | — | — | `kenMarkdown.table.insertColumnLeft` |
+| Table: Insert Column Right | — | — | `kenMarkdown.table.insertColumnRight` |
+| Table: Move Row Up | — | — | `kenMarkdown.table.moveRowUp` |
+| Table: Move Row Down | — | — | `kenMarkdown.table.moveRowDown` |
+| Table: Move Column Left | — | — | `kenMarkdown.table.moveColumnLeft` |
+| Table: Move Column Right | — | — | `kenMarkdown.table.moveColumnRight` |
+| Table: Align Column Left | — | — | `kenMarkdown.table.alignLeft` |
+| Table: Align Column Center | — | — | `kenMarkdown.table.alignCenter` |
+| Table: Align Column Right | — | — | `kenMarkdown.table.alignRight` |
+| Table: Toggle Full Width | — | — | `kenMarkdown.table.toggleFullWidth` |
+| Table: Delete Row | — | — | `kenMarkdown.table.deleteRow` |
+| Table: Delete Column | — | — | `kenMarkdown.table.deleteColumn` |
+| Table: Delete Table | — | — | `kenMarkdown.table.deleteTable` |
+| Show Keyboard Shortcuts | ⌘/ | Ctrl+/ | `kenMarkdown.showShortcuts` |
+
+Built into the editor (not rebindable): `/` opens the insert menu; Tab /
+⇧Tab move between table cells (and indent / outdent list items); Tab in the
+last cell adds a row; Enter in a table moves down, leaving the table from the
+last row; ⌘Enter leaves a table; Backspace at the start of a heading makes it
+text. Markdown typed as you go also converts: `# ` … `###### `, `- `, `1. `,
+`[ ] `, `> `, ` ``` `, `---`, `**bold**`, `*italic*`, `~~strike~~`, `` `code` ``.
 
 ## Tables
 
@@ -171,6 +243,8 @@ npm run typecheck
 npm test                  # unit tests (vitest): Ken's plugins, GFM round-trips, commands, tables, sync
 npm run test:integration  # launches VS Code and drives the real editor
 KEN_TEST_REAL_CLIPBOARD=1 npm run test:integration  # also pastes a real image via the macOS clipboard
+npm run build && npx tsc -p test/integration && node harness/real-keys.mjs  # real key presses over CDP
+npm run sync-contributes  # after editing src/shortcuts.json (keybinding defaults)
 npm run package           # produces ken-markdown-editor-<version>.vsix
 npm run install-extension # package + install into VS Code (same as ./install.sh)
 ```

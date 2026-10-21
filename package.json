@@ -2,7 +2,7 @@
   "name": "ken-markdown-editor",
   "displayName": "Ken Markdown Editor",
   "description": "A calm WYSIWYG Markdown editor in the style of Ken's editor, themed by your VS Code color theme.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "arthur-pachachura",
   "license": "UNLICENSED",
   "private": true,
@@ -48,6 +48,231 @@
         "title": "Open Markdown Source",
         "category": "Ken Markdown",
         "icon": "$(go-to-file)"
+      },
+      {
+        "command": "kenMarkdown.bold",
+        "title": "Bold",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.italic",
+        "title": "Italic",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.strikethrough",
+        "title": "Strikethrough",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.inlineCode",
+        "title": "Inline Code",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.link",
+        "title": "Link",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.paragraph",
+        "title": "Text (Paragraph)",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.heading1",
+        "title": "Heading 1",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.heading2",
+        "title": "Heading 2",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.heading3",
+        "title": "Heading 3",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.heading4",
+        "title": "Heading 4",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.heading5",
+        "title": "Heading 5",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.heading6",
+        "title": "Heading 6",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.numberedList",
+        "title": "Numbered List",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.bulletedList",
+        "title": "Bulleted List",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.checklist",
+        "title": "Checklist",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.quote",
+        "title": "Quote",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.codeBlock",
+        "title": "Code Block",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.insertTable",
+        "title": "Insert Table",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.insertDivider",
+        "title": "Insert Divider",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.insertImage",
+        "title": "Insert Image",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.insertDiagram",
+        "title": "Insert Mermaid Diagram",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.insertTableOfContents",
+        "title": "Insert Table of Contents",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.alertNote",
+        "title": "Insert Note Alert",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.alertTip",
+        "title": "Insert Tip Alert",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.alertImportant",
+        "title": "Insert Important Alert",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.alertWarning",
+        "title": "Insert Warning Alert",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.alertCaution",
+        "title": "Insert Caution Alert",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.undo",
+        "title": "Undo",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.redo",
+        "title": "Redo",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.table.insertRowAbove",
+        "title": "Table: Insert Row Above",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.table.insertRowBelow",
+        "title": "Table: Insert Row Below",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.table.insertColumnLeft",
+        "title": "Table: Insert Column Left",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.table.insertColumnRight",
+        "title": "Table: Insert Column Right",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.table.moveRowUp",
+        "title": "Table: Move Row Up",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.table.moveRowDown",
+        "title": "Table: Move Row Down",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.table.moveColumnLeft",
+        "title": "Table: Move Column Left",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.table.moveColumnRight",
+        "title": "Table: Move Column Right",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.table.alignLeft",
+        "title": "Table: Align Column Left",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.table.alignCenter",
+        "title": "Table: Align Column Center",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.table.alignRight",
+        "title": "Table: Align Column Right",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.table.toggleFullWidth",
+        "title": "Table: Toggle Full Width",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.table.deleteRow",
+        "title": "Table: Delete Row",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.table.deleteColumn",
+        "title": "Table: Delete Column",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.table.deleteTable",
+        "title": "Table: Delete Table",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.showShortcuts",
+        "title": "Show Keyboard Shortcuts",
+        "category": "Ken Markdown"
       }
     ],
     "menus": {
@@ -78,6 +303,186 @@
         {
           "command": "kenMarkdown.openSource",
           "when": "activeCustomEditorId == kenMarkdown.editor"
+        },
+        {
+          "command": "kenMarkdown.bold",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.italic",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.strikethrough",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.inlineCode",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.link",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.paragraph",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.heading1",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.heading2",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.heading3",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.heading4",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.heading5",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.heading6",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.numberedList",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.bulletedList",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.checklist",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.quote",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.codeBlock",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.insertTable",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.insertDivider",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.insertImage",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.insertDiagram",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.insertTableOfContents",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.alertNote",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.alertTip",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.alertImportant",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.alertWarning",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.alertCaution",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.undo",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.redo",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.table.insertRowAbove",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.table.insertRowBelow",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.table.insertColumnLeft",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.table.insertColumnRight",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.table.moveRowUp",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.table.moveRowDown",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.table.moveColumnLeft",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.table.moveColumnRight",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.table.alignLeft",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.table.alignCenter",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.table.alignRight",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.table.toggleFullWidth",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.table.deleteRow",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.table.deleteColumn",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.table.deleteTable",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.showShortcuts",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
         }
       ]
     },
@@ -131,7 +536,135 @@
           "markdownDescription": "Folder, next to the document, that pasted and dropped images are copied into (created when first needed). Leave empty to save images beside the document. Other files are always saved beside the document."
         }
       }
-    }
+    },
+    "keybindings": [
+      {
+        "command": "kenMarkdown.bold",
+        "key": "ctrl+b",
+        "mac": "cmd+b",
+        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+      },
+      {
+        "command": "kenMarkdown.italic",
+        "key": "ctrl+i",
+        "mac": "cmd+i",
+        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+      },
+      {
+        "command": "kenMarkdown.strikethrough",
+        "key": "ctrl+alt+x",
+        "mac": "cmd+alt+x",
+        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+      },
+      {
+        "command": "kenMarkdown.inlineCode",
+        "key": "ctrl+e",
+        "mac": "cmd+e",
+        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+      },
+      {
+        "command": "kenMarkdown.link",
+        "key": "ctrl+k",
+        "mac": "cmd+k",
+        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+      },
+      {
+        "command": "kenMarkdown.paragraph",
+        "key": "ctrl+alt+0",
+        "mac": "cmd+alt+0",
+        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+      },
+      {
+        "command": "kenMarkdown.heading1",
+        "key": "ctrl+alt+1",
+        "mac": "cmd+alt+1",
+        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+      },
+      {
+        "command": "kenMarkdown.heading2",
+        "key": "ctrl+alt+2",
+        "mac": "cmd+alt+2",
+        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+      },
+      {
+        "command": "kenMarkdown.heading3",
+        "key": "ctrl+alt+3",
+        "mac": "cmd+alt+3",
+        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+      },
+      {
+        "command": "kenMarkdown.heading4",
+        "key": "ctrl+alt+4",
+        "mac": "cmd+alt+4",
+        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+      },
+      {
+        "command": "kenMarkdown.heading5",
+        "key": "ctrl+alt+5",
+        "mac": "cmd+alt+5",
+        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+      },
+      {
+        "command": "kenMarkdown.heading6",
+        "key": "ctrl+alt+6",
+        "mac": "cmd+alt+6",
+        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+      },
+      {
+        "command": "kenMarkdown.numberedList",
+        "key": "ctrl+alt+7",
+        "mac": "cmd+alt+7",
+        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+      },
+      {
+        "command": "kenMarkdown.bulletedList",
+        "key": "ctrl+alt+8",
+        "mac": "cmd+alt+8",
+        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+      },
+      {
+        "command": "kenMarkdown.checklist",
+        "key": "ctrl+alt+9",
+        "mac": "cmd+alt+9",
+        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+      },
+      {
+        "command": "kenMarkdown.quote",
+        "key": "ctrl+shift+b",
+        "mac": "cmd+shift+b",
+        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+      },
+      {
+        "command": "kenMarkdown.codeBlock",
+        "key": "ctrl+alt+c",
+        "mac": "cmd+alt+c",
+        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+      },
+      {
+        "command": "kenMarkdown.undo",
+        "key": "ctrl+z",
+        "mac": "cmd+z",
+        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+      },
+      {
+        "command": "kenMarkdown.redo",
+        "key": "ctrl+y",
+        "mac": "cmd+shift+z",
+        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+      },
+      {
+        "command": "kenMarkdown.redo",
+        "key": "ctrl+shift+z",
+        "mac": "cmd+shift+z",
+        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+      },
+      {
+        "command": "kenMarkdown.showShortcuts",
+        "key": "ctrl+/",
+        "mac": "cmd+/",
+        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+      }
+    ]
   },
   "scripts": {
     "build": "node esbuild.mjs",
@@ -142,7 +675,8 @@
     "package": "npm run build -- --production && vsce package --no-dependencies --allow-missing-repository",
     "vscode:prepublish": "npm run build -- --production",
     "screenshot": "node harness/screenshot.mjs",
-    "install-extension": "./install.sh"
+    "install-extension": "./install.sh",
+    "sync-contributes": "node scripts/sync-contributes.mjs"
   },
   "dependencies": {
     "@codemirror/language": "^6.13.1",

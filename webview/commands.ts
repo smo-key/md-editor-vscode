@@ -101,8 +101,6 @@ export interface EditorCommand {
   group: CommandGroup;
   /** Extra words the slash menu matches on. */
   keywords?: string[];
-  /** Shown in tooltips, e.g. "⌘B". */
-  shortcut?: string;
   /** Offered in the slash menu. */
   slash?: boolean;
   /** Shown in the bottom toolbar. */
@@ -113,10 +111,27 @@ export interface EditorCommand {
   isEnabled?(state: EditorState): boolean;
 }
 
-const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
-/** "Alt+1" → "⌥⌘1" on macOS, "Ctrl+Alt+1" elsewhere. */
-const mod = (key: string) =>
-  isMac ? key.replace(/^Shift\+/, "⇧").replace(/^Alt\+/, "⌥").replace(/([^⇧⌥]+)$/, "⌘$1") : `Ctrl+${key}`;
+// --- Shortcut labels ----------------------------------------------------------
+// Keys belong to VS Code (Keyboard Shortcuts); the host sends the effective
+// label for each command, e.g. "⌘B", so hints follow the user's bindings.
+
+let labels: Record<string, string> = {};
+const listeners = new Set<() => void>();
+
+export function setShortcutLabels(next: Record<string, string>): void {
+  labels = next;
+  for (const l of listeners) l();
+}
+
+/** The key label for a command id ("" when it has no key). */
+export function shortcutFor(id: string): string {
+  return labels[id] ?? "";
+}
+
+export function onShortcutLabels(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
 
 // --- State queries -----------------------------------------------------------
 
@@ -223,6 +238,12 @@ function toggleList(view: EditorView, ctx: Ctx, kind: "bullet" | "ordered" | "ta
     }
   }
   const listType = kind === "ordered" ? schema.nodes.ordered_list : schema.nodes.bullet_list;
+  // A list item starts with a paragraph: a heading (or other textblock)
+  // becomes plain text first.
+  const block = view.state.selection.$from.parent;
+  if (block.isTextblock && block.type !== schema.nodes.paragraph && block.type !== schema.nodes.code_block) {
+    run(view, setBlockType(schema.nodes.paragraph));
+  }
   if (!wrapInList(listType)(view.state, view.dispatch)) return;
   if (kind === "task") {
     const { $from } = view.state.selection;
@@ -375,7 +396,6 @@ const heading = (level: number, icon: IconNode): EditorCommand => ({
   icon,
   group: "text",
   keywords: [`h${level}`, "title"],
-  shortcut: mod(`Alt+${level}`),
   slash: true,
   toolbar: level <= 3,
   run: (ctx, view) => toggleHeading(view, ctx, level),
@@ -400,7 +420,6 @@ export const COMMANDS: EditorCommand[] = [
     label: "Undo",
     icon: Undo2,
     group: "history",
-    shortcut: mod("Z"),
     toolbar: true,
     run: (_ctx, view) => run(view, undo),
     isEnabled: (state) => undoDepth(state) > 0,
@@ -410,7 +429,6 @@ export const COMMANDS: EditorCommand[] = [
     label: "Redo",
     icon: Redo2,
     group: "history",
-    shortcut: isMac ? "⇧⌘Z" : "Ctrl+Y",
     toolbar: true,
     run: (_ctx, view) => run(view, redo),
     isEnabled: (state) => redoDepth(state) > 0,
@@ -423,7 +441,6 @@ export const COMMANDS: EditorCommand[] = [
     icon: Pilcrow,
     group: "text",
     keywords: ["paragraph", "plain", "normal"],
-    shortcut: mod("Alt+0"),
     slash: true,
     run: (ctx, view) => run(view, setBlockType(paragraphSchema.type(ctx))),
     isActive: (state) => state.selection.$from.parent.type.name === "paragraph" && !listKind(state),
@@ -441,7 +458,6 @@ export const COMMANDS: EditorCommand[] = [
     label: "Bold",
     icon: Bold,
     group: "format",
-    shortcut: mod("B"),
     toolbar: true,
     run: (_ctx, view) => run(view, toggleMark(view.state.schema.marks.strong)),
     isActive: (state) => markActive(state, state.schema.marks.strong),
@@ -452,7 +468,6 @@ export const COMMANDS: EditorCommand[] = [
     label: "Italic",
     icon: Italic,
     group: "format",
-    shortcut: mod("I"),
     toolbar: true,
     run: (_ctx, view) => run(view, toggleMark(view.state.schema.marks.emphasis)),
     isActive: (state) => markActive(state, state.schema.marks.emphasis),
@@ -463,7 +478,6 @@ export const COMMANDS: EditorCommand[] = [
     label: "Strikethrough",
     icon: Strikethrough,
     group: "format",
-    shortcut: mod("Alt+X"),
     toolbar: true,
     run: (_ctx, view) => run(view, toggleMark(view.state.schema.marks.strike_through)),
     isActive: (state) => markActive(state, state.schema.marks.strike_through),
@@ -474,7 +488,6 @@ export const COMMANDS: EditorCommand[] = [
     label: "Inline code",
     icon: Code,
     group: "format",
-    shortcut: mod("E"),
     toolbar: true,
     run: (_ctx, view) => run(view, toggleMark(view.state.schema.marks.inlineCode)),
     isActive: (state) => markActive(state, state.schema.marks.inlineCode),
@@ -485,7 +498,6 @@ export const COMMANDS: EditorCommand[] = [
     label: "Link",
     icon: Link,
     group: "format",
-    shortcut: mod("K"),
     toolbar: true,
     run: (ctx, view) => insertLink(view, ctx),
     isActive: (state) => markActive(state, state.schema.marks.link),
@@ -499,7 +511,6 @@ export const COMMANDS: EditorCommand[] = [
     icon: List,
     group: "list",
     keywords: ["ul", "unordered", "bullet"],
-    shortcut: mod("Alt+8"),
     slash: true,
     toolbar: true,
     run: (ctx, view) => toggleList(view, ctx, "bullet"),
@@ -512,7 +523,6 @@ export const COMMANDS: EditorCommand[] = [
     icon: ListOrdered,
     group: "list",
     keywords: ["ol", "ordered", "number"],
-    shortcut: mod("Alt+7"),
     slash: true,
     toolbar: true,
     run: (ctx, view) => toggleList(view, ctx, "ordered"),
@@ -551,7 +561,6 @@ export const COMMANDS: EditorCommand[] = [
     icon: CodeXml,
     group: "insert",
     keywords: ["fence", "snippet", "pre"],
-    shortcut: mod("Alt+C"),
     slash: true,
     toolbar: true,
     run: (ctx, view) => toggleCodeBlock(view, ctx),

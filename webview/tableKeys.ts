@@ -2,7 +2,8 @@
  * Table keys that make a table quick to fill in, ahead of the GFM preset's:
  * Tab in the last cell adds a row; Enter moves to the cell below and leaves
  * the table from the last row (a GFM cell holds a single line, so Enter can
- * never split one). Mod-Enter still leaves the table from anywhere.
+ * never split one). Mod-Enter still leaves the table from anywhere. (Shortcuts
+ * with letters and digits belong to VS Code: see keys.ts.)
  */
 import { commandsCtx, editorViewCtx } from "@milkdown/kit/core";
 import type { Ctx } from "@milkdown/kit/ctx";
@@ -10,7 +11,7 @@ import { addRowAfterCommand, exitTable } from "@milkdown/kit/preset/gfm";
 import { NodeSelection, Plugin, PluginKey } from "@milkdown/kit/prose/state";
 import { $prose, $useKeymap } from "@milkdown/kit/utils";
 
-import { command, currentCell, execute, focusCell } from "./commands";
+import { currentCell, focusCell } from "./commands";
 
 export const tableKeys = $useKeymap("kenTableKeys", {
   NextCellOrNewRow: {
@@ -35,14 +36,6 @@ export const tableKeys = $useKeymap("kenTableKeys", {
         return true;
       }
       return ctx.get(commandsCtx).call(exitTable.key);
-    },
-  },
-  Link: {
-    priority: 200,
-    shortcuts: "Mod-k",
-    command: (ctx: Ctx) => () => {
-      execute(ctx, command("link"));
-      return true;
     },
   },
 });

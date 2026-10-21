@@ -20,7 +20,11 @@ export interface LinkedUri {
 }
 
 export type HostMessage =
-  | { type: "init"; text: string; config: EditorConfig; docPath: string }
+  | { type: "init"; text: string; config: EditorConfig; docPath: string; shortcuts: ShortcutLabels }
+  /** Run an editor command (webview/commands.ts id), from a VS Code keybinding or the palette. */
+  | { type: "command"; id: string }
+  | { type: "shortcuts"; labels: ShortcutLabels }
+  | { type: "showShortcuts" }
   | { type: "update"; text: string }
   | { type: "config"; config: EditorConfig }
   | { type: "attachmentSaved"; id: number; path?: string; error?: string }
@@ -45,12 +49,18 @@ export type TestAction =
       margin?: boolean;
     }
   | { kind: "images" }
+  | { kind: "selectText"; text: string }
   | { kind: "caretAfter"; text: string }
   | { kind: "undo" }
   | { kind: "key"; key: string; code: string; meta?: boolean; ctrl?: boolean; shift?: boolean };
 
+/** Effective key label per editor command id (and "kenMarkdown.showShortcuts"); "" when unbound. */
+export type ShortcutLabels = Record<string, string>;
+
 export type WebviewMessage =
   | { type: "ready" }
+  | { type: "focus"; focused: boolean }
+  | { type: "openKeybindings" }
   | { type: "edit"; text: string }
   | { type: "saveAttachment"; id: number; name: string; data: Uint8Array; image: boolean }
   | { type: "resolve"; id: number; path: string }

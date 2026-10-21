@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import * as path from "path";
-import type { EditorConfig, HostMessage, LinkedUri, TestAction, WebviewMessage } from "./protocol";
+import type { EditorConfig, HostMessage, LinkedUri, ShortcutLabels, TestAction, WebviewMessage } from "./protocol";
 import { classifyHref, imageFolder, minimalChange, toEOL, toLF, uniqueName } from "./sync";
 
 export const VIEW_TYPE = "kenMarkdown.editor";
@@ -36,10 +36,14 @@ class EditorSession {
   /** Webview edits not yet applied; echoes are suppressed while any are. */
   private pendingEdits = 0;
 
+  /** Whether the webview has keyboard focus (drives `kenMarkdown.editorFocused`). */
+  focused = false;
+
   constructor(
     private readonly document: vscode.TextDocument,
-    private readonly panel: vscode.WebviewPanel,
+    readonly panel: vscode.WebviewPanel,
     private readonly extensionUri: vscode.Uri,
+    private readonly host: SessionHost,
   ) {
     this.webviewText = toLF(document.getText());
   }
@@ -83,6 +87,7 @@ class EditorSession {
         }
       }),
       this.panel.onDidChangeViewState(() => {
+        if (!this.panel.active) this.setFocused(false);
         // A hidden webview may have missed nothing (retainContextWhenHidden),
         // but re-check in case the document moved on meanwhile.
         if (this.panel.visible) this.pushIfChanged();
@@ -113,7 +118,14 @@ class EditorSession {
           text: this.webviewText,
           config: readConfig(this.document.uri),
           docPath: this.docPath,
+          shortcuts: this.host.shortcutLabels(),
         });
+        return;
+      case "focus":
+        this.setFocused(m.focused);
+        return;
+      case "openKeybindings":
+        await vscode.commands.executeCommand("workbench.action.openGlobalKeybindings", "@ext:arthur-pachachura.ken-markdown-editor");
         return;
       case "edit":
         this.webviewText = m.text;
@@ -275,6 +287,17 @@ class EditorSession {
     ];
   }
 
+  private setFocused(focused: boolean) {
+    if (this.focused === focused) return;
+    this.focused = focused;
+    this.host.focusChanged();
+  }
+
+  /** Send a message to the webview (commands, shortcut labels). */
+  send(message: HostMessage): void {
+    if (this.ready) this.post(message);
+  }
+
   /** Test hook: run an action inside the webview and return its result. */
   runTest(action: TestAction): Promise<unknown> {
     const id = ++this.testSeq;
@@ -320,6 +343,7 @@ class EditorSession {
   }
 
   dispose(): void {
+    this.setFocused(false);
     for (const d of this.disposables.splice(0)) d.dispose();
   }
 }
@@ -343,19 +367,51 @@ function makeNonce(): string {
   return out;
 }
 
-export class KenMarkdownEditorProvider implements vscode.CustomTextEditorProvider {
+/** What sessions need from the provider. */
+interface SessionHost {
+  shortcutLabels(): ShortcutLabels;
+  focusChanged(): void;
+}
+
+export class KenMarkdownEditorProvider implements vscode.CustomTextEditorProvider, SessionHost {
   /** Live sessions by document URI, newest last; used by commands and tests. */
   readonly sessions = new Map<string, EditorSession>();
+  private readonly all = new Set<EditorSession>();
+  private labels: ShortcutLabels = {};
 
   constructor(private readonly context: vscode.ExtensionContext) {}
 
   resolveCustomTextEditor(document: vscode.TextDocument, panel: vscode.WebviewPanel): void {
-    const session = new EditorSession(document, panel, this.context.extensionUri);
+    const session = new EditorSession(document, panel, this.context.extensionUri, this);
     const key = document.uri.toString();
     this.sessions.set(key, session);
+    this.all.add(session);
     panel.onDidDispose(() => {
+      this.all.delete(session);
       if (this.sessions.get(key) === session) this.sessions.delete(key);
     });
     session.start();
+  }
+
+  shortcutLabels(): ShortcutLabels {
+    return this.labels;
+  }
+
+  /** New effective keybindings: refresh every open editor's hints. */
+  setShortcutLabels(labels: ShortcutLabels) {
+    this.labels = labels;
+    for (const s of this.all) s.send({ type: "shortcuts", labels });
+  }
+
+  focusChanged() {
+    const focused = [...this.all].some((s) => s.focused);
+    void vscode.commands.executeCommand("setContext", "kenMarkdown.editorFocused", focused);
+  }
+
+  /** The editor a command applies to: the focused one, else the active tab's. */
+  target(): EditorSession | undefined {
+    const focused = [...this.all].find((s) => s.focused);
+    if (focused) return focused;
+    return [...this.all].find((s) => s.panel.active);
   }
 }

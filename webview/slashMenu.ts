@@ -13,7 +13,7 @@ import type { EditorView } from "@milkdown/kit/prose/view";
 import { $prose } from "@milkdown/kit/utils";
 import { createElement } from "lucide";
 
-import { COMMANDS, execute, type EditorCommand } from "./commands";
+import { COMMANDS, execute, shortcutFor, type EditorCommand } from "./commands";
 
 export interface SlashMatch {
   /** Position of the "/". */
@@ -132,10 +132,11 @@ class SlashMenuView {
       label.className = "ken-slash-label";
       label.textContent = cmd.label;
       row.append(icon, label);
-      if (cmd.shortcut) {
+      const key = shortcutFor(cmd.id);
+      if (key) {
         const hint = document.createElement("span");
         hint.className = "ken-slash-hint";
-        hint.textContent = cmd.shortcut;
+        hint.textContent = key;
         row.append(hint);
       }
       row.addEventListener("mousemove", () => {

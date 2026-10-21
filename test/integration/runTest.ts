@@ -12,7 +12,14 @@ async function main() {
     await runTests({
       extensionDevelopmentPath: root,
       extensionTestsPath: path.join(__dirname, "suite", "index.js"),
-      launchArgs: [workspace, "--disable-extensions", "--skip-welcome", "--skip-release-notes"],
+      launchArgs: [
+        workspace,
+        "--disable-extensions",
+        "--skip-welcome",
+        "--skip-release-notes",
+        // harness/real-keys.mjs drives the window with real key presses over CDP.
+        ...(process.env.KEN_CDP_PORT ? [`--remote-debugging-port=${process.env.KEN_CDP_PORT}`] : []),
+      ],
       version: process.env.VSCODE_TEST_VERSION ?? "stable",
     });
   } finally {

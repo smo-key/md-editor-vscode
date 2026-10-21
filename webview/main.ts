@@ -4,12 +4,10 @@
 import { Crepe } from "@milkdown/crepe";
 import { editorViewCtx, parserCtx, serializerCtx } from "@milkdown/kit/core";
 import type { Ctx } from "@milkdown/kit/ctx";
-import { Plugin, PluginKey, TextSelection, type Transaction } from "@milkdown/kit/prose/state";
+import { Plugin, PluginKey, TextSelection } from "@milkdown/kit/prose/state";
 import { $prose } from "@milkdown/kit/utils";
-import { Fragment, type Node as ProseNode, type Schema } from "@milkdown/kit/prose/model";
 import type { EditorView } from "@milkdown/kit/prose/view";
 import { undo } from "@milkdown/kit/prose/history";
-import type { Uploader } from "@milkdown/kit/plugin/upload";
 
 import "@fontsource/newsreader/400.css";
 import "@fontsource/newsreader/500.css";
@@ -23,12 +21,14 @@ import "@fontsource/jetbrains-mono/500.css";
 
 import type { LinkClick } from "./markdown/wikiLinks";
 import { buildEditor } from "./editorSetup";
+import { carriesFiles, handleFileDrop, type FileDropOptions } from "./fileDrop";
 import { normalizeTrailingNewlines } from "./markdown/gfmFidelity";
 import {
   attachmentName,
   docDir,
   encodeHref,
   isImageFile,
+  isImagePath,
   relativeTo,
   resolveSrc,
   type AttachmentAdapter,
@@ -101,6 +101,7 @@ const attachments: AttachmentAdapter = {
       id,
       name: file.name,
       data,
+      image: isImageFile(file),
     }));
     if (!reply.path) throw new Error(reply.error ?? "save failed");
     return reply.path;
@@ -123,32 +124,25 @@ async function saveBeside(file: File) {
   return { saved, href: encodeHref(relativeTo(docDir(docPath), saved)) };
 }
 
-function attachmentNode(schema: Schema, href: string, target: string, image: boolean) {
-  if (image) {
-    const imageType = schema.nodes["image-block"] ?? schema.nodes.image;
-    return imageType?.createAndFill({ src: href }) ?? null;
-  }
-  const label = target.slice(target.lastIndexOf("/") + 1);
-  const link = schema.marks.link.create({ href });
-  return schema.nodes.paragraph.create(null, schema.text(label, [link]));
-}
-
-async function importFiles(files: File[], schema: Schema): Promise<ProseNode[]> {
-  const settled = await Promise.allSettled(
-    files.map(async (file) => {
+const fileDrop: FileDropOptions = {
+  async save(file) {
+    try {
       const { saved, href } = await saveBeside(file);
-      return attachmentNode(schema, href, saved, isImageFile(file));
-    }),
-  );
-  const nodes: ProseNode[] = [];
-  for (const result of settled) {
-    if (result.status === "fulfilled" && result.value) nodes.push(result.value);
-    else if (result.status === "rejected") post({ type: "error", message: `attachment: ${result.reason}` });
-  }
-  return nodes;
-}
-
-const uploader: Uploader = (files, schema) => importFiles(Array.from(files), schema);
+      return { href, name: saved.slice(saved.lastIndexOf("/") + 1), image: isImageFile(file) };
+    } catch (err) {
+      post({ type: "error", message: `attachment: ${err}` });
+      return undefined;
+    }
+  },
+  async link(uris) {
+    const reply = await request<Extract<HostMessage, { type: "linkedUris" }>>((id) => ({ type: "linkUris", id, uris }));
+    return reply.items.map((item) => ({
+      href: item.relative ? encodeHref(item.path) : item.path,
+      name: item.name,
+      image: isImagePath(item.name),
+    }));
+  },
+};
 
 async function uploadFromImageBlock(file: File): Promise<string> {
   return (await saveBeside(file)).href;
@@ -170,29 +164,10 @@ function proxyImageSrc(src: string): string | Promise<string> {
     .catch(() => src);
 }
 
-/** Insert dropped nodes without splitting the paragraph they land in. */
-function insertDropped(tr: Transaction, pos: number, nodes: ProseNode[], inline = true): Transaction {
-  const target = tr.doc.resolve(pos);
-  const parent = target.parent;
-  const link = tr.doc.type.schema.marks.link;
-  const only = nodes.length === 1 ? nodes[0] : null;
-  if (inline && only?.type.name === "paragraph" && parent.inlineContent && parent.type.allowsMarkType(link)) {
-    return tr.insert(pos, only.content);
-  }
-  const content = Fragment.from(nodes);
-  if (nodes.every((n) => n.isBlock) && parent.isTextblock && target.depth > 0) {
-    if (parent.content.size === 0) return tr.replaceWith(target.before(), target.after(), content);
-    return tr.insert(target.parentOffset === 0 ? target.before() : target.after(), content);
-  }
-  return tr.replaceWith(pos, pos, content);
-}
-
-// Files dropped in the margins, outside ProseMirror's own element.
-function hasFiles(dt: DataTransfer | null): boolean {
-  return !!dt && Array.from(dt.types).includes("Files");
-}
+// Files dropped in the margins, outside ProseMirror's own element (drops on
+// the text are handled by fileDrop.ts before they get here).
 scroll.addEventListener("dragover", (e) => {
-  if (!hasFiles(e.dataTransfer) || !view) return;
+  if (!carriesFiles(e.dataTransfer) || !view) return;
   e.preventDefault();
   e.dataTransfer!.dropEffect = "copy";
   scroll.classList.add("file-drop");
@@ -200,20 +175,10 @@ scroll.addEventListener("dragover", (e) => {
 scroll.addEventListener("dragleave", (e) => {
   if (!scroll.contains(e.relatedTarget as Node | null)) scroll.classList.remove("file-drop");
 });
-scroll.addEventListener("drop", async (e) => {
+scroll.addEventListener("drop", (e) => {
   scroll.classList.remove("file-drop");
-  if (e.defaultPrevented || !hasFiles(e.dataTransfer) || !view) return;
-  e.preventDefault();
-  const v = view;
-  const rect = v.dom.getBoundingClientRect();
-  const left = Math.min(Math.max(e.clientX, rect.left + 1), rect.right - 1);
-  const top = Math.min(Math.max(e.clientY, rect.top + 1), rect.bottom - 1);
-  const at = v.posAtCoords({ left, top })?.pos ?? v.state.doc.content.size;
-  const nodes = await importFiles(Array.from(e.dataTransfer!.files), v.state.schema);
-  if (nodes.length === 0) return;
-  const pos = Math.min(at, v.state.doc.content.size);
-  v.dispatch(insertDropped(v.state.tr, pos, nodes, false).scrollIntoView());
-  v.focus();
+  if (e.defaultPrevented || !view) return;
+  handleFileDrop(view, e, fileDrop);
 });
 
 // --- Lightbox ----------------------------------------------------------------------
@@ -307,7 +272,7 @@ async function createEditor(text: string) {
     root: host,
     markdown: text.slice(front.length),
     onLink: openLink,
-    uploader,
+    fileDrop,
     onUpload: uploadFromImageBlock,
     proxyDomURL: proxyImageSrc,
     toolbarHost,
@@ -402,6 +367,40 @@ function runTest(action: TestAction): unknown {
       view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, found)));
       return true;
     }
+    case "transfer": {
+      if (!view) return false;
+      const dt = new DataTransfer();
+      for (const f of action.files ?? []) {
+        const bytes = Uint8Array.from(atob(f.base64), (c) => c.charCodeAt(0));
+        dt.items.add(new File([bytes], f.name, { type: f.type }));
+      }
+      if (action.uris) dt.setData("text/uri-list", action.uris.join("\r\n"));
+      if (action.event === "paste") {
+        view.focus();
+        view.dom.dispatchEvent(new ClipboardEvent("paste", { clipboardData: dt, bubbles: true, cancelable: true }));
+        return true;
+      }
+      let x: number;
+      let y: number;
+      if (action.margin) {
+        const r = scroll.getBoundingClientRect();
+        x = r.left + 8;
+        y = r.bottom - 8;
+      } else {
+        const c = view.coordsAtPos(view.state.selection.from);
+        x = c.left;
+        y = (c.top + c.bottom) / 2;
+      }
+      const target = document.elementFromPoint(x, y) ?? view.dom;
+      for (const type of ["dragenter", "dragover", "drop"]) {
+        target.dispatchEvent(new DragEvent(type, { dataTransfer: dt, clientX: x, clientY: y, bubbles: true, cancelable: true }));
+      }
+      return true;
+    }
+    case "images":
+      return [...document.querySelectorAll<HTMLImageElement>(".ProseMirror img:not(.ProseMirror-separator)")].map(
+        (img) => ({ src: img.getAttribute("src"), loaded: img.complete && img.naturalWidth > 0 }),
+      );
     case "getAttr":
       return document.querySelector(action.selector)?.getAttribute(action.name) ?? null;
     case "undo":
@@ -455,6 +454,7 @@ window.addEventListener("message", async (event: MessageEvent<HostMessage>) => {
       return;
     case "attachmentSaved":
     case "resolved":
+    case "linkedUris":
       waiting.get(m.id)?.(m);
       waiting.delete(m.id);
       return;

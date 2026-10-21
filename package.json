@@ -124,6 +124,11 @@
           "type": "boolean",
           "default": true,
           "markdownDescription": "Show the formatting toolbar at the bottom of the editor."
+        },
+        "kenMarkdown.imageFolder": {
+          "type": "string",
+          "default": "_Images",
+          "markdownDescription": "Folder, next to the document, that pasted and dropped images are copied into (created when first needed). Leave empty to save images beside the document. Other files are always saved beside the document."
         }
       }
     }

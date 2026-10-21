@@ -257,6 +257,150 @@ describe("Ken Markdown Editor", function () {
     await until("row added", () => doc.getText(), (t) => /\| a +\| 1 +\|\n\| +\| +\|/.test(t));
   });
 
+  describe("pasting and dropping files", () => {
+    const PNG = "iVBORw0KGgoAAAANSUhEUgAAAAQAAAADCAIAAAA7ljmRAAAAD0lEQVR4nGNgaGhAIJwcAOQnDAFPds4oAAAAAElFTkSuQmCC";
+    const b64 = (text: string) => Buffer.from(text).toString("base64");
+    type Img = { src: string; loaded: boolean };
+
+    async function exists(uri: vscode.Uri): Promise<boolean> {
+      try {
+        await vscode.workspace.fs.stat(uri);
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    async function imagesLoaded(uri: vscode.Uri, count: number): Promise<Img[]> {
+      return until(
+        `${count} images loaded`,
+        () => webview(uri, { kind: "images" }) as Thenable<Img[]>,
+        (imgs) => imgs.length === count && imgs.every((i) => i.loaded),
+      );
+    }
+
+    it("pastes a screenshot into _Images, on its own line, and shows it", async () => {
+      const uri = fixture("attach.md");
+      const doc = await openEditor(uri);
+      assert.ok(await webview(uri, { kind: "caretAfter", text: "Paste target" }));
+      await webview(uri, { kind: "transfer", event: "paste", files: [{ name: "image.png", type: "image/png", base64: PNG }] });
+      const text = await until("image linked", () => doc.getText(), (t) => t.includes("](_Images/"));
+      const m = /^Paste target paragraph here\.\n\n!\[\]\((_Images\/attach-pasted-\d{8}-\d{6}\.png)\)\n\nSecond line\.\n$/.exec(text);
+      assert.ok(m, JSON.stringify(text));
+      const saved = vscode.Uri.joinPath(uri, "..", m[1]);
+      assert.ok(await exists(saved), `${saved} written`);
+      assert.deepStrictEqual(Buffer.from(await vscode.workspace.fs.readFile(saved)).toString("base64"), PNG);
+      // Shown from the workspace through a webview resource URL.
+      const [img] = await imagesLoaded(uri, 1);
+      assert.match(img.src, /^https:\/\/.*_Images\/attach-pasted-.*\.png$/);
+    });
+
+    it("pastes a file as an inline link, saved beside the document", async () => {
+      const uri = fixture("attach.md");
+      const doc = await openEditor(uri);
+      assert.ok(await webview(uri, { kind: "caretAfter", text: "Second" }));
+      await webview(uri, { kind: "transfer", event: "paste", files: [{ name: "Spec Sheet (v2).pdf", type: "application/pdf", base64: b64("%PDF-1.4") }] });
+      await until("link inline", () => doc.getText(), (t) => t.includes("Second [Spec Sheet (v2).pdf](Spec%20Sheet%20%28v2%29.pdf) line."));
+      assert.ok(await exists(vscode.Uri.joinPath(uri, "..", "Spec Sheet (v2).pdf")));
+      assert.ok(!(await exists(vscode.Uri.joinPath(uri, "..", "_Images", "Spec Sheet (v2).pdf"))));
+    });
+
+    it("drops images and files from the OS: images to _Images, files linked beside", async () => {
+      const uri = fixture("attach.md");
+      const doc = await openEditor(uri);
+      assert.ok(await webview(uri, { kind: "caretAfter", text: "Paste" }));
+      await webview(uri, {
+        kind: "transfer",
+        event: "drop",
+        files: [
+          { name: "diagram.png", type: "image/png", base64: PNG },
+          { name: "notes.txt", type: "text/plain", base64: b64("hello") },
+        ],
+      });
+      const text = await until("dropped", () => doc.getText(), (t) => t.includes("notes.txt"));
+      assert.ok(text.includes("![](_Images/diagram.png)"), text);
+      assert.ok(text.includes("[notes.txt](notes.txt)"), text);
+      assert.ok(!text.includes("<br"), text);
+      assert.ok(text.startsWith("Paste target paragraph here.\n\n"), "the paragraph is not split");
+      assert.ok(await exists(vscode.Uri.joinPath(uri, "..", "_Images", "diagram.png")));
+      assert.ok(await exists(vscode.Uri.joinPath(uri, "..", "notes.txt")));
+      await imagesLoaded(uri, 1);
+
+      // A second drop of the same name is not overwritten.
+      await webview(uri, { kind: "transfer", event: "drop", margin: true, files: [{ name: "diagram.png", type: "image/png", base64: PNG }] });
+      await until("deduped", () => doc.getText(), (t) => t.includes("![](_Images/diagram-1.png)"));
+      assert.ok(await exists(vscode.Uri.joinPath(uri, "..", "_Images", "diagram-1.png")));
+    });
+
+    it("puts _Images next to a nested document and links relative to it", async () => {
+      const uri = fixture("docs/nested.md");
+      const doc = await openEditor(uri);
+      assert.ok(await webview(uri, { kind: "caretAfter", text: "A nested page." }));
+      await webview(uri, { kind: "transfer", event: "paste", files: [{ name: "image.png", type: "image/png", base64: PNG }] });
+      const text = await until("linked", () => doc.getText(), (t) => t.includes("](_Images/"));
+      const m = /!\[\]\((_Images\/nested-pasted-[^)]+\.png)\)/.exec(text);
+      assert.ok(m, text);
+      assert.ok(await exists(vscode.Uri.joinPath(uri, "..", m[1])), "saved in docs/_Images");
+      await imagesLoaded(uri, 1);
+    });
+
+    it("links files dropped from the Explorer where they are, without copying", async () => {
+      const uri = fixture("docs/nested.md");
+      const doc = await openEditor(uri);
+      assert.ok(await webview(uri, { kind: "caretAfter", text: "A nested" }));
+      const logo = fixture("logo.svg");
+      const sample = fixture("sample.md");
+      await webview(uri, { kind: "transfer", event: "drop", uris: [sample.toString()] });
+      await until("explorer link", () => doc.getText(), (t) => t.includes("A nested [sample.md](../sample.md) page."));
+      await webview(uri, { kind: "transfer", event: "drop", margin: true, uris: [logo.toString()] });
+      await until("explorer image", () => doc.getText(), (t) => t.includes("![](../logo.svg)"));
+      await imagesLoaded(uri, 1);
+      assert.ok(!(await exists(vscode.Uri.joinPath(uri, "..", "_Images", "logo.svg"))), "not copied");
+    });
+
+    // Opt-in (it uses the real system clipboard, restoring text afterwards):
+    // KEN_TEST_REAL_CLIPBOARD=1 npm run test:integration. Proves VS Code's own
+    // paste path (Electron paste into the webview) delivers the image.
+    const realClipboard = process.env.KEN_TEST_REAL_CLIPBOARD === "1" && process.platform === "darwin";
+    (realClipboard ? it : it.skip)("pastes an image from the real clipboard with VS Code's Paste", async () => {
+      const cp = await import("child_process");
+      const fs = await import("fs");
+      const os = await import("os");
+      const pathMod = await import("path");
+      const saved = cp.execFileSync("pbpaste").toString();
+      const file = pathMod.join(os.tmpdir(), "ken-clipboard.png");
+      fs.writeFileSync(file, Buffer.from(PNG, "base64"));
+      cp.execFileSync("osascript", ["-e", `set the clipboard to (read (POSIX file "${file}") as «class PNGf»)`]);
+      try {
+        const uri = fixture("attach.md");
+        const doc = await openEditor(uri);
+        assert.ok(await webview(uri, { kind: "caretAfter", text: "Second line." }));
+        await vscode.commands.executeCommand("editor.action.clipboardPasteAction");
+        const text = await until("pasted from clipboard", () => doc.getText(), (t) => /!\[\]\(_Images\/attach-pasted-[^)]+\.png\)/.test(t));
+        const rel = /\((_Images\/[^)]+)\)/.exec(text)![1];
+        assert.ok(await exists(vscode.Uri.joinPath(uri, "..", rel)));
+        await imagesLoaded(uri, 1);
+      } finally {
+        cp.execFileSync("pbcopy", { input: saved });
+      }
+    });
+
+    it("honours kenMarkdown.imageFolder", async () => {
+      const config = vscode.workspace.getConfiguration("kenMarkdown");
+      await config.update("imageFolder", "assets/img", vscode.ConfigurationTarget.Global);
+      try {
+        const uri = fixture("attach.md");
+        const doc = await openEditor(uri);
+        assert.ok(await webview(uri, { kind: "caretAfter", text: "Second line." }));
+        await webview(uri, { kind: "transfer", event: "paste", files: [{ name: "pic.png", type: "image/png", base64: PNG }] });
+        await until("custom folder", () => doc.getText(), (t) => t.includes("![](assets/img/pic.png)"));
+        assert.ok(await exists(vscode.Uri.joinPath(uri, "..", "assets", "img", "pic.png")));
+      } finally {
+        await config.update("imageFolder", undefined, vscode.ConfigurationTarget.Global);
+      }
+    });
+  });
+
   it("keeps CRLF line endings", async () => {
     const uri = fixture("crlf.md");
     const doc = await openEditor(uri);

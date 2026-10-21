@@ -1,8 +1,13 @@
 import * as vscode from "vscode";
-import type { EditorConfig, HostMessage, TestAction, WebviewMessage } from "./protocol";
-import { classifyHref, minimalChange, toEOL, toLF, uniqueName } from "./sync";
+import * as path from "path";
+import type { EditorConfig, HostMessage, LinkedUri, TestAction, WebviewMessage } from "./protocol";
+import { classifyHref, imageFolder, minimalChange, toEOL, toLF, uniqueName } from "./sync";
 
 export const VIEW_TYPE = "kenMarkdown.editor";
+
+function readImageFolder(scope: vscode.Uri): string {
+  return vscode.workspace.getConfiguration("kenMarkdown", scope).get<string>("imageFolder", "_Images");
+}
 
 export function readConfig(scope?: vscode.Uri): EditorConfig {
   const c = vscode.workspace.getConfiguration("kenMarkdown", scope);
@@ -127,7 +132,7 @@ class EditorSession {
         return;
       case "saveAttachment":
         try {
-          const path = await this.saveAttachment(m.name, m.data);
+          const path = await this.saveAttachment(m.name, m.data, m.image);
           this.post({ type: "attachmentSaved", id: m.id, path });
         } catch (err) {
           this.post({ type: "attachmentSaved", id: m.id, error: String(err) });
@@ -138,6 +143,9 @@ class EditorSession {
         this.post({ type: "resolved", id: m.id, url: this.panel.webview.asWebviewUri(uri).toString() });
         return;
       }
+      case "linkUris":
+        this.post({ type: "linkedUris", id: m.id, items: m.uris.map((u) => this.linkFor(u)) });
+        return;
       case "openLink":
         await this.openLink(m.href);
         return;
@@ -172,9 +180,17 @@ class EditorSession {
     await vscode.workspace.applyEdit(edit);
   }
 
-  /** Write a pasted/dropped file beside the document; its root-relative path. */
-  private async saveAttachment(name: string, data: Uint8Array): Promise<string> {
-    const dir = vscode.Uri.joinPath(this.document.uri, "..");
+  /**
+   * Write a pasted/dropped file and return its root-relative path. Images go
+   * into the image folder (`kenMarkdown.imageFolder`, `_Images` by default)
+   * beside the document, created on first use; other files go beside it.
+   */
+  private async saveAttachment(name: string, data: Uint8Array, image: boolean): Promise<string> {
+    const folder = image ? imageFolder(readImageFolder(this.document.uri)) : "";
+    const dir = folder
+      ? vscode.Uri.joinPath(this.document.uri, "..", ...folder.split("/"))
+      : vscode.Uri.joinPath(this.document.uri, "..");
+    if (folder) await vscode.workspace.fs.createDirectory(dir);
     const finalName = await uniqueName(name, async (candidate) => {
       try {
         await vscode.workspace.fs.stat(vscode.Uri.joinPath(dir, candidate));
@@ -185,7 +201,25 @@ class EditorSession {
     });
     await vscode.workspace.fs.writeFile(vscode.Uri.joinPath(dir, finalName), data);
     const docDir = this.docPath.includes("/") ? this.docPath.slice(0, this.docPath.lastIndexOf("/")) : "";
-    return docDir ? `${docDir}/${finalName}` : finalName;
+    const rel = folder ? `${folder}/${finalName}` : finalName;
+    return docDir ? `${docDir}/${rel}` : rel;
+  }
+
+  /** How the document should reference a file dropped from the Explorer. */
+  private linkFor(raw: string): LinkedUri {
+    let uri: vscode.Uri;
+    try {
+      uri = vscode.Uri.parse(raw, true);
+    } catch {
+      return { path: raw, relative: false, name: raw };
+    }
+    const name = path.posix.basename(uri.path) || raw;
+    const doc = this.document.uri;
+    if (uri.scheme !== doc.scheme || uri.authority !== doc.authority) {
+      return { path: uri.toString(), relative: false, name };
+    }
+    const rel = path.posix.relative(path.posix.dirname(doc.path), uri.path);
+    return { path: rel || name, relative: true, name };
   }
 
   private async openLink(href: string): Promise<void> {

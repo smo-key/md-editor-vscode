@@ -6,7 +6,6 @@
  */
 import { Crepe } from "@milkdown/crepe";
 import { remarkStringifyOptionsCtx } from "@milkdown/kit/core";
-import { uploadConfig, type Uploader } from "@milkdown/kit/plugin/upload";
 
 import { githubAlertPlugins } from "./markdown/githubAlert";
 import { disableHeadingDowngrade, headingBackspace } from "./markdown/headingBackspace";
@@ -23,6 +22,7 @@ import { configureListDelimiter, listStylePlugins } from "./markdown/listStyles"
 import { emptyTableCellSchemas, imageBlockAltSchema, tightListJoin } from "./markdown/gfmFidelity";
 import { htmlViewPlugin, inlineHtmlPlugin } from "./markdown/htmlView";
 import { vscodeCodeTheme } from "./codeTheme";
+import { fileDropPlugin, type FileDropOptions } from "./fileDrop";
 import { slashMenuPlugin } from "./slashMenu";
 import { useTaskHandle } from "./taskHandle";
 import { tableCellClickFix, tableKeys } from "./tableKeys";
@@ -33,8 +33,8 @@ export interface EditorOptions {
   markdown: string;
   /** A link was clicked: follow it and say whether it was followed. */
   onLink?: (link: LinkClick) => boolean;
-  /** Storage for pasted/dropped files; Crepe's blob: uploader otherwise. */
-  uploader?: Uploader;
+  /** Saving and linking pasted/dropped files (fileDrop.ts); Crepe's blob: uploader otherwise. */
+  fileDrop?: FileDropOptions;
   /** The image block's own Upload button. */
   onUpload?: (file: File) => Promise<string>;
   /** Display URL for an image src (document-relative paths need one). */
@@ -71,13 +71,10 @@ export function buildEditor(options: EditorOptions): Crepe {
       },
     },
   });
-  // After construction: Crepe installs its own uploader in its constructor.
-  const uploader = options.uploader;
-  if (uploader) {
-    crepe.editor.config((ctx) => {
-      ctx.update(uploadConfig.key, (prev) => ({ ...prev, uploader }));
-    });
-  }
+  // Pasted and dropped files: saved beside the document and linked or shown,
+  // placed without splitting the line (fileDrop.ts). Ahead of Milkdown's own
+  // upload plugin, which is left with nothing to do.
+  if (options.fileDrop) crepe.editor.use(fileDropPlugin(options.fileDrop));
   const onLink = options.onLink ?? (() => false);
   crepe.editor.use(githubAlertPlugins);
   crepe.editor.use(headingBackspace);

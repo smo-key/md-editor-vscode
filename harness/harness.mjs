@@ -21,7 +21,20 @@ export async function openHarness({ themeFile, markdown, width = 1100, height = 
     window.__sent.push(m);
     if (m.type === "ready") setTimeout(() => window.postMessage({ type: "init", text: ${JSON.stringify(markdown)}, docPath: "doc.md",
       config: { fontSize: ${Number(fontSize)}, bodyFontFamily: "", headingFontFamily: "", codeFontFamily: "", lineHeight: 1.85, maxWidth: 720, toolbar: true } }, "*"));
-    if (m.type === "resolve") setTimeout(() => window.postMessage({ type: "resolved", id: m.id, url: "/test/fixtures/" + m.path }, "*"));
+    // Stand-in for the host: "saved" files live in memory as blob URLs,
+    // deduped like the host does (name-1.png).
+    if (m.type === "saveAttachment") {
+      window.__saved = window.__saved || {};
+      const dot = m.name.lastIndexOf(".");
+      const stem = dot > 0 ? m.name.slice(0, dot) : m.name, ext = dot > 0 ? m.name.slice(dot) : "";
+      const dir = m.image ? "_Images/" : "";
+      let name = dir + m.name;
+      for (let n = 1; window.__saved[name]; n++) name = dir + stem + "-" + n + ext;
+      window.__saved[name] = URL.createObjectURL(new Blob([m.data]));
+      setTimeout(() => window.postMessage({ type: "attachmentSaved", id: m.id, path: name }, "*"));
+    }
+    if (m.type === "resolve") setTimeout(() => window.postMessage({ type: "resolved", id: m.id,
+      url: (window.__saved && window.__saved[m.path]) || "/test/fixtures/" + m.path }, "*"));
   }});
   window.__lastText = () => { const e = window.__sent.filter((m) => m.type === "edit").pop(); return e ? e.text : null; };
 </script>

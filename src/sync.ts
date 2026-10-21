@@ -91,3 +91,16 @@ export function classifyHref(href: string): LinkKind {
   }
   return { kind: "file", path, fragment };
 }
+
+/**
+ * The image folder setting as a safe relative path below the document's
+ * folder: separators normalised, and `.`, `..` and empty segments dropped so
+ * it can never point outside it. "" means beside the document.
+ */
+export function imageFolder(setting: string | undefined): string {
+  return (setting ?? "")
+    .split(/[\\/]+/)
+    .map((seg) => seg.trim().replace(/[:*?"<>|\u0000-\u001f]/g, "-"))
+    .filter((seg) => seg && seg !== "." && seg !== "..")
+    .join("/");
+}

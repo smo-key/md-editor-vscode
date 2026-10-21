@@ -83,3 +83,15 @@ describe("classifyHref", () => {
     });
   });
 });
+
+describe("imageFolder", () => {
+  it("keeps the folder below the document", async () => {
+    const { imageFolder } = await import("../../src/sync");
+    expect(imageFolder("_Images")).toBe("_Images");
+    expect(imageFolder("assets\\img/")).toBe("assets/img");
+    expect(imageFolder("../../etc")).toBe("etc");
+    expect(imageFolder("/abs/./x")).toBe("abs/x");
+    expect(imageFolder("")).toBe("");
+    expect(imageFolder(undefined)).toBe("");
+  });
+});

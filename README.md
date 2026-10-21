@@ -68,8 +68,27 @@ Math (`$…$`) is intentionally left as plain text, as in Ken, so prices like
 - Copy-link buttons on headings; `#anchor` links scroll within the document.
 - `[[Wiki links]]` and relative links open the target file in VS Code; web
   links open in your browser.
-- Paste or drop images and files: they are saved next to the document and
-  linked with a relative path. Click an image or diagram to zoom.
+- Click an image or diagram to zoom.
+
+## Pasting and dropping files
+
+- **Images** you paste (e.g. a screenshot) or drop are copied into an
+  `_Images` folder next to the document (created when first needed) and
+  referenced with a relative path: `![](_Images/notes-pasted-20261021-102938.png)`.
+  Clipboard images are named after the document and the time; dropped files
+  keep their name, with `-1`, `-2`… added rather than overwriting. The folder
+  is set by `kenMarkdown.imageFolder`.
+- **Other files** are copied next to the document and linked inline where
+  you paste or drop them: `[Spec Sheet (v2).pdf](Spec%20Sheet%20%28v2%29.pdf)`.
+- **From VS Code's Explorer**, files are linked where they are (relative to
+  the document), not copied; images are shown.
+- Nothing splits the line you are on: links go in at the caret or drop point,
+  images replace an empty line or go below (or above, at the start of) the
+  paragraph, and in table cells images go inline.
+- To drop into the editor, **hold Shift** while dropping. That's a VS Code rule
+  for all editors: without Shift, VS Code opens the dropped file instead.
+- An image copied from a web page pastes as a link to the original rather than
+  a saved copy.
 
 ## Tables
 
@@ -103,6 +122,7 @@ The header row is GFM's: it stays first and cannot be deleted on its own
 | `kenMarkdown.lineHeight` | `1.85` | Body line height. |
 | `kenMarkdown.maxWidth` | `720` | Width of the text column in px. |
 | `kenMarkdown.toolbar` | `true` | Show the formatting toolbar at the bottom. |
+| `kenMarkdown.imageFolder` | `_Images` | Folder next to the document that pasted and dropped images are copied into; empty for beside the document. |
 
 Hanken Grotesk, Newsreader and JetBrains Mono (Ken's fonts) are bundled; any
 font installed on your machine works too. Changes apply immediately.
@@ -124,6 +144,7 @@ npm run build             # bundle extension + webview into dist/
 npm run typecheck
 npm test                  # unit tests (vitest): Ken's plugins, GFM round-trips, commands, tables, sync
 npm run test:integration  # launches VS Code and drives the real editor
+KEN_TEST_REAL_CLIPBOARD=1 npm run test:integration  # also pastes a real image via the macOS clipboard
 npm run package           # produces ken-markdown-editor-<version>.vsix
 ```
 

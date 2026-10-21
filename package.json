@@ -139,9 +139,10 @@
     "typecheck": "tsc --noEmit -p . && tsc --noEmit -p webview",
     "test": "vitest run",
     "test:integration": "npm run build && tsc -p test/integration && node out/test/integration/runTest.js",
-    "package": "npm run build -- --production && vsce package --no-dependencies",
+    "package": "npm run build -- --production && vsce package --no-dependencies --allow-missing-repository",
     "vscode:prepublish": "npm run build -- --production",
-    "screenshot": "node harness/screenshot.mjs"
+    "screenshot": "node harness/screenshot.mjs",
+    "install-extension": "./install.sh"
   },
   "dependencies": {
     "@codemirror/language": "^6.13.1",
@@ -171,9 +172,5 @@
   },
   "overrides": {
     "prosemirror-model": "1.25.11"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/arthur-pachachura/md-editor-vscode"
   }
 }

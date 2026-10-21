@@ -1,7 +1,7 @@
 # Ken Markdown Editor for VS Code
 
 A calm, WYSIWYG Markdown editor for VS Code, modelled on the Markdown editor in
-[Ken](../ken): the same [Milkdown Crepe](https://milkdown.dev) editor, the same
+Ken: the same [Milkdown Crepe](https://milkdown.dev) editor, the same
 typography and layout, and Ken's editing extras, coloured by **your active VS
 Code theme**.
 
@@ -15,6 +15,32 @@ Code theme**.
 - **Themed by VS Code.** Every colour (text, links, code, quotes, tables,
   alerts, menus, scrollbars, syntax highlighting, Mermaid) comes from the
   `--vscode-*` theme variables, and updates live when you change theme.
+
+## Install
+
+From this folder, one line builds the latest version and installs it into
+VS Code (it pulls the latest source first when the checkout tracks a remote):
+
+```sh
+~/git/md-editor-vscode/install.sh
+```
+
+Then reload any open VS Code windows (*Developer: Reload Window*). Run the
+same line again to update. Re-installing the same version is fine; it's
+replaced in place.
+
+Needs Node.js 18+ and VS Code's `code` command on your `PATH` (in VS Code:
+*Shell Command: Install 'code' command in PATH*). For another VS Code build
+or fork, name its CLI: `CODE=code-insiders ~/git/md-editor-vscode/install.sh`
+(likewise `cursor`, `codium`).
+
+On a new machine, clone the repository first, then run the script:
+
+```sh
+git clone <repository-url> ~/git/md-editor-vscode && ~/git/md-editor-vscode/install.sh
+```
+
+To uninstall: `code --uninstall-extension arthur-pachachura.ken-markdown-editor`.
 
 ## GitHub-flavoured Markdown
 
@@ -74,12 +100,12 @@ Math (`$…$`) is intentionally left as plain text, as in Ken, so prices like
 
 - **Images** you paste (e.g. a screenshot) or drop are copied into an
   `_Images` folder next to the document (created when first needed) and
-  referenced with a relative path: `![](_Images/notes-pasted-20261021-102938.png)`.
+  referenced with a relative path such as `_Images/notes-pasted-20261021-102938.png`.
   Clipboard images are named after the document and the time; dropped files
   keep their name, with `-1`, `-2`… added rather than overwriting. The folder
   is set by `kenMarkdown.imageFolder`.
 - **Other files** are copied next to the document and linked inline where
-  you paste or drop them: `[Spec Sheet (v2).pdf](Spec%20Sheet%20%28v2%29.pdf)`.
+  you paste or drop them, with the file name as the link text.
 - **From VS Code's Explorer**, files are linked where they are (relative to
   the document), not copied; images are shown.
 - Nothing splits the line you are on: links go in at the caret or drop point,
@@ -146,6 +172,7 @@ npm test                  # unit tests (vitest): Ken's plugins, GFM round-trips,
 npm run test:integration  # launches VS Code and drives the real editor
 KEN_TEST_REAL_CLIPBOARD=1 npm run test:integration  # also pastes a real image via the macOS clipboard
 npm run package           # produces ken-markdown-editor-<version>.vsix
+npm run install-extension # package + install into VS Code (same as ./install.sh)
 ```
 
 Press <kbd>F5</kbd> in VS Code to launch an Extension Development Host with

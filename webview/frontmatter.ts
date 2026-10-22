@@ -43,12 +43,12 @@ export class FrontmatterPanel {
   private raw = false;
   /** Show the panel even when the document has no frontmatter (setting). */
   private alwaysShow = false;
+  /** Opened on a document without frontmatter: a blank row, written once it has a name. */
+  private draft = false;
 
   constructor(
     host: HTMLElement,
     private readonly onChange: Change,
-    /** Default title for new frontmatter (the document's file name). */
-    private readonly defaultTitle: () => string,
   ) {
     this.el = document.createElement("div");
     this.el.className = "ken-frontmatter";
@@ -75,15 +75,20 @@ export class FrontmatterPanel {
     if (!on || !(this.el.contains(document.activeElement) && this.expanded)) this.render();
   }
 
-  /** Expand, creating frontmatter first if there is none. */
+  /**
+   * Expand. Without frontmatter, a blank property to fill in: nothing is
+   * written until it has a name.
+   */
   open(): void {
-    if (!this.model) {
-      const title = this.defaultTitle().replace(/"/g, '\\"');
-      this.commit(`---\ntitle: ${/[:#[\]{},&*!|>'"%@`]/.test(title) ? `"${title}"` : title}\n---\n`);
+    const adding = !this.front;
+    if (adding) {
+      this.model ??= parseFrontmatter("---\n---\n");
+      if (!entries(this.model).some((e) => !e.key)) this.model.segments.push({ entry: { key: "", inline: "", continuation: [] } });
+      this.draft = true;
     }
     this.expanded = true;
     this.render();
-    this.el.querySelector<HTMLInputElement>(".ken-fm-value")?.focus();
+    this.el.querySelector<HTMLInputElement>(adding ? ".ken-fm-key" : ".ken-fm-value")?.focus();
   }
 
   private commit(front: string) {
@@ -105,8 +110,10 @@ export class FrontmatterPanel {
   private render() {
     this.el.replaceChildren();
     document.body.classList.toggle("has-frontmatter", !!this.front);
+    // A draft ends once written, or when collapsed without a name.
+    if (this.draft && (this.front || !this.expanded)) this.draft = false;
     // The placeholder model of an always-shown panel goes with the setting.
-    if (!this.front && !this.alwaysShow) this.model = null;
+    if (!this.front && !this.alwaysShow && !this.draft) this.model = null;
     if (!this.model && this.alwaysShow) {
       // Nothing in the file yet: an empty model the rows can edit; it is
       // only written once a property has a name.

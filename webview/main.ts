@@ -110,10 +110,6 @@ const frontmatterPanel = new FrontmatterPanel(
     dirty = true;
     sync();
   },
-  () => {
-    const leaf = docPath.slice(docPath.lastIndexOf("/") + 1);
-    return leaf.replace(/\.(md|markdown)$/i, "");
-  },
 );
 
 let crepe: Crepe | undefined;

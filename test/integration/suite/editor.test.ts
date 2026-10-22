@@ -650,14 +650,18 @@ describe("Ken Markdown Editor", function () {
     await until("title saved", () => doc.getText(), (t) => t.startsWith("---\ntitle: Renamed\naliases: [demo]\n---\n#"));
   });
 
-  it("adds frontmatter with the Properties command", async () => {
+  it("adds frontmatter with the Properties command, without a default title", async () => {
     const uri = fixture("attach.md");
     const doc = await openEditor(uri);
     assert.strictEqual(await webview(uri, { kind: "count", selector: ".ken-frontmatter:not([hidden])" }), 0);
     assert.ok(await webview(uri, { kind: "caretAfter", text: "Second line." }));
     await vscode.commands.executeCommand("kenMarkdown.editProperties");
-    await until("frontmatter added", () => doc.getText(), (t) => t.startsWith("---\ntitle: attach\n---\nPaste target"));
-    assert.strictEqual(await webview(uri, { kind: "count", selector: ".ken-fm-row" }), 1, "opened for editing");
+    await until("opened for editing", () => webview(uri, { kind: "count", selector: ".ken-fm-row" }), (n) => n === 1);
+    await sleep(400);
+    assert.strictEqual(doc.isDirty, false, "a blank property writes nothing");
+    await webview(uri, { kind: "fill", selector: ".ken-fm-key", value: "status" });
+    await webview(uri, { kind: "fill", selector: ".ken-fm-value", value: "draft" });
+    await until("frontmatter added", () => doc.getText(), (t) => t.startsWith("---\nstatus: draft\n---\nPaste target"));
   });
 
   it("can always show Properties, writing nothing until one is added", async () => {

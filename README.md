@@ -175,7 +175,8 @@ The editor keeps this valid through any edit:
 
 Diagrams are draw.io's editable images, `.drawio.svg` (or `.drawio.png`):
 ordinary images that GitHub and every renderer show, with the diagram source
-embedded, so the Markdown just links them (`![](_Images/notes-diagram.drawio.svg)`).
+embedded, so the Markdown just links them as images (for example
+`_Images/notes-diagram.drawio.svg`).
 
 - **Insert** one with `/drawio` (slash menu) or *Insert draw.io Diagram*: a new
   diagram file is created in the image folder and opened for editing.

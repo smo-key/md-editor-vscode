@@ -214,6 +214,19 @@ await check("underline (⌘U) writes <ins>", async () => {
   assert.match(await lastText(), /<ins>below<\/ins>\n$/);
 });
 
+await check("toolbar checklist on the last line keeps the caret in the new item", async () => {
+  // A click below the document puts the caret at its very end.
+  const box = await page.evaluate(() => document.querySelector(".editor-scroll").getBoundingClientRect());
+  await page.mouse.click(box.left + 300, box.bottom - 10);
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("todo");
+  await page.click('.ken-toolbar-button[data-id="task-list"]');
+  await settle();
+  await page.keyboard.type(" item");
+  await settle();
+  assert.match(await lastText(), /\n- \[ \] (<ins>)?todo item(<\/ins>)?\n$/);
+});
+
 assert.deepEqual(h.errors, []);
 await h.close();
 console.log(`ok: ${checks.length} checks\n- ${checks.join("\n- ")}`);

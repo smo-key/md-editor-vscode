@@ -264,16 +264,23 @@ function toggleList(view: EditorView, ctx: Ctx, kind: "bullet" | "ordered" | "ta
   if (block.isTextblock && block.type !== schema.nodes.paragraph && block.type !== schema.nodes.code_block) {
     run(view, setBlockType(schema.nodes.paragraph));
   }
-  if (!wrapInList(listType)(view.state, view.dispatch)) return;
-  if (kind === "task") {
-    const { $from } = view.state.selection;
-    for (let d = $from.depth; d > 0; d--) {
-      if ($from.node(d).type.name === "list_item") {
-        view.dispatch(view.state.tr.setNodeMarkup($from.before(d), undefined, { ...$from.node(d).attrs, checked: false }));
-        break;
+  // A checklist is created checked in the same transaction: setting the
+  // attribute afterwards re-renders the new item's view, and the browser's
+  // caret ends up after the list.
+  const wrap = wrapInList(listType);
+  const ok = wrap(view.state, (tr) => {
+    if (kind === "task") {
+      const { $from } = tr.selection;
+      for (let d = $from.depth; d > 0; d--) {
+        if ($from.node(d).type.name === "list_item") {
+          tr.setNodeMarkup($from.before(d), undefined, { ...$from.node(d).attrs, checked: false });
+          break;
+        }
       }
     }
-  }
+    view.dispatch(tr);
+  });
+  if (!ok) return;
   void ctx;
 }
 

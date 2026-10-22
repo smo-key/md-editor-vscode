@@ -34,6 +34,7 @@ const BUILT_IN: [string, string][] = [
   ["Cell below; leave table from the last row", "Enter"],
   ["Leave table", `${MOD}Enter`],
   ["Indent / outdent list item", `Tab / ${SHIFT}Tab`],
+  ["Heading one level smaller / larger", `Tab / ${SHIFT}Tab`],
   ["Heading → paragraph (at its start)", "Backspace"],
   ["Find", `${MOD}F`],
 ];

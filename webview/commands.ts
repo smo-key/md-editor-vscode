@@ -8,7 +8,7 @@ import type { Ctx } from "@milkdown/kit/ctx";
 import type { MarkType, Node as ProseNode } from "@milkdown/kit/prose/model";
 import { lift, setBlockType, toggleMark, wrapIn } from "@milkdown/kit/prose/commands";
 import { redo, undo, redoDepth, undoDepth } from "@milkdown/kit/prose/history";
-import { liftListItem, wrapInList } from "@milkdown/kit/prose/schema-list";
+import { liftListItem, sinkListItem, wrapInList } from "@milkdown/kit/prose/schema-list";
 import { TextSelection, type EditorState } from "@milkdown/kit/prose/state";
 import {
   CellSelection,
@@ -67,6 +67,8 @@ import {
   Lightbulb,
   Link,
   List,
+  ListIndentDecrease,
+  ListIndentIncrease,
   ListChecks,
   ListOrdered,
   ListTree,
@@ -78,6 +80,7 @@ import {
   Redo2,
   Strikethrough,
   Table,
+  Tags,
   TableColumnsSplit,
   TableRowsSplit,
   Quote,
@@ -92,6 +95,7 @@ import {
 import { insertGithubAlertCommand, type GithubAlertKind } from "./markdown/githubAlert";
 import { insertTocCommand } from "./markdown/toc";
 import { tableAt, toggleTableFullWidthCommand } from "./markdown/tableFullWidth";
+import { hasFrontmatterPanel, openFrontmatter } from "./frontmatter";
 import { withColumnWidths } from "./tableResize";
 
 export type CommandGroup = "history" | "text" | "format" | "list" | "insert" | "alert" | "table";
@@ -107,6 +111,8 @@ export interface EditorCommand {
   slash?: boolean;
   /** Shown in the bottom toolbar. */
   toolbar?: boolean;
+  /** A key built into the editor (not a VS Code keybinding), for hints. */
+  builtinKey?: string;
   danger?: boolean;
   run(ctx: Ctx, view: EditorView): void;
   isActive?(state: EditorState): boolean;
@@ -127,7 +133,7 @@ export function setShortcutLabels(next: Record<string, string>): void {
 
 /** The key label for a command id ("" when it has no key). */
 export function shortcutFor(id: string): string {
-  return labels[id] ?? "";
+  return labels[id] || COMMANDS.find((c) => c.id === id)?.builtinKey || "";
 }
 
 export function onShortcutLabels(listener: () => void): () => void {
@@ -558,7 +564,41 @@ export const COMMANDS: EditorCommand[] = [
     isEnabled: (state) => !inCodeBlock(state) && !inTable(state),
   },
 
+  {
+    id: "outdent",
+    label: "Outdent list item",
+    icon: ListIndentDecrease,
+    group: "list",
+    keywords: ["unindent", "dedent", "lift"],
+    toolbar: true,
+    builtinKey: "⇧Tab",
+    run: (_ctx, view) => run(view, liftListItem(view.state.schema.nodes.list_item)),
+    isEnabled: (state) => !!listKind(state) && liftListItem(state.schema.nodes.list_item)(state),
+  },
+  {
+    id: "indent",
+    label: "Indent list item",
+    icon: ListIndentIncrease,
+    group: "list",
+    keywords: ["indent", "nest", "sink"],
+    toolbar: true,
+    builtinKey: "Tab",
+    run: (_ctx, view) => run(view, sinkListItem(view.state.schema.nodes.list_item)),
+    isEnabled: (state) => !!listKind(state) && sinkListItem(state.schema.nodes.list_item)(state),
+  },
+
   // Blocks
+  {
+    id: "frontmatter",
+    label: "Properties (frontmatter)",
+    icon: Tags,
+    group: "insert",
+    keywords: ["frontmatter", "properties", "metadata", "yaml"],
+    slash: true,
+    toolbar: true,
+    run: () => openFrontmatter(),
+    isEnabled: () => hasFrontmatterPanel(),
+  },
   {
     id: "quote",
     label: "Quote",

@@ -1435,3 +1435,179 @@ body.ken-col-resizing * {
   cursor: col-resize !important;
   user-select: none !important;
 }
+
+/* --- Properties / frontmatter (frontmatter.ts) ------------------------------- */
+/* Part of the document, not a card: no box, no border, aligned with the text
+   column, sitting just above the first heading. The disclosure chevron hangs
+   in the left gutter so "Properties" lines up with the text. Monochrome. */
+.ken-frontmatter {
+  margin: 0 0 6px;
+  font-family: var(--vscode-font-family);
+  font-size: 12.5px;
+  color: var(--vscode-descriptionForeground);
+}
+.ken-frontmatter[hidden] {
+  display: none;
+}
+.ken-fm-header {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.ken-fm-toggle {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: -24px;
+  padding: 4px 6px 4px 4px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.ken-fm-toggle:hover {
+  color: var(--vscode-foreground, var(--vscode-editor-foreground));
+}
+.ken-fm-chevron {
+  flex: none;
+  transition: transform 120ms ease;
+}
+.ken-frontmatter.expanded .ken-fm-chevron {
+  transform: rotate(90deg);
+}
+.ken-fm-label {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 600;
+}
+.ken-fm-preview {
+  min-width: 0;
+  display: flex;
+  gap: 6px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+/* Tags: monochrome, an outline in the text's own colour. */
+.ken-fm-chip {
+  display: inline-flex;
+  gap: 4px;
+  max-width: 220px;
+  padding: 0 7px;
+  border: 1px solid color-mix(in srgb, currentColor 35%, transparent);
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ken-fm-chip-key {
+  opacity: 0.7;
+}
+.ken-fm-chip-value {
+  color: var(--vscode-foreground, var(--vscode-editor-foreground));
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ken-fm-more {
+  opacity: 0.7;
+}
+.ken-fm-button {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 4px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.ken-fm-button:hover {
+  color: var(--vscode-foreground, var(--vscode-editor-foreground));
+  background: var(--vscode-toolbar-hoverBackground, var(--vscode-list-hoverBackground));
+}
+.ken-fm-button.active {
+  color: var(--vscode-foreground, var(--vscode-editor-foreground));
+  background: var(--vscode-toolbar-activeBackground, var(--vscode-toolbar-hoverBackground));
+}
+.ken-fm-button.danger:hover {
+  color: var(--vscode-errorForeground);
+}
+.ken-fm-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 2px 0 8px;
+}
+.ken-fm-row {
+  display: grid;
+  grid-template-columns: minmax(80px, 160px) 1fr 24px;
+  gap: 6px;
+  align-items: start;
+}
+/* Fields read as text until hovered or focused. */
+.ken-fm-key,
+.ken-fm-value,
+.ken-fm-raw {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 2px 6px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--vscode-foreground, var(--vscode-editor-foreground));
+  font-family: var(--vscode-editor-font-family, var(--font-mono));
+  font-size: 12px;
+  line-height: 1.5;
+  outline: none;
+}
+.ken-fm-key {
+  color: var(--vscode-descriptionForeground);
+}
+.ken-fm-key:hover,
+.ken-fm-value:hover,
+.ken-fm-raw:hover {
+  background: var(--vscode-input-background);
+}
+.ken-fm-key:focus,
+.ken-fm-value:focus,
+.ken-fm-raw:focus {
+  border-color: var(--vscode-focusBorder);
+  background: var(--vscode-input-background);
+}
+textarea.ken-fm-value,
+.ken-fm-raw {
+  resize: vertical;
+}
+.ken-fm-raw {
+  display: block;
+  margin: 2px 0 8px;
+}
+.ken-fm-remove {
+  opacity: 0;
+}
+.ken-fm-row:hover .ken-fm-remove,
+.ken-fm-remove:focus-visible {
+  opacity: 1;
+}
+.ken-fm-add {
+  align-self: flex-start;
+  padding: 0 8px 0 4px;
+}
+
+/* The empty-document placeholder: not when the file has properties (it is not empty then). */
+body.has-frontmatter .milkdown .crepe-placeholder::before {
+  content: none !important;
+}

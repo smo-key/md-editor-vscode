@@ -130,6 +130,16 @@
         "category": "Ken Markdown"
       },
       {
+        "command": "kenMarkdown.outdentListItem",
+        "title": "Outdent List Item",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.indentListItem",
+        "title": "Indent List Item",
+        "category": "Ken Markdown"
+      },
+      {
         "command": "kenMarkdown.quote",
         "title": "Quote",
         "category": "Ken Markdown"
@@ -162,6 +172,11 @@
       {
         "command": "kenMarkdown.insertTableOfContents",
         "title": "Insert Table of Contents",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.editProperties",
+        "title": "Add or Edit Properties (Frontmatter)",
         "category": "Ken Markdown"
       },
       {
@@ -374,6 +389,14 @@
           "when": "activeCustomEditorId == 'kenMarkdown.editor'"
         },
         {
+          "command": "kenMarkdown.outdentListItem",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.indentListItem",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
           "command": "kenMarkdown.quote",
           "when": "activeCustomEditorId == 'kenMarkdown.editor'"
         },
@@ -399,6 +422,10 @@
         },
         {
           "command": "kenMarkdown.insertTableOfContents",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.editProperties",
           "when": "activeCustomEditorId == 'kenMarkdown.editor'"
         },
         {
@@ -558,6 +585,11 @@
           "type": "string",
           "default": "_Images",
           "markdownDescription": "Folder, next to the document, that pasted and dropped images are copied into (created when first needed). Leave empty to save images beside the document. Other files are always saved beside the document."
+        },
+        "kenMarkdown.alwaysShowProperties": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Show the Properties (frontmatter) panel above every document, even one without frontmatter. Nothing is added to the file until you add a property."
         }
       }
     },

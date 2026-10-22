@@ -114,6 +114,16 @@
       "mac": "cmd+alt+9"
     },
     {
+      "command": "kenMarkdown.outdentListItem",
+      "editor": "outdent",
+      "title": "Outdent List Item"
+    },
+    {
+      "command": "kenMarkdown.indentListItem",
+      "editor": "indent",
+      "title": "Indent List Item"
+    },
+    {
       "command": "kenMarkdown.quote",
       "editor": "quote",
       "title": "Quote",
@@ -151,6 +161,11 @@
       "command": "kenMarkdown.insertTableOfContents",
       "editor": "toc",
       "title": "Insert Table of Contents"
+    },
+    {
+      "command": "kenMarkdown.editProperties",
+      "editor": "frontmatter",
+      "title": "Add or Edit Properties (Frontmatter)"
     },
     {
       "command": "kenMarkdown.alertNote",

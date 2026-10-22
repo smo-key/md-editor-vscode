@@ -59,3 +59,35 @@ export const tableCellClickFix = $prose(
       },
     }),
 );
+
+/**
+ * Tab / Shift+Tab on a heading make it one level smaller / larger (H2 → H3,
+ * H3 → H2), stopping at H6 and H1. Lists keep Tab for indenting, tables for
+ * moving between cells: this only applies in a heading.
+ */
+export const headingLevelKeys = $useKeymap("kenHeadingLevel", {
+  Deeper: {
+    priority: 150,
+    shortcuts: "Tab",
+    command: () => (state, dispatch) => {
+      const { $from } = state.selection;
+      const node = $from.parent;
+      if (node.type.name !== "heading") return false;
+      const level = node.attrs.level as number;
+      if (level < 6 && dispatch) dispatch(state.tr.setNodeMarkup($from.before(), undefined, { ...node.attrs, level: level + 1 }));
+      return true;
+    },
+  },
+  Shallower: {
+    priority: 150,
+    shortcuts: "Shift-Tab",
+    command: () => (state, dispatch) => {
+      const { $from } = state.selection;
+      const node = $from.parent;
+      if (node.type.name !== "heading") return false;
+      const level = node.attrs.level as number;
+      if (level > 1 && dispatch) dispatch(state.tr.setNodeMarkup($from.before(), undefined, { ...node.attrs, level: level - 1 }));
+      return true;
+    },
+  },
+});

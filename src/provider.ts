@@ -36,6 +36,7 @@ export function readConfig(scope?: vscode.Uri): EditorConfig {
     lineHeight: c.get<number>("lineHeight", 1.85),
     maxWidth: c.get<number>("maxWidth", 720),
     toolbar: toolbarPosition(c.get<unknown>("toolbar", "bottom")),
+    alwaysShowProperties: c.get<boolean>("alwaysShowProperties", false),
   };
 }
 

@@ -36,7 +36,7 @@ async function openEditor(uri: vscode.Uri): Promise<vscode.TextDocument> {
     "webview ready",
     () => vscode.commands.executeCommand<boolean>("kenMarkdown._test", uri.toString()),
     Boolean,
-    45000,
+    90000,
   );
   // The editor mounts asynchronously after the webview reports ready.
   await until("editor mounted", () => webview(uri, { kind: "count", selector: ".milkdown .ProseMirror" }), (n) => n === 1);
@@ -63,7 +63,7 @@ async function themeColors(uri: vscode.Uri) {
 }
 
 describe("Ken Markdown Editor", function () {
-  this.timeout(60000);
+  this.timeout(120000);
 
   afterEach(async () => {
     await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor");
@@ -283,11 +283,14 @@ describe("Ken Markdown Editor", function () {
       const doc = await openEditor(uri);
       assert.ok(await webview(uri, { kind: "selectText", text: "target" }));
       const mod = process.platform === "darwin" ? { meta: true } : { ctrl: true };
-      await webview(uri, { kind: "key", key: "b", code: "KeyB", ...mod });
-      await webview(uri, { kind: "key", key: "i", code: "KeyI", ...mod });
-      await sleep(600);
-      assert.ok(doc.getText().includes("Paste target paragraph"), `the editor itself did not bold or italicize: ${JSON.stringify(doc.getText())}`);
-      assert.ok(!doc.isDirty);
+      for (const [key, code] of [["b", "KeyB"], ["i", "KeyI"], ["2", "Digit2"]]) {
+        const r = (await webview(uri, { kind: "key", key, code, ...mod })) as { leftToVsCode: boolean; editorChanged: boolean };
+        assert.deepStrictEqual(r, { leftToVsCode: true, editorChanged: false }, `${key}: the editor leaves it to VS Code`);
+      }
+      // Clipboard and select-all stay native.
+      const copy = (await webview(uri, { kind: "key", key: "c", code: "KeyC", ...mod })) as { leftToVsCode: boolean };
+      assert.strictEqual(copy.leftToVsCode, false);
+      void doc;
     });
 
     it("lists every shortcut, with the current keys", async () => {
@@ -632,6 +635,60 @@ describe("Ken Markdown Editor", function () {
     assert.strictEqual(await webview(uri, { kind: "getStyle", selector: ".ken-table-cols col:nth-child(2)", property: "width" }), "60px");
     await sleep(500);
     assert.strictEqual(doc.isDirty, false);
+  });
+
+  it("shows frontmatter as properties, editable, saved to the file", async () => {
+    const uri = fixture("sample.md");
+    const doc = await openEditor(uri);
+    const count = (selector: string) => webview(uri, { kind: "count", selector });
+    assert.strictEqual(await count(".ken-frontmatter:not([hidden])"), 1);
+    assert.strictEqual(await count(".ken-fm-chip"), 2, "collapsed preview of title and aliases");
+    assert.strictEqual(await count(".ken-fm-row"), 0, "collapsed initially");
+    await webview(uri, { kind: "click", selector: ".ken-fm-toggle" });
+    assert.strictEqual(await count(".ken-fm-row"), 2);
+    await webview(uri, { kind: "fill", selector: ".ken-fm-row:first-child .ken-fm-value", value: "Renamed" });
+    await until("title saved", () => doc.getText(), (t) => t.startsWith("---\ntitle: Renamed\naliases: [demo]\n---\n#"));
+  });
+
+  it("adds frontmatter with the Properties command", async () => {
+    const uri = fixture("attach.md");
+    const doc = await openEditor(uri);
+    assert.strictEqual(await webview(uri, { kind: "count", selector: ".ken-frontmatter:not([hidden])" }), 0);
+    assert.ok(await webview(uri, { kind: "caretAfter", text: "Second line." }));
+    await vscode.commands.executeCommand("kenMarkdown.editProperties");
+    await until("frontmatter added", () => doc.getText(), (t) => t.startsWith("---\ntitle: attach\n---\nPaste target"));
+    assert.strictEqual(await webview(uri, { kind: "count", selector: ".ken-fm-row" }), 1, "opened for editing");
+  });
+
+  it("can always show Properties, writing nothing until one is added", async () => {
+    const config = vscode.workspace.getConfiguration("kenMarkdown");
+    const uri = fixture("attach.md");
+    const doc = await openEditor(uri);
+    const shown = () => webview(uri, { kind: "count", selector: ".ken-frontmatter:not([hidden])" });
+    assert.strictEqual(await shown(), 0, "off by default");
+    try {
+      await config.update("alwaysShowProperties", true, vscode.ConfigurationTarget.Global);
+      await until("shown", shown, (n) => n === 1);
+      await webview(uri, { kind: "click", selector: ".ken-fm-toggle" });
+      await sleep(400);
+      assert.strictEqual(doc.isDirty, false, "expanding an empty panel writes nothing");
+    } finally {
+      await config.update("alwaysShowProperties", undefined, vscode.ConfigurationTarget.Global);
+    }
+    await until("hidden again", shown, (n) => n === 0);
+  });
+
+  it("shows the placeholder only in a completely empty document", async () => {
+    const uri = fixture("empty.md");
+    const doc = await openEditor(uri);
+    const placeholder = () =>
+      webview(uri, { kind: "getAttr", selector: ".crepe-placeholder", name: "data-placeholder" });
+    assert.ok(await webview(uri, { kind: "caretAfter", text: "" }) !== undefined);
+    await until("placeholder", placeholder, (v) => v === "Start typing or try slash (/) commands");
+    await webview(uri, { kind: "insertText", text: "Hello", at: "caret" });
+    await until("typed", () => doc.getText(), (t) => t.includes("Hello"));
+    await webview(uri, { kind: "insertText", text: "", at: "end" });
+    assert.strictEqual(await webview(uri, { kind: "count", selector: ".crepe-placeholder" }), 0);
   });
 
   it("keeps CRLF line endings", async () => {

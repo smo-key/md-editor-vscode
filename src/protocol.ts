@@ -11,6 +11,7 @@ export interface EditorConfig {
   lineHeight: number;
   maxWidth: number;
   toolbar: ToolbarPosition;
+  alwaysShowProperties: boolean;
 }
 
 /** A file dropped from VS Code's Explorer, as the document should reference it. */
@@ -43,6 +44,7 @@ export type TestAction =
   | { kind: "count"; selector: string }
   | { kind: "getAttr"; selector: string; name: string }
   | { kind: "click"; selector: string }
+  | { kind: "fill"; selector: string; value: string }
   | {
       kind: "transfer";
       event: "paste" | "drop";

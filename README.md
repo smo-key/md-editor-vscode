@@ -53,13 +53,14 @@ extensions renders and edits in place, and is written back faithfully:
 | Tables with column alignment (right-click a cell for the table menu) | ✅ |
 | Task lists (`- [ ]` / `- [x]`), click to tick | ✅ |
 | Strikethrough (`~~text~~`) | ✅ |
+| Underline, written as `<ins>text</ins>` (Markdown has no underline syntax; GitHub renders `<ins>` underlined; existing `<u>` is kept as `<u>`) | ✅ |
 | Autolinks: `<https://…>`, bare `https://…`, `www.…` and e-mail addresses | ✅ |
 | Fenced code blocks with syntax highlighting (backtick and tilde fences, indented code) | ✅ |
 | Footnotes (`[^1]`) | ✅ |
 | Alerts: `> [!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]`, `[!CAUTION]` | ✅ |
 | Raw HTML: self-contained blocks render sanitized (e.g. `<p align="center"><img …></p>`); inline pairs like `<kbd>Ctrl</kbd>`, `<sub>`, `<mark>` render as elements; double-click any HTML to edit its source | ✅ |
 | Mermaid diagrams in ` ```mermaid ` fences | ✅ |
-| YAML frontmatter (kept verbatim, not rendered) | ✅ |
+| YAML frontmatter, as an editable Properties panel (see below) | ✅ |
 
 Saving normalises some *syntax* without changing what GitHub shows: setext
 headings become `#` headings, `*`/`+` bullets become `-`, tilde and indented
@@ -81,13 +82,15 @@ Math (`$…$`) is intentionally left as plain text, as in Ken, so prices like
   Ken's direct shortcuts still work too: `/h1 `…`/h6 `, `/quote `, `/code `,
   `/divider `, `/bullet `, `/number `, `/todo `, `/note `, `/tip `,
   `/important `, `/warning `, `/caution `, `/toc ` (with the trailing space).
-- **Bottom toolbar** with the essentials: undo/redo; the heading control;
-  bold, italic, strikethrough, inline code, link; bulleted / numbered lists
-  and checklists (each toggles, and converts one list kind to another in
-  place); quote, code block, table, divider and image; and the keyboard
-  shortcut list. Buttons show the state at the caret. Hide it with
-  `kenMarkdown.toolbar`. There is no formatting bubble over selected text:
-  use the toolbar or the shortcuts.
+- **Toolbar** with the essentials: undo/redo; the heading control; bold,
+  italic, underline, strikethrough, inline code, link; bulleted / numbered
+  lists and checklists (each toggles, and converts one list kind to another
+  in place) with outdent / indent; quote, code block, table, divider, image
+  and properties; and the keyboard shortcut list. Buttons show the state at
+  the caret, and hovering one shows its name and shortcut. It sits at the
+  bottom by default: `kenMarkdown.toolbar` moves it to the top or hides it.
+  There is no formatting bubble over selected text: use the toolbar or the
+  shortcuts.
 - **Heading control** (a split button): the left half applies a heading
   level. It shows the caret's own level inside a heading, otherwise the
   level you last picked; clicking it on a heading of that level turns it back
@@ -97,12 +100,36 @@ Math (`$…$`) is intentionally left as plain text, as in Ken, so prices like
 - **Drag handles only on checklist items**: hover a task to drag it (with its
   sub-items) somewhere else. Other blocks have no handle and there is no `+`
   button.
-- Backspace at the start of a heading turns it into a paragraph in one step;
-  ordered lists keep their numbering style (`1.`, `a.`, `i.`, `1)`).
+- Tab / ⇧Tab in a heading make it one level smaller / larger (H2 → H3 / H1).
+  Backspace at the start of a heading turns it into a paragraph in one step.
+- Ordered lists keep their numbering style (`1.`, `a.`, `i.`, `1)`). Items of
+  one list sit close together; separate lists, and loose lists (blank lines
+  between items), keep more space.
+- Quotes are set in a quote font (the heading serif by default), slightly
+  gray and in italics.
+- There is always somewhere to type after a final table, diagram, code block,
+  image or rule: click below it, or arrow down out of it.
+- An empty document shows "Start typing or try slash (/) commands".
 - Copy-link buttons on headings; `#anchor` links scroll within the document.
 - `[[Wiki links]]` and relative links open the target file in VS Code; web
   links open in your browser.
 - Click an image or diagram to zoom.
+
+## Properties (frontmatter)
+
+YAML frontmatter at the top of a file shows as a **Properties** panel above
+the text, just above the first heading, collapsed to a one-line preview of
+its key-value pairs. Click it to expand and edit: change a name or a value, remove a row, *Add property*
+(Enter in a value adds another), switch to editing the raw YAML, or remove
+the properties altogether. Values are edited as YAML text, so lists stay lists
+(`[a, b]`, or `- ` lines), and only the lines you change are rewritten:
+comments and formatting elsewhere are kept as they were.
+
+To add properties to a file without them, use the toolbar's properties
+button, `/frontmatter` (or `/properties`) in the slash menu, or the
+*Add or Edit Properties* command; a `title` from the file name is filled in.
+With `kenMarkdown.alwaysShowProperties` on, every document shows the panel,
+and frontmatter is only written once you add a property.
 
 ## Pasting and dropping files
 
@@ -144,6 +171,7 @@ Defaults:
 | --- | --- | --- | --- |
 | Bold | ⌘B | Ctrl+B | `kenMarkdown.bold` |
 | Italic | ⌘I | Ctrl+I | `kenMarkdown.italic` |
+| Underline | ⌘U | Ctrl+U | `kenMarkdown.underline` |
 | Strikethrough | ⌥⌘X | Ctrl+Alt+X | `kenMarkdown.strikethrough` |
 | Inline Code | ⌘E | Ctrl+E | `kenMarkdown.inlineCode` |
 | Link | ⌘K | Ctrl+K | `kenMarkdown.link` |
@@ -157,6 +185,8 @@ Defaults:
 | Numbered List | ⌥⌘7 | Ctrl+Alt+7 | `kenMarkdown.numberedList` |
 | Bulleted List | ⌥⌘8 | Ctrl+Alt+8 | `kenMarkdown.bulletedList` |
 | Checklist | ⌥⌘9 | Ctrl+Alt+9 | `kenMarkdown.checklist` |
+| Outdent List Item | — | — | `kenMarkdown.outdentListItem` |
+| Indent List Item | — | — | `kenMarkdown.indentListItem` |
 | Quote | ⇧⌘B | Ctrl+Shift+B | `kenMarkdown.quote` |
 | Code Block | ⌥⌘C | Ctrl+Alt+C | `kenMarkdown.codeBlock` |
 | Insert Table | — | — | `kenMarkdown.insertTable` |
@@ -164,6 +194,7 @@ Defaults:
 | Insert Image | — | — | `kenMarkdown.insertImage` |
 | Insert Mermaid Diagram | — | — | `kenMarkdown.insertDiagram` |
 | Insert Table of Contents | — | — | `kenMarkdown.insertTableOfContents` |
+| Add or Edit Properties (Frontmatter) | — | — | `kenMarkdown.editProperties` |
 | Insert Note Alert | — | — | `kenMarkdown.alertNote` |
 | Insert Tip Alert | — | — | `kenMarkdown.alertTip` |
 | Insert Important Alert | — | — | `kenMarkdown.alertImportant` |
@@ -191,8 +222,8 @@ Defaults:
 Built into the editor (not rebindable): `/` opens the insert menu; Tab /
 ⇧Tab move between table cells (and indent / outdent list items); Tab in the
 last cell adds a row; Enter in a table moves down, leaving the table from the
-last row; ⌘Enter leaves a table; Backspace at the start of a heading makes it
-text. Markdown typed as you go also converts: `# ` … `###### `, `- `, `1. `,
+last row; ⌘Enter leaves a table; Tab / ⇧Tab in a heading change its level
+by one; Backspace at the start of a heading makes it text. Markdown typed as you go also converts: `# ` … `###### `, `- `, `1. `,
 `[ ] `, `> `, ` ``` `, `---`, `**bold**`, `*italic*`, `~~strike~~`, `` `code` ``.
 
 ## Tables
@@ -213,6 +244,22 @@ anywhere. Clicking a cell puts the caret where you clicked. Hovering a table
 also shows Crepe's row and column handles for dragging rows and columns
 around. Columns size to their content, and empty cells are saved empty.
 
+No column is ever narrower than 40px; a table with more columns than fit at
+that width scrolls sideways. **Drag a column's border** to resize it (double-
+click the border to go back to automatic widths). Markdown has no syntax for
+column widths, so they are saved in the comment the editor already keeps
+above full-width tables, which GitHub and other renderers hide:
+
+```markdown
+<!-- ken:table widths=180,60,320 -->
+| Name | Qty | Notes |
+| ---- | --- | ----- |
+```
+
+Everyone opening the file in this editor sees those widths; on a narrower
+pane the columns shrink in proportion. Widths follow their columns when
+columns are inserted, moved or deleted.
+
 The header row is GFM's: it stays first and cannot be deleted on its own
 (delete the table instead).
 
@@ -223,14 +270,17 @@ The header row is GFM's: it stays first and cannot be deleted on its own
 | `kenMarkdown.fontSize` | `16` | Base font size in px; headings, code and lists scale from it. |
 | `kenMarkdown.bodyFontFamily` | `"Hanken Grotesk", system-ui, …` | Body text font stack. |
 | `kenMarkdown.headingFontFamily` | `"Newsreader", Georgia, serif` | Heading font stack. |
+| `kenMarkdown.quoteFontFamily` | *(empty: the heading font)* | Block quote font stack (set in italics). |
 | `kenMarkdown.codeFontFamily` | `"JetBrains Mono", ui-monospace, …` | Inline code and code block font stack. |
 | `kenMarkdown.lineHeight` | `1.85` | Body line height. |
 | `kenMarkdown.maxWidth` | `720` | Width of the text column in px. |
-| `kenMarkdown.toolbar` | `true` | Show the formatting toolbar at the bottom. |
+| `kenMarkdown.toolbar` | `bottom` | Where the formatting toolbar sits: `bottom`, `top` or `hidden`. |
+| `kenMarkdown.alwaysShowProperties` | `false` | Show the Properties panel above every document, even without frontmatter (nothing is written until you add one). |
 | `kenMarkdown.imageFolder` | `_Images` | Folder next to the document that pasted and dropped images are copied into; empty for beside the document. |
 
 Hanken Grotesk, Newsreader and JetBrains Mono (Ken's fonts) are bundled; any
-font installed on your machine works too. Changes apply immediately.
+font installed on your machine works too. An empty font setting goes back to
+the default. Changes apply immediately.
 
 ## Commands
 

@@ -167,6 +167,40 @@ describe("toolbar commands", () => {
     });
   });
 
+  it("indents and outdents list items, only where possible", async () => {
+    await withEditor("- one\n- two\n", (ed, view, run) => {
+      caretAfter(view, "one");
+      expect(command("indent").isEnabled!(view.state)).toBe(false);
+      caretAfter(view, "two");
+      expect(command("indent").isEnabled!(view.state)).toBe(true);
+      run("indent");
+      expect(ed.markdown()).toBe("- one\n  - two\n");
+      run("outdent");
+      expect(ed.markdown()).toBe("- one\n- two\n");
+    });
+    await withEditor("text\n", (_ed, view) => {
+      caretAfter(view, "text");
+      expect(command("indent").isEnabled!(view.state)).toBe(false);
+      expect(command("outdent").isEnabled!(view.state)).toBe(false);
+    });
+  });
+
+  it("Tab / Shift+Tab change a heading's level by one", async () => {
+    await withEditor("## Title\n\nText\n", (ed, view) => {
+      const key = (k: string, shift = false) =>
+        view.dom.dispatchEvent(new KeyboardEvent("keydown", { key: k, shiftKey: shift, bubbles: true, cancelable: true }));
+      caretAfter(view, "Title");
+      key("Tab");
+      expect(ed.markdown()).toBe("### Title\n\nText\n");
+      key("Tab", true);
+      key("Tab", true);
+      key("Tab", true);
+      expect(ed.markdown()).toBe("# Title\n\nText\n");
+      for (let i = 0; i < 8; i++) key("Tab");
+      expect(ed.markdown()).toBe("###### Title\n\nText\n");
+    });
+  });
+
   it("undo and redo", async () => {
     await withEditor("a\n", (ed, view, run) => {
       caretAfter(view, "a");

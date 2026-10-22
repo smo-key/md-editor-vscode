@@ -23,8 +23,8 @@ const MAIN = [
   ["undo", "redo"],
   [HEADING],
   ["bold", "italic", "underline", "strike", "inline-code", "link"],
-  ["bullet-list", "ordered-list", "task-list"],
-  ["quote", "code-block", "table", "divider", "image"],
+  ["bullet-list", "ordered-list", "task-list", "outdent", "indent"],
+  ["quote", "code-block", "table", "divider", "image", "frontmatter"],
 ];
 
 const TABLE = [

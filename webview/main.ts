@@ -34,6 +34,8 @@ import {
   type AttachmentAdapter,
 } from "./markdown/attachments";
 import { closeLightbox, showLightbox } from "./lightbox";
+import { FrontmatterPanel } from "./frontmatter";
+import { splitFrontmatter } from "./frontmatterModel";
 import { installKeyRouting } from "./keys";
 import { onLastHeadingLevel, setLastHeadingLevel } from "./headingControl";
 import { command, execute, setShortcutLabels } from "./commands";
@@ -53,6 +55,22 @@ const scroll = document.getElementById("scroll") as HTMLDivElement;
 const host = document.getElementById("editor") as HTMLDivElement;
 const toolbarHost = document.getElementById("toolbar") as HTMLDivElement;
 
+// Frontmatter is set aside from the editor and shown as a properties panel
+// above it (frontmatter.ts); its edits are saved with the document's.
+const frontmatterPanel = new FrontmatterPanel(
+  // The text column (#editor is `.measure`), before the editor itself.
+  host,
+  (next) => {
+    front = next;
+    dirty = true;
+    sync();
+  },
+  () => {
+    const leaf = docPath.slice(docPath.lastIndexOf("/") + 1);
+    return leaf.replace(/\.(md|markdown)$/i, "");
+  },
+);
+
 let crepe: Crepe | undefined;
 let view: EditorView | null = null;
 let docPath = "README.md";
@@ -63,8 +81,9 @@ let lastSerialized = "";
 /** Frontmatter is set aside and put back on every save (the editor would mangle it). */
 let front = "";
 
-const FRONT = /^---\r?\n[\s\S]*?\r?\n---[ \t]*(\r?\n|$)/;
-const splitFront = (text: string) => text.match(FRONT)?.[0] ?? "";
+const splitFront = splitFrontmatter;
+/** The frontmatter as last written, so a properties-only edit is still saved. */
+let lastFront = "";
 // The serializer escapes `[` in text, turning every [[wiki link]] into \[\[text]]: put them back.
 const unescapeWikiLinks = (md: string) => md.replace(/\\\[\\\[([^\n]+?)\\?\]\\?\]/g, "[[$1]]");
 
@@ -83,6 +102,7 @@ function applyConfig(config: EditorConfig) {
   root.setProperty("--md-max-width", `${config.maxWidth}px`);
   const position = config.toolbar === "top" || config.toolbar === "hidden" ? config.toolbar : "bottom";
   document.body.dataset.toolbar = position;
+  frontmatterPanel.setAlwaysShow(config.alwaysShowProperties === true);
 }
 
 // --- Request/response with the host --------------------------------------------
@@ -260,8 +280,9 @@ function sync(silent = false): string | null {
   crepe.editor.action((ctx) => {
     markdown = serialize(ctx);
   });
-  if (markdown === lastSerialized) return null;
+  if (markdown === lastSerialized && front === lastFront) return null;
   lastSerialized = markdown;
+  lastFront = front;
   const text = front + unescapeWikiLinks(markdown);
   if (text === lastText) return null;
   lastText = text;
@@ -275,6 +296,8 @@ function serialize(ctx: Ctx): string {
 
 async function createEditor(text: string) {
   front = splitFront(text);
+  lastFront = front;
+  frontmatterPanel.set(front);
   lastText = text;
   crepe = buildEditor({
     root: host,
@@ -305,6 +328,8 @@ function applyExternal(text: string) {
   if (!crepe || text === lastText) return;
   lastText = text;
   front = splitFront(text);
+  lastFront = front;
+  frontmatterPanel.set(front);
   crepe.editor.action((ctx) => {
     const v = ctx.get(editorViewCtx);
     const next = ctx.get(parserCtx)(text.slice(front.length));
@@ -356,6 +381,14 @@ function runTest(action: TestAction): unknown {
     }
     case "count":
       return document.querySelectorAll(action.selector).length;
+    case "fill": {
+      const el = document.querySelector<HTMLInputElement | HTMLTextAreaElement>(action.selector);
+      if (!el) return false;
+      el.focus();
+      el.value = action.value;
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      return true;
+    }
     case "click": {
       const el = document.querySelector<HTMLElement>(action.selector);
       el?.click();
@@ -439,9 +472,13 @@ function runTest(action: TestAction): unknown {
         bubbles: true,
         cancelable: true,
       };
-      view.dom.dispatchEvent(new KeyboardEvent("keydown", init));
+      // What the page itself did with the key, before any round trip to
+      // VS Code: whether it was left to VS Code, and whether the editor changed.
+      const before = view.state.doc;
+      const down = new KeyboardEvent("keydown", init);
+      view.dom.dispatchEvent(down);
       view.dom.dispatchEvent(new KeyboardEvent("keyup", init));
-      return true;
+      return { leftToVsCode: down.defaultPrevented, editorChanged: view.state.doc !== before };
     }
   }
 }

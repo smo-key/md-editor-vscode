@@ -20,7 +20,7 @@ export async function openHarness({ themeFile, markdown, width = 1100, height = 
   window.acquireVsCodeApi = () => ({ postMessage(m) {
     window.__sent.push(m);
     if (m.type === "ready") setTimeout(() => window.postMessage({ type: "init", text: ${JSON.stringify(markdown)}, docPath: "doc.md",
-      config: { fontSize: ${Number(fontSize)}, bodyFontFamily: "", headingFontFamily: "", codeFontFamily: "", lineHeight: 1.85, maxWidth: 720, toolbar: "${process.env.KEN_TOOLBAR ?? "bottom"}" } }, "*"));
+      config: { fontSize: ${Number(fontSize)}, bodyFontFamily: "", headingFontFamily: "", codeFontFamily: "", lineHeight: 1.85, maxWidth: 720, toolbar: "${process.env.KEN_TOOLBAR ?? "bottom"}", alwaysShowProperties: ${process.env.KEN_ALWAYS_PROPS === "1"} } }, "*"));
     // Stand-in for the host: "saved" files live in memory as blob URLs,
     // deduped like the host does (name-1.png).
     if (m.type === "saveAttachment") {

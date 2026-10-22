@@ -25,7 +25,7 @@ import { vscodeCodeTheme } from "./codeTheme";
 import { fileDropPlugin, type FileDropOptions } from "./fileDrop";
 import { slashMenuPlugin } from "./slashMenu";
 import { useTaskHandle } from "./taskHandle";
-import { tableCellClickFix, tableKeys } from "./tableKeys";
+import { headingLevelKeys, tableCellClickFix, tableKeys } from "./tableKeys";
 import { columnResizePlugin } from "./tableResize";
 import { blockExitPlugin } from "./blockExit";
 import { underlinePlugins } from "./markdown/underline";
@@ -71,6 +71,11 @@ export function buildEditor(options: EditorOptions): Crepe {
         theme: vscodeCodeTheme,
       },
       // Covers inline images too: Crepe hands the same config to both.
+      // Only in a completely empty document (not on every empty line).
+      [Crepe.Feature.Placeholder]: {
+        text: "Start typing or try slash (/) commands",
+        mode: "doc",
+      },
       [Crepe.Feature.ImageBlock]: {
         ...(options.onUpload ? { onUpload: options.onUpload } : {}),
         ...(options.proxyDomURL ? { proxyDomURL: options.proxyDomURL } : {}),
@@ -107,6 +112,7 @@ export function buildEditor(options: EditorOptions): Crepe {
   crepe.editor.use(inlineHtmlPlugin);
   crepe.editor.use(slashMenuPlugin);
   crepe.editor.use(tableKeys);
+  crepe.editor.use(headingLevelKeys);
   crepe.editor.use(tableCellClickFix);
   useTaskHandle(crepe.editor);
   if (options.toolbarHost) crepe.editor.use(toolbarPlugin(options.toolbarHost));

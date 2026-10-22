@@ -4,6 +4,8 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-10-22
+
 ### Fixed
 - Turning a line into a checklist from the toolbar moved the caret to the next line; it now stays in the new checklist item.
 

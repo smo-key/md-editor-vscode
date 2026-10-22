@@ -2,7 +2,7 @@
   "name": "ken-markdown-editor",
   "displayName": "Ken Markdown Editor",
   "description": "WYSIWYG Markdown editor: write rendered Markdown with slash commands, tables, Mermaid and draw.io diagrams, comments and frontmatter, themed by VS Code.",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "publisher": "ArthurPachachura",
   "license": "MIT",
   "repository": {

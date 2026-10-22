@@ -3,3 +3,7 @@ dist/
 out/
 .vscode-test/
 *.vsix
+
+# Local tool configuration
+.mcp.json
+scratch/

@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import { stubLayout } from "./editorEnv";
 import { buildEditor } from "../../webview/editorSetup";
 import { isSelfContained } from "../../webview/markdown/htmlView";
+import { normalizeTrailingNewlines } from "../../webview/markdown/gfmFidelity";
 
 stubLayout();
 
@@ -47,7 +48,8 @@ async function nodeTypes(markdown: string) {
 
 async function roundTrip(markdown: string): Promise<string> {
   const ed = await load(markdown);
-  const out = ed.markdown();
+  // As the webview writes it (main.ts), without the trailing empty paragraph.
+  const out = normalizeTrailingNewlines(ed.markdown());
   await ed.destroy();
   return out;
 }
@@ -159,5 +161,22 @@ describe("isSelfContained", () => {
     ["<b>a</i>", false],
   ])("%s → %s", (html, expected) => {
     expect(isSelfContained(html)).toBe(expected);
+  });
+});
+
+describe("underline (<ins>)", () => {
+  it.each([
+    ["Some <ins>underlined</ins> text.\n", "Some <ins>underlined</ins> text.\n"],
+    ["Old <u>style</u> and **<ins>bold under</ins>** mix.\n", "Old <u>style</u> and **<ins>bold under</ins>** mix.\n"],
+    ["Lone <ins> tag.\n", "Lone <ins> tag.\n"],
+    ["Nested <ins>a <ins>b</ins> c</ins>.\n", "Nested <ins>a b c</ins>.\n"],
+  ])("%j round-trips as %j", async (md, expected) => {
+    expect(await roundTrip(md)).toBe(expected);
+  });
+
+  it("renders as an underline mark", async () => {
+    const ed = await load("Some <ins>underlined</ins> text.\n");
+    expect(ed.root.querySelector(".ProseMirror u.ken-underline")?.textContent).toBe("underlined");
+    await ed.destroy();
   });
 });

@@ -143,6 +143,77 @@ await check("right-click a cell opens the full table menu", async () => {
   await page.keyboard.press("Escape");
 });
 
+await check("toolbar tooltips: bold action name, shortcut as a keycap", async () => {
+  await page.keyboard.press("Escape");
+  await page.click(".ProseMirror p >> text=after");
+  await page.evaluate(() => window.postMessage({ type: "shortcuts", labels: { bold: "⌘B" } }, "*"));
+  await settle();
+  await page.hover('.ken-toolbar-button[data-id="bold"]');
+  await page.waitForTimeout(700);
+  const tip = await page.evaluate(() => {
+    const t = document.querySelector(".ken-tooltip");
+    return { shown: !t.hidden, label: t.querySelector("strong")?.textContent, key: t.querySelector("kbd")?.textContent };
+  });
+  assert.deepEqual(tip, { shown: true, label: "Bold", key: "⌘B" });
+  await page.hover('.ken-toolbar-button[data-id="table"]');
+  await page.waitForTimeout(100);
+  const next = await page.evaluate(() => ({ label: document.querySelector(".ken-tooltip strong")?.textContent, key: document.querySelector(".ken-tooltip kbd") }));
+  assert.deepEqual(next, { label: "Table", key: null }, "no keycap without a shortcut");
+  await page.mouse.move(5, 5);
+});
+
+await check("columns resize by dragging, never under 40px, stored in the Markdown", async () => {
+  const border = await page.evaluate(() => {
+    const th = document.querySelector(".ProseMirror th");
+    const r = th.getBoundingClientRect();
+    return { x: r.right, y: r.top + r.height / 2 };
+  });
+  await page.mouse.move(border.x - 2, border.y);
+  await page.waitForTimeout(100);
+  await page.mouse.down();
+  await page.mouse.move(border.x - 300, border.y, { steps: 4 });
+  await page.mouse.up();
+  await settle();
+  const text = await lastText();
+  const m = /<!-- ken:table widths=(\d+),/.exec(text);
+  assert.ok(m, text);
+  assert.equal(Number(m[1]), 40);
+  // Double-click the handle: automatic widths again.
+  await page.mouse.move(border.x - 2, border.y);
+  const b2 = await page.evaluate(() => {
+    const r = document.querySelector(".ProseMirror th").getBoundingClientRect();
+    return { x: r.right, y: r.top + r.height / 2 };
+  });
+  await page.mouse.move(b2.x - 2, b2.y);
+  await page.waitForTimeout(100);
+  await page.mouse.dblclick(b2.x - 2, b2.y);
+  await settle();
+  assert.doesNotMatch(await lastText(), /ken:table widths/);
+});
+
+await check("a click below a final table puts the caret after it", async () => {
+  // The document ends with "after" (typed earlier); add a table at the end.
+  await page.click(".ProseMirror p >> text=after");
+  await page.keyboard.press("End");
+  await page.keyboard.press("Enter");
+  await page.click('.ken-toolbar-button[data-id="table"]');
+  await settle();
+  const box = await page.evaluate(() => document.querySelector(".editor-scroll").getBoundingClientRect());
+  await page.mouse.click(box.left + 300, box.bottom - 10);
+  await page.keyboard.type("below");
+  await settle();
+  assert.match(await lastText(), /\|\n\nbelow\n$/);
+});
+
+await check("underline (⌘U) writes <ins>", async () => {
+  await page.click(".ProseMirror p >> text=below");
+  await page.keyboard.press("End");
+  await page.keyboard.press("Shift+Home");
+  await page.click('.ken-toolbar-button[data-id="underline"]');
+  await settle();
+  assert.match(await lastText(), /<ins>below<\/ins>\n$/);
+});
+
 assert.deepEqual(h.errors, []);
 await h.close();
 console.log(`ok: ${checks.length} checks\n- ${checks.join("\n- ")}`);

@@ -80,9 +80,10 @@ import {
   Table,
   TableColumnsSplit,
   TableRowsSplit,
-  TextQuote,
+  Quote,
   Trash2,
   TriangleAlert,
+  Underline,
   Undo2,
   Workflow,
   type IconNode,
@@ -91,6 +92,7 @@ import {
 import { insertGithubAlertCommand, type GithubAlertKind } from "./markdown/githubAlert";
 import { insertTocCommand } from "./markdown/toc";
 import { tableAt, toggleTableFullWidthCommand } from "./markdown/tableFullWidth";
+import { withColumnWidths } from "./tableResize";
 
 export type CommandGroup = "history" | "text" | "format" | "list" | "insert" | "alert" | "table";
 
@@ -362,7 +364,10 @@ function moveRow(view: EditorView, by: number) {
 function moveCol(view: EditorView, by: number) {
   tableAction(
     view,
-    (c) => run(view, moveTableColumn({ from: c.col, to: c.col + by, select: false, pos: c.tableStart })),
+    (c) =>
+      withColumnWidths(view, c.tableStart, { move: c.col, to: c.col + by }, () =>
+        run(view, moveTableColumn({ from: c.col, to: c.col + by, select: false, pos: c.tableStart })),
+      ),
     (c) => [c.row, c.col + by],
   );
 }
@@ -475,6 +480,16 @@ export const COMMANDS: EditorCommand[] = [
     isEnabled: (state) => !inCodeBlock(state),
   },
   {
+    id: "underline",
+    label: "Underline",
+    icon: Underline,
+    group: "format",
+    toolbar: true,
+    run: (_ctx, view) => run(view, toggleMark(view.state.schema.marks.underline)),
+    isActive: (state) => markActive(state, state.schema.marks.underline),
+    isEnabled: (state) => !inCodeBlock(state) && !!state.schema.marks.underline,
+  },
+  {
     id: "strike",
     label: "Strikethrough",
     icon: Strikethrough,
@@ -547,7 +562,7 @@ export const COMMANDS: EditorCommand[] = [
   {
     id: "quote",
     label: "Quote",
-    icon: TextQuote,
+    icon: Quote,
     group: "insert",
     keywords: ["blockquote"],
     slash: true,
@@ -661,7 +676,12 @@ export const COMMANDS: EditorCommand[] = [
     label: "Insert column left",
     icon: ArrowLeftToLine,
     group: "table",
-    run: (_ctx, view) => tableAction(view, () => run(view, addColumnBefore), (c) => [c.row, c.col]),
+    run: (_ctx, view) =>
+      tableAction(
+        view,
+        (c) => withColumnWidths(view, c.tableStart, { insert: c.col }, () => run(view, addColumnBefore)),
+        (c) => [c.row, c.col],
+      ),
     isEnabled: inTable,
   },
   {
@@ -669,7 +689,12 @@ export const COMMANDS: EditorCommand[] = [
     label: "Insert column right",
     icon: ArrowRightToLine,
     group: "table",
-    run: (_ctx, view) => tableAction(view, () => run(view, addColumnAfter), (c) => [c.row, c.col + 1]),
+    run: (_ctx, view) =>
+      tableAction(
+        view,
+        (c) => withColumnWidths(view, c.tableStart, { insert: c.col + 1 }, () => run(view, addColumnAfter)),
+        (c) => [c.row, c.col + 1],
+      ),
     isEnabled: inTable,
   },
   {
@@ -773,7 +798,12 @@ export const COMMANDS: EditorCommand[] = [
     icon: TableColumnsSplit,
     group: "table",
     danger: true,
-    run: (_ctx, view) => tableAction(view, () => run(view, deleteColumn), (c) => [c.row, Math.min(c.col, c.cols - 2)]),
+    run: (_ctx, view) =>
+      tableAction(
+        view,
+        (c) => withColumnWidths(view, c.tableStart, { remove: c.col }, () => run(view, deleteColumn)),
+        (c) => [c.row, Math.min(c.col, c.cols - 2)],
+      ),
     isEnabled: (state) => (currentCell(state)?.cols ?? 0) > 1,
   },
   {

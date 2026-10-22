@@ -84,9 +84,9 @@ describe("Ken Markdown Editor", function () {
   it("renders GitHub-flavoured Markdown the way Ken does", async () => {
     const uri = fixture("sample.md");
     await openEditor(uri);
-    assert.strictEqual(await webview(uri, { kind: "count", selector: ".milkdown h1" }), 1);
-    assert.strictEqual(await webview(uri, { kind: "count", selector: ".milkdown .github-alert" }), 1);
-    assert.strictEqual(await webview(uri, { kind: "count", selector: ".milkdown table.children" }), 1);
+    assert.strictEqual(await webview(uri, { kind: "count", selector: ".milkdown h1" }), 1, "h1");
+    assert.strictEqual(await webview(uri, { kind: "count", selector: ".milkdown .github-alert" }), 1, "alert");
+    assert.strictEqual(await webview(uri, { kind: "count", selector: ".milkdown table.children" }), 1, "table");
     // Frontmatter is set aside, not rendered as a rule and a heading.
     assert.strictEqual(await webview(uri, { kind: "count", selector: ".milkdown hr" }), 0);
     // No view-only mode: the document is editable.
@@ -111,7 +111,7 @@ describe("Ken Markdown Editor", function () {
       [".milkdown .ProseMirror a[href='mailto:mail@example.com']", 1],
       [".milkdown .milkdown-image-block", 1],
       [".milkdown .label.checked", 1],
-      [".milkdown .label.unchecked", 2],
+      [".milkdown .label.unchecked", 3],
       [".milkdown table.children", 1],
       [".milkdown table.children th", 3],
       [".milkdown .milkdown-code-block", 3],
@@ -305,8 +305,10 @@ describe("Ken Markdown Editor", function () {
       const first = await webview(uri, { kind: "getStyle", selector: ".ken-shortcuts", property: "display" });
       assert.strictEqual(first, "flex");
       // The toolbar's tooltips show the keys too.
-      const title = await webview(uri, { kind: "getAttr", selector: '.ken-toolbar-button[data-id="bold"]', name: "title" });
-      assert.strictEqual(title, `Bold (${boldKey})`);
+      const label = await webview(uri, { kind: "getAttr", selector: '.ken-toolbar-button[data-id="bold"]', name: "data-tooltip" });
+      const keyLabel = await webview(uri, { kind: "getAttr", selector: '.ken-toolbar-button[data-id="bold"]', name: "data-tooltip-key" });
+      assert.strictEqual(label, "Bold");
+      assert.strictEqual(keyLabel, boldKey);
       await vscode.commands.executeCommand("kenMarkdown.showShortcuts");
       await until("closed", () => webview(uri, { kind: "count", selector: ".ken-shortcuts" }), (n) => n === 0);
     });
@@ -374,10 +376,10 @@ describe("Ken Markdown Editor", function () {
           { "key": "${mac ? "cmd+b" : "ctrl+b"}", "command": "-kenMarkdown.bold" },]`,
       );
       try {
-        const expected = mac ? "Bold (⇧⌘8)" : "Bold (Ctrl+Shift+8)";
+        const expected = mac ? "⇧⌘8" : "Ctrl+Shift+8";
         await until(
           "tooltip follows the new key",
-          () => webview(uri, { kind: "getAttr", selector: '.ken-toolbar-button[data-id="bold"]', name: "title" }),
+          () => webview(uri, { kind: "getAttr", selector: '.ken-toolbar-button[data-id="bold"]', name: "data-tooltip-key" }),
           (t) => t === expected,
           10000,
         );
@@ -565,6 +567,71 @@ describe("Ken Markdown Editor", function () {
     await openEditor(other);
     assert.ok(await webview(other, { kind: "caretAfter", text: "A nested page." }));
     assert.strictEqual(await webview(other, { kind: "getAttr", selector: '[data-id="heading"]', name: "data-level" }), "5");
+  });
+
+  it("puts the toolbar where kenMarkdown.toolbar says (and reads the old true/false)", async () => {
+    const uri = fixture("attach.md");
+    await openEditor(uri);
+    const config = vscode.workspace.getConfiguration("kenMarkdown");
+    const position = () => webview(uri, { kind: "getAttr", selector: "body", name: "data-toolbar" });
+    try {
+      assert.strictEqual(await position(), "bottom");
+      await config.update("toolbar", "top", vscode.ConfigurationTarget.Global);
+      await until("top", position, (v) => v === "top");
+      assert.strictEqual(await webview(uri, { kind: "getStyle", selector: ".ken-toolbar-host", property: "order" }), "-1");
+      await config.update("toolbar", "hidden", vscode.ConfigurationTarget.Global);
+      await until("hidden", position, (v) => v === "hidden");
+      assert.strictEqual(await webview(uri, { kind: "getStyle", selector: ".ken-toolbar-host", property: "display" }), "none");
+      await config.update("toolbar", false, vscode.ConfigurationTarget.Global);
+      await until("legacy false = hidden", position, (v) => v === "hidden");
+      await config.update("toolbar", true, vscode.ConfigurationTarget.Global);
+      await until("legacy true = bottom", position, (v) => v === "bottom");
+    } finally {
+      await config.update("toolbar", undefined, vscode.ConfigurationTarget.Global);
+    }
+  });
+
+  it("sets quotes in the quote font (the heading font by default), gray and italic", async () => {
+    const uri = fixture("sample.md");
+    await openEditor(uri);
+    const config = vscode.workspace.getConfiguration("kenMarkdown");
+    // sample.md's quote is a GitHub alert; add a plain one.
+    const doc = await vscode.workspace.openTextDocument(uri);
+    const edit = new vscode.WorkspaceEdit();
+    edit.insert(uri, doc.positionAt(doc.getText().length), "\n> A plain quote.\n");
+    await vscode.workspace.applyEdit(edit);
+    await until("quote", () => webview(uri, { kind: "count", selector: ".ProseMirror blockquote" }), (n) => Number(n) >= 1);
+    const style = (p: string) => webview(uri, { kind: "getStyle", selector: ".ProseMirror blockquote", property: p });
+    assert.strictEqual(await style("font-style"), "italic");
+    assert.match(String(await style("font-family")), /Newsreader/);
+    assert.strictEqual(await style("padding-left"), "18px");
+    try {
+      await config.update("quoteFontFamily", "Courier New, monospace", vscode.ConfigurationTarget.Global);
+      await until("quote font", () => style("font-family"), (v) => /Courier New/.test(String(v)));
+      await config.update("quoteFontFamily", undefined, vscode.ConfigurationTarget.Global);
+      await until("back to the heading font", () => style("font-family"), (v) => /Newsreader/.test(String(v)));
+    } finally {
+      await config.update("quoteFontFamily", undefined, vscode.ConfigurationTarget.Global);
+    }
+  });
+
+  it("underlines with <ins>", async () => {
+    const uri = fixture("attach.md");
+    const doc = await openEditor(uri);
+    assert.ok(await webview(uri, { kind: "selectText", text: "target" }));
+    await vscode.commands.executeCommand("kenMarkdown.underline");
+    await until("underline", () => doc.getText(), (t) => t.includes("Paste <ins>target</ins> paragraph"));
+  });
+
+  it("lays tables out at the column widths stored in the file, without rewriting it", async () => {
+    const uri = fixture("widths.md");
+    const doc = await openEditor(uri);
+    const widths = () =>
+      webview(uri, { kind: "getStyle", selector: ".ken-table-cols col:first-child", property: "width" });
+    await until("stored width applied", widths, (w) => w === "200px");
+    assert.strictEqual(await webview(uri, { kind: "getStyle", selector: ".ken-table-cols col:nth-child(2)", property: "width" }), "60px");
+    await sleep(500);
+    assert.strictEqual(doc.isDirty, false);
   });
 
   it("keeps CRLF line endings", async () => {

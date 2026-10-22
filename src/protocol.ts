@@ -1,13 +1,16 @@
 /** Messages between the extension host and the editor webview. */
 
+export type ToolbarPosition = "top" | "bottom" | "hidden";
+
 export interface EditorConfig {
   fontSize: number;
   bodyFontFamily: string;
   headingFontFamily: string;
   codeFontFamily: string;
+  quoteFontFamily: string;
   lineHeight: number;
   maxWidth: number;
-  toolbar: boolean;
+  toolbar: ToolbarPosition;
 }
 
 /** A file dropped from VS Code's Explorer, as the document should reference it. */

@@ -60,6 +60,11 @@
         "category": "Ken Markdown"
       },
       {
+        "command": "kenMarkdown.underline",
+        "title": "Underline",
+        "category": "Ken Markdown"
+      },
+      {
         "command": "kenMarkdown.strikethrough",
         "title": "Strikethrough",
         "category": "Ken Markdown"
@@ -313,6 +318,10 @@
           "when": "activeCustomEditorId == 'kenMarkdown.editor'"
         },
         {
+          "command": "kenMarkdown.underline",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
           "command": "kenMarkdown.strikethrough",
           "when": "activeCustomEditorId == 'kenMarkdown.editor'"
         },
@@ -506,6 +515,11 @@
           "default": "\"Newsreader\", Georgia, serif",
           "markdownDescription": "CSS font stack for headings. `Newsreader` is bundled."
         },
+        "kenMarkdown.quoteFontFamily": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "CSS font stack for block quotes, which are set in italics. Empty uses the heading font (`kenMarkdown.headingFontFamily`)."
+        },
         "kenMarkdown.codeFontFamily": {
           "type": "string",
           "default": "\"JetBrains Mono\", ui-monospace, SFMono-Regular, Consolas, monospace",
@@ -526,9 +540,19 @@
           "markdownDescription": "Maximum width of the text column, in pixels."
         },
         "kenMarkdown.toolbar": {
-          "type": "boolean",
-          "default": true,
-          "markdownDescription": "Show the formatting toolbar at the bottom of the editor."
+          "type": "string",
+          "enum": [
+            "bottom",
+            "top",
+            "hidden"
+          ],
+          "enumDescriptions": [
+            "Toolbar at the bottom of the editor.",
+            "Toolbar at the top of the editor.",
+            "No toolbar (use the slash menu and keyboard shortcuts)."
+          ],
+          "default": "bottom",
+          "markdownDescription": "Where the formatting toolbar sits."
         },
         "kenMarkdown.imageFolder": {
           "type": "string",
@@ -548,6 +572,12 @@
         "command": "kenMarkdown.italic",
         "key": "ctrl+i",
         "mac": "cmd+i",
+        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+      },
+      {
+        "command": "kenMarkdown.underline",
+        "key": "ctrl+u",
+        "mac": "cmd+u",
         "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
       },
       {

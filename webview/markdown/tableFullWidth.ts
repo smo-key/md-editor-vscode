@@ -13,6 +13,16 @@
  *
  * GitHub (and every other CommonMark renderer) drops the comment silently.
  *
+ * The same comment carries column widths set by hand (dragging a column's
+ * edge), in pixels, empty for a column left to the automatic layout:
+ *
+ *     <!-- ken:table widths=180,,260 -->
+ *     <!-- ken:table full widths=180,,260 -->
+ *
+ * Markdown has no syntax for column widths; this way the file stays plain
+ * GFM everywhere, and everyone opening it in this editor sees the widths the
+ * author set.
+ *
  * Three pieces make that work: a remark plugin that swallows the comment on
  * parse and re-emits it on serialize, an extension of the GFM `table` schema
  * carrying the flag as a node attribute, and a ProseMirror plugin that mirrors
@@ -36,11 +46,49 @@ import { $command, $prose, $remark } from "@milkdown/kit/utils";
 export const TABLE_FULL_WIDTH_COMMENT = "<!-- ken:table full -->";
 
 /** Tolerant of spacing, so a hand-edited file still round trips. */
-const MARKER_RE = /^<!--\s*ken:table\s+full\s*-->$/;
+const MARKER_RE = /^<!--\s*ken:table((?:\s+(?:full|widths=[\d.,]*))+)\s*-->$/;
+
+export type ColumnWidths = (number | null)[];
+
+export interface TableMarker {
+  full: boolean;
+  widths: ColumnWidths | null;
+}
+
+/** The table settings a marker comment carries, or null if it is not one. */
+export function parseTableMarker(value: unknown): TableMarker | null {
+  if (typeof value !== "string") return null;
+  const m = MARKER_RE.exec(value.trim());
+  if (!m) return null;
+  const tokens = m[1]!.trim().split(/\s+/);
+  const full = tokens.includes("full");
+  const w = tokens.find((t) => t.startsWith("widths="));
+  const widths = w
+    ? w
+        .slice("widths=".length)
+        .split(",")
+        .map((x) => (x.trim() === "" || !(Number(x) > 0) ? null : Math.round(Number(x))))
+    : null;
+  return { full, widths: widths && widths.some((x) => x !== null) ? widths : null };
+}
+
+/** The marker comment for these settings, or null when there is nothing to record. */
+export function formatTableMarker(full: boolean, widths: ColumnWidths | null | undefined): string | null {
+  const hasWidths = !!widths && widths.some((w) => typeof w === "number");
+  if (!full && !hasWidths) return null;
+  if (full && !hasWidths) return TABLE_FULL_WIDTH_COMMENT;
+  const list = widths!.map((w) => (typeof w === "number" ? String(Math.round(w)) : "")).join(",");
+  return `<!-- ken:table${full ? " full" : ""} widths=${list} -->`;
+}
 
 /** Does this mdast `html` node carry the full-width marker? */
 export function isTableFullWidthComment(value: unknown): boolean {
-  return typeof value === "string" && MARKER_RE.test(value.trim());
+  return parseTableMarker(value)?.full === true;
+}
+
+/** Is this any table marker comment (full width, column widths, or both)? */
+export function isTableMarkerComment(value: unknown): boolean {
+  return parseTableMarker(value) !== null;
 }
 
 // ---------------------------------------------------------------------------
@@ -60,11 +108,11 @@ interface MdastNode {
  * single inline `html` child, so both shapes count — remark plugin order is
  * not ours to pick.
  */
-function isMarkerBlock(node: MdastNode): boolean {
-  if (node.type === "html") return isTableFullWidthComment(node.value);
-  if (node.type !== "paragraph") return false;
+function markerOf(node: MdastNode): TableMarker | null {
+  if (node.type === "html") return parseTableMarker(node.value);
+  if (node.type !== "paragraph") return null;
   const only = node.children?.length === 1 ? node.children[0] : undefined;
-  return only?.type === "html" && isTableFullWidthComment(only.value);
+  return only?.type === "html" ? parseTableMarker(only.value) : null;
 }
 
 /**
@@ -79,10 +127,12 @@ function transformTree(node: MdastNode): void {
     const child = children[i];
     if (!child) continue;
     transformTree(child);
-    if (!isMarkerBlock(child)) continue;
+    const marker = markerOf(child);
+    if (!marker) continue;
     const next = children[i + 1];
     if (next?.type !== "table") continue;
-    next.fullWidth = true;
+    next.fullWidth = marker.full;
+    next.colWidths = marker.widths;
     children.splice(i, 1);
   }
 }
@@ -100,7 +150,7 @@ function remarkTableFullWidth(this: RemarkProcessor) {
     join: [
       (left: MdastNode, right: MdastNode) =>
         left.type === "html" &&
-        isTableFullWidthComment(left.value) &&
+        isTableMarkerComment(left.value) &&
         right.type === "table"
           ? 0
           : undefined,
@@ -132,7 +182,7 @@ export const fullWidthTableSchema = tableSchema.extendSchema((prev) => (ctx) => 
   const baseSerialize = base.toMarkdown;
   return {
     ...base,
-    attrs: { ...(base.attrs ?? {}), fullWidth: { default: false } },
+    attrs: { ...(base.attrs ?? {}), fullWidth: { default: false }, colWidths: { default: null } },
     parseMarkdown: {
       match: baseParse.match,
       // Mirrors the preset's own runner (it tags the first row as the header
@@ -145,7 +195,10 @@ export const fullWidthTableSchema = tableSchema.extendSchema((prev) => (ctx) => 
           align,
           isHeader: i === 0,
         }));
-        state.openNode(type, { fullWidth: node.fullWidth === true });
+        state.openNode(type, {
+          fullWidth: node.fullWidth === true,
+          colWidths: Array.isArray(node.colWidths) ? node.colWidths : null,
+        });
         state.next(children);
         state.closeNode();
       },
@@ -153,9 +206,8 @@ export const fullWidthTableSchema = tableSchema.extendSchema((prev) => (ctx) => 
     toMarkdown: {
       match: baseSerialize.match,
       runner: (state: SerializerState, node: ProseNode) => {
-        if (node.attrs.fullWidth) {
-          state.addNode("html", undefined, TABLE_FULL_WIDTH_COMMENT);
-        }
+        const marker = formatTableMarker(node.attrs.fullWidth === true, node.attrs.colWidths as ColumnWidths | null);
+        if (marker) state.addNode("html", undefined, marker);
         baseSerialize.runner(state, node);
       },
     },

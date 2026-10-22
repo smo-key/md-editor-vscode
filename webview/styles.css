@@ -8,9 +8,13 @@
   --font-serif: "Newsreader", Georgia, serif;
   --font-sans: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+  /* Block quotes: the heading font unless kenMarkdown.quoteFontFamily says otherwise. */
+  --font-quote: var(--font-serif);
   --md-font-size: 16px;
   --md-line-height: 1.85;
   --md-max-width: 720px;
+  /* List items sit closer together than paragraphs. */
+  --md-list-line-height: calc(var(--md-line-height) * 0.86);
 
   /* Semantic tokens Ken's styles are written against, mapped onto the theme. */
   --surface: var(--vscode-editor-background);
@@ -436,10 +440,10 @@ body {
   .measure .milkdown .milkdown-list-item-block li .label.checked,
   .measure .milkdown .milkdown-list-item-block li .label.unchecked {
     box-sizing: border-box;
-    height: calc(var(--md-line-height) * 1em + 8px);
-    padding: 4px 0;
+    height: calc(var(--md-list-line-height) * 1em + 2px);
+    padding: 1px 0;
     font-size: var(--md-font-size);
-    line-height: var(--md-line-height);
+    line-height: var(--md-list-line-height);
   }
   .measure .milkdown .milkdown-list-item-block li .label.ordered {
     /* "10." and up are wider than the 24px gutter; end-aligned flex lets
@@ -748,6 +752,18 @@ body {
    VS Code's preview draws it) rather than Crepe's selection colour. */
 .measure .milkdown .ProseMirror blockquote {
   background: transparent;
+  padding-left: 18px;
+  color: color-mix(in srgb, var(--vscode-editor-foreground) 74%, var(--vscode-editor-background));
+  font-family: var(--font-quote);
+  font-style: italic;
+}
+/* The quote font (by default the heading serif) runs small next to body text. */
+.measure .milkdown .ProseMirror blockquote p {
+  font-size: 1.06em;
+}
+.measure .milkdown .ProseMirror blockquote code,
+.measure .milkdown .ProseMirror blockquote .milkdown-code-block {
+  font-style: normal;
 }
 .measure .milkdown .ProseMirror blockquote::before {
   background: var(--vscode-textBlockQuote-border, var(--border-strong));
@@ -1032,8 +1048,15 @@ body {
 .ken-toolbar-host {
   flex: none;
 }
-body.no-toolbar .ken-toolbar-host {
+body[data-toolbar="hidden"] .ken-toolbar-host {
   display: none;
+}
+body[data-toolbar="top"] .ken-toolbar-host {
+  order: -1;
+}
+body[data-toolbar="top"] .ken-toolbar {
+  border-top: none;
+  border-bottom: 1px solid var(--vscode-editorGroup-border, var(--vscode-panel-border, transparent));
 }
 .ken-toolbar {
   display: flex;
@@ -1321,4 +1344,94 @@ body.no-toolbar .ken-toolbar-host {
   font-family: var(--vscode-font-family);
   font-size: 11px;
   opacity: 0.6;
+}
+
+/* --- Toolbar tooltips (tooltip.ts) ------------------------------------------- */
+.ken-tooltip {
+  position: fixed;
+  z-index: 4000;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 320px;
+  padding: 4px 8px;
+  border: 1px solid var(--vscode-editorHoverWidget-border, var(--vscode-widget-border, transparent));
+  border-radius: 4px;
+  background: var(--vscode-editorHoverWidget-background, var(--vscode-editorWidget-background));
+  color: var(--vscode-editorHoverWidget-foreground, var(--vscode-editor-foreground));
+  box-shadow: 0 2px 8px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.3));
+  font-family: var(--vscode-font-family);
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.ken-tooltip[hidden] {
+  display: none;
+}
+.ken-tooltip-label {
+  font-weight: 600;
+}
+.ken-tooltip-key {
+  padding: 1px 6px;
+  border: 1px solid var(--vscode-keybindingLabel-border, var(--vscode-widget-border, transparent));
+  border-bottom-color: var(--vscode-keybindingLabel-bottomBorder, var(--vscode-widget-border, transparent));
+  border-radius: 3px;
+  background: var(--vscode-keybindingLabel-background, var(--vscode-textCodeBlock-background));
+  color: var(--vscode-keybindingLabel-foreground, inherit);
+  box-shadow: inset 0 -1px 0 var(--vscode-widget-shadow, transparent);
+  font-family: var(--vscode-editor-font-family, var(--font-mono));
+  font-size: 11px;
+}
+
+/* --- List spacing ------------------------------------------------------------
+   Items of one list sit close together: a slightly tighter line and 1px of
+   padding instead of a paragraph's full line height plus 8px. (The marker
+   boxes above mirror these numbers so bullets, numbers and checkboxes stay on
+   the first line.) A loose list (blank lines between its items in the
+   Markdown) keeps some air between items, so the two still read differently. */
+.measure .milkdown .milkdown-list-item-block li .children > p,
+.measure .milkdown .milkdown-list-item-block li .content-dom > p {
+  padding: 1px 0;
+  line-height: var(--md-list-line-height);
+}
+.measure .milkdown ul[data-spread="true"] > .milkdown-list-item-block + .milkdown-list-item-block,
+.measure .milkdown ol[data-spread="true"] > .milkdown-list-item-block + .milkdown-list-item-block {
+  margin-top: 0.5em;
+}
+/* Separate lists, one after another, stay visibly separate. */
+.measure .milkdown .ProseMirror :is(ul, ol) + :is(ul, ol) {
+  margin-top: 0.75em;
+}
+
+/* --- Column resize handle (tableResize.ts) ----------------------------------- */
+.measure .milkdown .milkdown-table-block .ken-col-resize {
+  position: absolute;
+  z-index: 30;
+  width: 9px;
+  cursor: col-resize;
+  user-select: none;
+}
+.measure .milkdown .milkdown-table-block .ken-col-resize[data-show="false"] {
+  display: none;
+}
+.measure .milkdown .milkdown-table-block .ken-col-resize::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 3px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--vscode-focusBorder, var(--accent));
+  opacity: 0.55;
+}
+.measure .milkdown .milkdown-table-block .ken-col-resize:hover::after,
+.measure .milkdown .milkdown-table-block .ken-col-resize.dragging::after {
+  opacity: 1;
+}
+body.ken-col-resizing,
+body.ken-col-resizing * {
+  cursor: col-resize !important;
+  user-select: none !important;
 }

@@ -7,11 +7,19 @@ import type {
   LinkedUri,
   ShortcutLabels,
   TestAction,
+  ToolbarPosition,
   WebviewMessage,
 } from "./protocol";
 import { classifyHref, imageFolder, minimalChange, toEOL, toLF, uniqueName } from "./sync";
 
 export const VIEW_TYPE = "kenMarkdown.editor";
+
+/** The toolbar setting; `true`/`false` from versions before it had positions. */
+export function toolbarPosition(value: unknown): ToolbarPosition {
+  if (value === false || value === "hidden") return "hidden";
+  if (value === "top") return "top";
+  return "bottom";
+}
 
 function readImageFolder(scope: vscode.Uri): string {
   return vscode.workspace.getConfiguration("kenMarkdown", scope).get<string>("imageFolder", "_Images");
@@ -24,9 +32,10 @@ export function readConfig(scope?: vscode.Uri): EditorConfig {
     bodyFontFamily: c.get<string>("bodyFontFamily", ""),
     headingFontFamily: c.get<string>("headingFontFamily", ""),
     codeFontFamily: c.get<string>("codeFontFamily", ""),
+    quoteFontFamily: c.get<string>("quoteFontFamily", ""),
     lineHeight: c.get<number>("lineHeight", 1.85),
     maxWidth: c.get<number>("maxWidth", 720),
-    toolbar: c.get<boolean>("toolbar", true),
+    toolbar: toolbarPosition(c.get<unknown>("toolbar", "bottom")),
   };
 }
 

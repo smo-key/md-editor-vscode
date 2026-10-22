@@ -105,6 +105,7 @@ describe("toolbar commands", () => {
   it.each([
     ["bold", "**word**"],
     ["italic", "*word*"],
+    ["underline", "<ins>word</ins>"],
     ["strike", "~~word~~"],
     ["inline-code", "`word`"],
   ])("%s formats the selection", async (id, expected) => {

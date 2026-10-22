@@ -14,6 +14,7 @@ import { COMMANDS, command, currentCell, execute, onShortcutLabels, shortcutFor,
 import { Keyboard } from "lucide";
 import { toggleShortcutsPanel } from "./shortcutsPanel";
 import { HeadingControl } from "./headingControl";
+import { installTooltips, setTooltip } from "./tooltip";
 
 /** Placeholder for the heading control (headingControl.ts). */
 const HEADING = "#heading";
@@ -21,14 +22,14 @@ const HEADING = "#heading";
 const MAIN = [
   ["undo", "redo"],
   [HEADING],
-  ["bold", "italic", "strike", "inline-code", "link"],
+  ["bold", "italic", "underline", "strike", "inline-code", "link"],
   ["bullet-list", "ordered-list", "task-list"],
   ["quote", "code-block", "table", "divider", "image"],
 ];
 
 const TABLE = [
   ["undo", "redo"],
-  ["bold", "italic", "strike", "inline-code", "link"],
+  ["bold", "italic", "underline", "strike", "inline-code", "link"],
   ["row-above", "row-below", "col-left", "col-right"],
   ["row-up", "row-down", "col-left-move", "col-right-move"],
   ["align-left", "align-center", "align-right", "table-width"],
@@ -52,6 +53,7 @@ class Toolbar {
     // Clicking a button must not take focus or the selection from the text.
     this.el.addEventListener("mousedown", (e) => e.preventDefault());
     host.append(this.el);
+    this.stopTooltips = installTooltips(this.el);
     // Tooltips show the current keys: rebuild when the user rebinds them.
     this.stopListening = onShortcutLabels(() => {
       this.mode = null;
@@ -60,6 +62,7 @@ class Toolbar {
   }
 
   private readonly stopListening: () => void;
+  private readonly stopTooltips: () => void;
   private lastState: EditorState | null = null;
 
   private build(mode: "main" | "table") {
@@ -101,7 +104,7 @@ class Toolbar {
     b.className = "ken-toolbar-button ken-toolbar-shortcuts";
     b.dataset.id = "shortcuts";
     const key = shortcutFor("kenMarkdown.showShortcuts");
-    b.title = key ? `Keyboard shortcuts (${key})` : "Keyboard shortcuts";
+    setTooltip(b, "Keyboard shortcuts", key);
     b.setAttribute("aria-label", "Keyboard shortcuts");
     b.append(createElement(Keyboard, { width: 16, height: 16, "stroke-width": 1.75 }));
     b.addEventListener("click", () => toggleShortcutsPanel());
@@ -115,7 +118,7 @@ class Toolbar {
     if (cmd.danger) b.classList.add("danger");
     b.dataset.id = cmd.id;
     const key = shortcutFor(cmd.id);
-    b.title = key ? `${cmd.label} (${key})` : cmd.label;
+    setTooltip(b, cmd.label, key);
     b.setAttribute("aria-label", cmd.label);
     b.append(createElement(cmd.icon, { width: 16, height: 16, "stroke-width": 1.75 }));
     b.addEventListener("click", () => execute(this.ctx, cmd));
@@ -140,6 +143,7 @@ class Toolbar {
 
   destroy() {
     this.stopListening();
+    this.stopTooltips();
     this.heading?.destroy();
     this.el.remove();
   }

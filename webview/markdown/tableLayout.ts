@@ -28,6 +28,7 @@
  * `layoutTableBlocks` for how little of that work a keystroke has to pay for.
  */
 import { Plugin, PluginKey } from "@milkdown/kit/prose/state";
+import type { Node as ProseNode } from "@milkdown/kit/prose/model";
 import type { EditorView } from "@milkdown/kit/prose/view";
 import { $prose } from "@milkdown/kit/utils";
 
@@ -35,10 +36,11 @@ import { $prose } from "@milkdown/kit/utils";
 const COLGROUP_CLASS = "ken-table-cols";
 
 /**
- * No column is narrower than this, whatever the arithmetic says: below it a
- * cell is all padding and the text has nowhere to go.
+ * No column is ever narrower than this, whatever the arithmetic says: below it
+ * a cell is all padding and the text has nowhere to go. A table with more
+ * columns than fit at this width scrolls sideways rather than go under it.
  */
-const MIN_COLUMN = 28;
+export const MIN_COLUMN = 40;
 
 const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
 
@@ -162,8 +164,10 @@ export function columnWidths(
 ): number[] {
   const n = max.length;
   if (n === 0) return [];
-  const floor = Math.min(MIN_COLUMN, cap / n);
+  const floor = MIN_COLUMN;
   const mc = max.map((x) => Math.max(x, floor));
+  // Not even the floor fits: every column at the floor, and the table scrolls.
+  if (n * floor >= cap) return mc.map(() => floor);
 
   if (sum(mc) <= cap) return stretch ? scaleTo(mc, cap) : mc;
 
@@ -205,6 +209,41 @@ export function columnWidths(
   return best;
 }
 
+/**
+ * Column widths when some (or all) columns were sized by hand: `manual[i]` is
+ * the width the user dragged column `i` to, or null for a column left to the
+ * automatic layout. Hand widths are kept as they are when the table fits; when
+ * it does not (a narrower pane than the author's), every column shrinks in
+ * proportion, so the table keeps the shape its author gave it. Nothing goes
+ * under `MIN_COLUMN`.
+ */
+export function resolveWidths(
+  max: number[],
+  cap: number,
+  stretch: boolean,
+  manual: readonly (number | null)[] | null | undefined,
+): number[] {
+  const n = max.length;
+  const fixed = Array.from({ length: n }, (_, i) => {
+    const w = manual?.[i];
+    return typeof w === "number" && w > 0 ? Math.max(MIN_COLUMN, w) : null;
+  });
+  if (fixed.every((w) => w === null)) return columnWidths(max, cap, stretch);
+  const autoCols = fixed.map((w, i) => (w === null ? i : -1)).filter((i) => i >= 0);
+  const fixedTotal = sum(fixed.map((w) => w ?? 0));
+  const autoRoom = Math.max(autoCols.length * MIN_COLUMN, cap - fixedTotal);
+  const autoWidths = autoCols.length ? columnWidths(autoCols.map((i) => max[i]!), autoRoom, false) : [];
+  let widths = fixed.map((w, i) => w ?? autoWidths[autoCols.indexOf(i)]!);
+  const total = sum(widths);
+  if (total > cap) {
+    widths = scaleTo(widths, cap);
+    enforceFloor(widths, MIN_COLUMN);
+  } else if (stretch && total < cap) {
+    widths = scaleTo(widths, cap);
+  }
+  return widths;
+}
+
 // ---------------------------------------------------------------------------
 // Measuring and applying, against the live DOM.
 // ---------------------------------------------------------------------------
@@ -233,8 +272,11 @@ const horizontalPadding = (el: HTMLElement) => {
 };
 
 /** Write the computed widths, unless they are already what the table has. */
-function apply(parts: TableParts, widths: number[], total: number): void {
-  const { table } = parts;
+function apply(parts: TableParts, widths: number[], total: number, cap: number): void {
+  const { table, wrapper } = parts;
+  // Only a table whose columns cannot all fit at their minimum scrolls.
+  const overflow = total > cap + 0.5 ? "auto" : "";
+  if (wrapper.style.overflowX !== overflow) wrapper.style.overflowX = overflow;
   const want = widths.map((w) => `${w.toFixed(2)}px`);
   let colgroup = table.querySelector<HTMLElement>(
     `:scope > colgroup.${COLGROUP_CLASS}`,
@@ -324,11 +366,11 @@ export function tablesNeedingLayout(
  *
  * Returns the blocks it actually sized.
  */
-function layoutTableBlocks(blocks: readonly Element[]): HTMLElement[] {
-  const all: TableParts[] = [];
-  for (const block of blocks) {
+function layoutTableBlocks(items: readonly { block: Element; manual: ManualWidths }[]): HTMLElement[] {
+  const all: (TableParts & { manual: ManualWidths })[] = [];
+  for (const { block, manual } of items) {
     const parts = partsOf(block);
-    if (parts) all.push(parts);
+    if (parts) all.push({ ...parts, manual });
   }
   if (all.length === 0) return [];
 
@@ -382,8 +424,8 @@ function layoutTableBlocks(blocks: readonly Element[]): HTMLElement[] {
     const { max, chrome } = measured[i]!;
     const cap = available[i]! - chrome;
     if (!(cap > 0) || max.length === 0) return;
-    const widths = columnWidths(max, cap, full);
-    apply(parts, widths, Math.min(sum(widths), cap));
+    const widths = resolveWidths(max, cap, full, parts.manual);
+    apply(parts, widths, sum(widths), cap);
     done.push(parts.block);
   });
   return done;
@@ -401,11 +443,14 @@ function blockOfNode(view: EditorView, pos: number): HTMLElement | undefined {
   );
 }
 
+/** Hand-set column widths, as stored on the table node (`colWidths`). */
+type ManualWidths = readonly (number | null)[] | null;
+
 /** Every table in the document, paired with the element it is rendered into. */
 function tableBlocks(
   view: EditorView,
-): { block: HTMLElement; node: unknown }[] {
-  const out: { block: HTMLElement; node: unknown }[] = [];
+): { block: HTMLElement; node: ProseNode }[] {
+  const out: { block: HTMLElement; node: ProseNode }[] = [];
   view.state.doc.descendants((node, pos) => {
     if (node.type.name === "table") {
       const block = blockOfNode(view, pos);
@@ -469,7 +514,12 @@ export const tableLayoutPlugin = $prose(
           running = true;
           try {
             const done = new Set(
-              layoutTableBlocks(dirty.map((i) => tables[i]!.block)),
+              layoutTableBlocks(
+                dirty.map((i) => ({
+                  block: tables[i]!.block,
+                  manual: (tables[i]!.node.attrs.colWidths as ManualWidths) ?? null,
+                })),
+              ),
             );
             // Only a table that was really sized counts as up to date; one
             // that could not be (a pane with no width yet) is tried again.

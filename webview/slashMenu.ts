@@ -160,10 +160,13 @@ class SlashMenuView {
     if (!this.match) return;
     const coords = this.view.coordsAtPos(this.match.from);
     const menu = this.el.getBoundingClientRect();
+    // Stay clear of the toolbar, wherever it is.
     const toolbar = document.querySelector(".ken-toolbar")?.getBoundingClientRect();
-    const floor = (toolbar?.top ?? window.innerHeight) - 4;
+    const atTop = document.body.dataset.toolbar === "top";
+    const floor = (toolbar && !atTop && toolbar.height ? toolbar.top : window.innerHeight) - 4;
+    const ceiling = (toolbar && atTop && toolbar.height ? toolbar.bottom : 0) + 4;
     const below = coords.bottom + 4;
-    const top = below + menu.height <= floor ? below : Math.max(4, coords.top - menu.height - 4);
+    const top = below + menu.height <= floor ? below : Math.max(ceiling, coords.top - menu.height - 4);
     const left = Math.max(4, Math.min(coords.left, window.innerWidth - menu.width - 4));
     this.el.style.top = `${top}px`;
     this.el.style.left = `${left}px`;

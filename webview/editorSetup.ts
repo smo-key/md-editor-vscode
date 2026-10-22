@@ -26,6 +26,9 @@ import { fileDropPlugin, type FileDropOptions } from "./fileDrop";
 import { slashMenuPlugin } from "./slashMenu";
 import { useTaskHandle } from "./taskHandle";
 import { tableCellClickFix, tableKeys } from "./tableKeys";
+import { columnResizePlugin } from "./tableResize";
+import { blockExitPlugin } from "./blockExit";
+import { underlinePlugins } from "./markdown/underline";
 import { toolbarPlugin } from "./toolbar";
 
 export interface EditorOptions {
@@ -80,6 +83,7 @@ export function buildEditor(options: EditorOptions): Crepe {
   if (options.fileDrop) crepe.editor.use(fileDropPlugin(options.fileDrop));
   const onLink = options.onLink ?? (() => false);
   crepe.editor.use(githubAlertPlugins);
+  crepe.editor.use(underlinePlugins);
   crepe.editor.use(headingBackspace);
   crepe.editor.use(slashShortcutInputRule);
   crepe.editor.use(slashShortcutKeys);
@@ -92,6 +96,8 @@ export function buildEditor(options: EditorOptions): Crepe {
   crepe.editor.use(listStylePlugins);
   crepe.editor.config(configureListDelimiter);
   crepe.editor.use(tableLayoutPlugin);
+  crepe.editor.use(columnResizePlugin);
+  crepe.editor.use(blockExitPlugin);
   crepe.editor.use(tableContextMenu);
   // After Crepe's image block feature: replaces its schema by name.
   crepe.editor.use(imageBlockAltSchema);

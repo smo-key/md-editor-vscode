@@ -1,51 +1,285 @@
 {
   "$comment": "Editor commands exposed as VS Code commands with default keybindings. `npm run sync-contributes` writes them into package.json; a unit test keeps the two in step. `editor` is the id in webview/commands.ts; `key` is the Windows/Linux default, `mac` the macOS one.",
   "shortcuts": [
-    { "command": "kenMarkdown.bold", "editor": "bold", "title": "Bold", "key": "ctrl+b", "mac": "cmd+b" },
-    { "command": "kenMarkdown.italic", "editor": "italic", "title": "Italic", "key": "ctrl+i", "mac": "cmd+i" },
-    { "command": "kenMarkdown.strikethrough", "editor": "strike", "title": "Strikethrough", "key": "ctrl+alt+x", "mac": "cmd+alt+x" },
-    { "command": "kenMarkdown.inlineCode", "editor": "inline-code", "title": "Inline Code", "key": "ctrl+e", "mac": "cmd+e" },
-    { "command": "kenMarkdown.link", "editor": "link", "title": "Link", "key": "ctrl+k", "mac": "cmd+k" },
-    { "command": "kenMarkdown.paragraph", "editor": "paragraph", "title": "Text (Paragraph)", "key": "ctrl+alt+0", "mac": "cmd+alt+0" },
-    { "command": "kenMarkdown.heading1", "editor": "heading1", "title": "Heading 1", "key": "ctrl+alt+1", "mac": "cmd+alt+1" },
-    { "command": "kenMarkdown.heading2", "editor": "heading2", "title": "Heading 2", "key": "ctrl+alt+2", "mac": "cmd+alt+2" },
-    { "command": "kenMarkdown.heading3", "editor": "heading3", "title": "Heading 3", "key": "ctrl+alt+3", "mac": "cmd+alt+3" },
-    { "command": "kenMarkdown.heading4", "editor": "heading4", "title": "Heading 4", "key": "ctrl+alt+4", "mac": "cmd+alt+4" },
-    { "command": "kenMarkdown.heading5", "editor": "heading5", "title": "Heading 5", "key": "ctrl+alt+5", "mac": "cmd+alt+5" },
-    { "command": "kenMarkdown.heading6", "editor": "heading6", "title": "Heading 6", "key": "ctrl+alt+6", "mac": "cmd+alt+6" },
-    { "command": "kenMarkdown.numberedList", "editor": "ordered-list", "title": "Numbered List", "key": "ctrl+alt+7", "mac": "cmd+alt+7" },
-    { "command": "kenMarkdown.bulletedList", "editor": "bullet-list", "title": "Bulleted List", "key": "ctrl+alt+8", "mac": "cmd+alt+8" },
-    { "command": "kenMarkdown.checklist", "editor": "task-list", "title": "Checklist", "key": "ctrl+alt+9", "mac": "cmd+alt+9" },
-    { "command": "kenMarkdown.quote", "editor": "quote", "title": "Quote", "key": "ctrl+shift+b", "mac": "cmd+shift+b" },
-    { "command": "kenMarkdown.codeBlock", "editor": "code-block", "title": "Code Block", "key": "ctrl+alt+c", "mac": "cmd+alt+c" },
-    { "command": "kenMarkdown.insertTable", "editor": "table", "title": "Insert Table" },
-    { "command": "kenMarkdown.insertDivider", "editor": "divider", "title": "Insert Divider" },
-    { "command": "kenMarkdown.insertImage", "editor": "image", "title": "Insert Image" },
-    { "command": "kenMarkdown.insertDiagram", "editor": "mermaid", "title": "Insert Mermaid Diagram" },
-    { "command": "kenMarkdown.insertTableOfContents", "editor": "toc", "title": "Insert Table of Contents" },
-    { "command": "kenMarkdown.alertNote", "editor": "alert-note", "title": "Insert Note Alert" },
-    { "command": "kenMarkdown.alertTip", "editor": "alert-tip", "title": "Insert Tip Alert" },
-    { "command": "kenMarkdown.alertImportant", "editor": "alert-important", "title": "Insert Important Alert" },
-    { "command": "kenMarkdown.alertWarning", "editor": "alert-warning", "title": "Insert Warning Alert" },
-    { "command": "kenMarkdown.alertCaution", "editor": "alert-caution", "title": "Insert Caution Alert" },
-    { "command": "kenMarkdown.undo", "editor": "undo", "title": "Undo", "key": "ctrl+z", "mac": "cmd+z" },
-    { "command": "kenMarkdown.redo", "editor": "redo", "title": "Redo", "key": "ctrl+y", "mac": "cmd+shift+z" },
-    { "command": "kenMarkdown.redo", "editor": "redo", "title": "Redo", "key": "ctrl+shift+z", "mac": "cmd+shift+z", "alias": true },
-    { "command": "kenMarkdown.table.insertRowAbove", "editor": "row-above", "title": "Table: Insert Row Above" },
-    { "command": "kenMarkdown.table.insertRowBelow", "editor": "row-below", "title": "Table: Insert Row Below" },
-    { "command": "kenMarkdown.table.insertColumnLeft", "editor": "col-left", "title": "Table: Insert Column Left" },
-    { "command": "kenMarkdown.table.insertColumnRight", "editor": "col-right", "title": "Table: Insert Column Right" },
-    { "command": "kenMarkdown.table.moveRowUp", "editor": "row-up", "title": "Table: Move Row Up" },
-    { "command": "kenMarkdown.table.moveRowDown", "editor": "row-down", "title": "Table: Move Row Down" },
-    { "command": "kenMarkdown.table.moveColumnLeft", "editor": "col-left-move", "title": "Table: Move Column Left" },
-    { "command": "kenMarkdown.table.moveColumnRight", "editor": "col-right-move", "title": "Table: Move Column Right" },
-    { "command": "kenMarkdown.table.alignLeft", "editor": "align-left", "title": "Table: Align Column Left" },
-    { "command": "kenMarkdown.table.alignCenter", "editor": "align-center", "title": "Table: Align Column Center" },
-    { "command": "kenMarkdown.table.alignRight", "editor": "align-right", "title": "Table: Align Column Right" },
-    { "command": "kenMarkdown.table.toggleFullWidth", "editor": "table-width", "title": "Table: Toggle Full Width" },
-    { "command": "kenMarkdown.table.deleteRow", "editor": "delete-row", "title": "Table: Delete Row" },
-    { "command": "kenMarkdown.table.deleteColumn", "editor": "delete-col", "title": "Table: Delete Column" },
-    { "command": "kenMarkdown.table.deleteTable", "editor": "delete-table", "title": "Table: Delete Table" },
-    { "command": "kenMarkdown.showShortcuts", "editor": "", "title": "Show Keyboard Shortcuts", "key": "ctrl+/", "mac": "cmd+/" }
+    {
+      "command": "kenMarkdown.bold",
+      "editor": "bold",
+      "title": "Bold",
+      "key": "ctrl+b",
+      "mac": "cmd+b"
+    },
+    {
+      "command": "kenMarkdown.italic",
+      "editor": "italic",
+      "title": "Italic",
+      "key": "ctrl+i",
+      "mac": "cmd+i"
+    },
+    {
+      "command": "kenMarkdown.underline",
+      "editor": "underline",
+      "title": "Underline",
+      "key": "ctrl+u",
+      "mac": "cmd+u"
+    },
+    {
+      "command": "kenMarkdown.strikethrough",
+      "editor": "strike",
+      "title": "Strikethrough",
+      "key": "ctrl+alt+x",
+      "mac": "cmd+alt+x"
+    },
+    {
+      "command": "kenMarkdown.inlineCode",
+      "editor": "inline-code",
+      "title": "Inline Code",
+      "key": "ctrl+e",
+      "mac": "cmd+e"
+    },
+    {
+      "command": "kenMarkdown.link",
+      "editor": "link",
+      "title": "Link",
+      "key": "ctrl+k",
+      "mac": "cmd+k"
+    },
+    {
+      "command": "kenMarkdown.paragraph",
+      "editor": "paragraph",
+      "title": "Text (Paragraph)",
+      "key": "ctrl+alt+0",
+      "mac": "cmd+alt+0"
+    },
+    {
+      "command": "kenMarkdown.heading1",
+      "editor": "heading1",
+      "title": "Heading 1",
+      "key": "ctrl+alt+1",
+      "mac": "cmd+alt+1"
+    },
+    {
+      "command": "kenMarkdown.heading2",
+      "editor": "heading2",
+      "title": "Heading 2",
+      "key": "ctrl+alt+2",
+      "mac": "cmd+alt+2"
+    },
+    {
+      "command": "kenMarkdown.heading3",
+      "editor": "heading3",
+      "title": "Heading 3",
+      "key": "ctrl+alt+3",
+      "mac": "cmd+alt+3"
+    },
+    {
+      "command": "kenMarkdown.heading4",
+      "editor": "heading4",
+      "title": "Heading 4",
+      "key": "ctrl+alt+4",
+      "mac": "cmd+alt+4"
+    },
+    {
+      "command": "kenMarkdown.heading5",
+      "editor": "heading5",
+      "title": "Heading 5",
+      "key": "ctrl+alt+5",
+      "mac": "cmd+alt+5"
+    },
+    {
+      "command": "kenMarkdown.heading6",
+      "editor": "heading6",
+      "title": "Heading 6",
+      "key": "ctrl+alt+6",
+      "mac": "cmd+alt+6"
+    },
+    {
+      "command": "kenMarkdown.numberedList",
+      "editor": "ordered-list",
+      "title": "Numbered List",
+      "key": "ctrl+alt+7",
+      "mac": "cmd+alt+7"
+    },
+    {
+      "command": "kenMarkdown.bulletedList",
+      "editor": "bullet-list",
+      "title": "Bulleted List",
+      "key": "ctrl+alt+8",
+      "mac": "cmd+alt+8"
+    },
+    {
+      "command": "kenMarkdown.checklist",
+      "editor": "task-list",
+      "title": "Checklist",
+      "key": "ctrl+alt+9",
+      "mac": "cmd+alt+9"
+    },
+    {
+      "command": "kenMarkdown.quote",
+      "editor": "quote",
+      "title": "Quote",
+      "key": "ctrl+shift+b",
+      "mac": "cmd+shift+b"
+    },
+    {
+      "command": "kenMarkdown.codeBlock",
+      "editor": "code-block",
+      "title": "Code Block",
+      "key": "ctrl+alt+c",
+      "mac": "cmd+alt+c"
+    },
+    {
+      "command": "kenMarkdown.insertTable",
+      "editor": "table",
+      "title": "Insert Table"
+    },
+    {
+      "command": "kenMarkdown.insertDivider",
+      "editor": "divider",
+      "title": "Insert Divider"
+    },
+    {
+      "command": "kenMarkdown.insertImage",
+      "editor": "image",
+      "title": "Insert Image"
+    },
+    {
+      "command": "kenMarkdown.insertDiagram",
+      "editor": "mermaid",
+      "title": "Insert Mermaid Diagram"
+    },
+    {
+      "command": "kenMarkdown.insertTableOfContents",
+      "editor": "toc",
+      "title": "Insert Table of Contents"
+    },
+    {
+      "command": "kenMarkdown.alertNote",
+      "editor": "alert-note",
+      "title": "Insert Note Alert"
+    },
+    {
+      "command": "kenMarkdown.alertTip",
+      "editor": "alert-tip",
+      "title": "Insert Tip Alert"
+    },
+    {
+      "command": "kenMarkdown.alertImportant",
+      "editor": "alert-important",
+      "title": "Insert Important Alert"
+    },
+    {
+      "command": "kenMarkdown.alertWarning",
+      "editor": "alert-warning",
+      "title": "Insert Warning Alert"
+    },
+    {
+      "command": "kenMarkdown.alertCaution",
+      "editor": "alert-caution",
+      "title": "Insert Caution Alert"
+    },
+    {
+      "command": "kenMarkdown.undo",
+      "editor": "undo",
+      "title": "Undo",
+      "key": "ctrl+z",
+      "mac": "cmd+z"
+    },
+    {
+      "command": "kenMarkdown.redo",
+      "editor": "redo",
+      "title": "Redo",
+      "key": "ctrl+y",
+      "mac": "cmd+shift+z"
+    },
+    {
+      "command": "kenMarkdown.redo",
+      "editor": "redo",
+      "title": "Redo",
+      "key": "ctrl+shift+z",
+      "mac": "cmd+shift+z",
+      "alias": true
+    },
+    {
+      "command": "kenMarkdown.table.insertRowAbove",
+      "editor": "row-above",
+      "title": "Table: Insert Row Above"
+    },
+    {
+      "command": "kenMarkdown.table.insertRowBelow",
+      "editor": "row-below",
+      "title": "Table: Insert Row Below"
+    },
+    {
+      "command": "kenMarkdown.table.insertColumnLeft",
+      "editor": "col-left",
+      "title": "Table: Insert Column Left"
+    },
+    {
+      "command": "kenMarkdown.table.insertColumnRight",
+      "editor": "col-right",
+      "title": "Table: Insert Column Right"
+    },
+    {
+      "command": "kenMarkdown.table.moveRowUp",
+      "editor": "row-up",
+      "title": "Table: Move Row Up"
+    },
+    {
+      "command": "kenMarkdown.table.moveRowDown",
+      "editor": "row-down",
+      "title": "Table: Move Row Down"
+    },
+    {
+      "command": "kenMarkdown.table.moveColumnLeft",
+      "editor": "col-left-move",
+      "title": "Table: Move Column Left"
+    },
+    {
+      "command": "kenMarkdown.table.moveColumnRight",
+      "editor": "col-right-move",
+      "title": "Table: Move Column Right"
+    },
+    {
+      "command": "kenMarkdown.table.alignLeft",
+      "editor": "align-left",
+      "title": "Table: Align Column Left"
+    },
+    {
+      "command": "kenMarkdown.table.alignCenter",
+      "editor": "align-center",
+      "title": "Table: Align Column Center"
+    },
+    {
+      "command": "kenMarkdown.table.alignRight",
+      "editor": "align-right",
+      "title": "Table: Align Column Right"
+    },
+    {
+      "command": "kenMarkdown.table.toggleFullWidth",
+      "editor": "table-width",
+      "title": "Table: Toggle Full Width"
+    },
+    {
+      "command": "kenMarkdown.table.deleteRow",
+      "editor": "delete-row",
+      "title": "Table: Delete Row"
+    },
+    {
+      "command": "kenMarkdown.table.deleteColumn",
+      "editor": "delete-col",
+      "title": "Table: Delete Column"
+    },
+    {
+      "command": "kenMarkdown.table.deleteTable",
+      "editor": "delete-table",
+      "title": "Table: Delete Table"
+    },
+    {
+      "command": "kenMarkdown.showShortcuts",
+      "editor": "",
+      "title": "Show Keyboard Shortcuts",
+      "key": "ctrl+/",
+      "mac": "cmd+/"
+    }
   ]
 }

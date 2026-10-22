@@ -72,13 +72,17 @@ const unescapeWikiLinks = (md: string) => md.replace(/\\\[\\\[([^\n]+?)\\?\]\\?\
 
 function applyConfig(config: EditorConfig) {
   const root = document.documentElement.style;
-  if (config.bodyFontFamily) root.setProperty("--font-sans", config.bodyFontFamily);
-  if (config.headingFontFamily) root.setProperty("--font-serif", config.headingFontFamily);
-  if (config.codeFontFamily) root.setProperty("--font-mono", config.codeFontFamily);
+  // An empty setting falls back to the stylesheet's default (Ken's fonts).
+  const font = (prop: string, value: string) => (value.trim() ? root.setProperty(prop, value) : root.removeProperty(prop));
+  font("--font-sans", config.bodyFontFamily ?? "");
+  font("--font-serif", config.headingFontFamily ?? "");
+  font("--font-mono", config.codeFontFamily ?? "");
+  font("--font-quote", config.quoteFontFamily ?? "");
   root.setProperty("--md-font-size", `${config.fontSize}px`);
   root.setProperty("--md-line-height", String(config.lineHeight));
   root.setProperty("--md-max-width", `${config.maxWidth}px`);
-  document.body.classList.toggle("no-toolbar", config.toolbar === false);
+  const position = config.toolbar === "top" || config.toolbar === "hidden" ? config.toolbar : "bottom";
+  document.body.dataset.toolbar = position;
 }
 
 // --- Request/response with the host --------------------------------------------

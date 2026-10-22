@@ -14,6 +14,7 @@ import type { EditorState } from "@milkdown/kit/prose/state";
 import { Check, ChevronDown, createElement, type IconNode } from "lucide";
 
 import { command, execute, headingLevel, shortcutFor } from "./commands";
+import { hideTooltip, setTooltip } from "./tooltip";
 
 let lastLevel = 1;
 const levelListeners = new Set<(level: number) => void>();
@@ -65,7 +66,7 @@ export class HeadingControl {
     this.arrow.type = "button";
     this.arrow.className = "ken-toolbar-button ken-heading-arrow";
     this.arrow.dataset.id = "heading-menu";
-    this.arrow.title = "Text style";
+    setTooltip(this.arrow, "Text style");
     this.arrow.setAttribute("aria-label", "Choose text style");
     this.arrow.setAttribute("aria-haspopup", "menu");
     this.arrow.setAttribute("aria-expanded", "false");
@@ -85,7 +86,7 @@ export class HeadingControl {
     this.main.dataset.level = String(this.shown);
     const key = shortcutFor(cmd.id);
     const action = current === this.shown ? `${cmd.label}: back to text` : cmd.label;
-    this.main.title = key ? `${action} (${key})` : action;
+    setTooltip(this.main, action, key);
     this.main.setAttribute("aria-label", action);
     this.main.classList.toggle("active", current > 0);
     this.main.setAttribute("aria-pressed", String(current > 0));
@@ -95,6 +96,7 @@ export class HeadingControl {
   }
 
   private open(): void {
+    hideTooltip();
     this.menu = document.createElement("div");
     this.menu.className = "ken-heading-menu";
     this.menu.setAttribute("role", "menu");
@@ -161,8 +163,10 @@ export class HeadingControl {
     const anchor = this.el.getBoundingClientRect();
     const menu = this.menu.getBoundingClientRect();
     const left = Math.max(4, Math.min(anchor.left, window.innerWidth - menu.width - 4));
-    // The toolbar is at the bottom of the window: open upwards.
-    const top = Math.max(4, anchor.top - menu.height - 6);
+    // Open away from the window edge the toolbar sits on.
+    const atTop = document.body.dataset.toolbar === "top";
+    const above = anchor.top - menu.height - 6;
+    const top = !atTop && above >= 4 ? above : Math.min(anchor.bottom + 6, window.innerHeight - menu.height - 4);
     this.menu.style.left = `${left}px`;
     this.menu.style.top = `${top}px`;
   }

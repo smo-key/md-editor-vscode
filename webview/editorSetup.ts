@@ -29,6 +29,8 @@ import { headingLevelKeys, tableCellClickFix, tableKeys } from "./tableKeys";
 import { columnResizePlugin } from "./tableResize";
 import { blockExitPlugin } from "./blockExit";
 import { underlinePlugins } from "./markdown/underline";
+import { commentPlugins, commentSchemas } from "./comments/anchors";
+import { threadStore } from "./comments/store";
 import { toolbarPlugin } from "./toolbar";
 
 export interface EditorOptions {
@@ -44,6 +46,8 @@ export interface EditorOptions {
   proxyDomURL?: (src: string) => string | Promise<string>;
   /** Where to mount the bottom toolbar; none without it. */
   toolbarHost?: HTMLElement;
+  /** A comment's highlight was clicked (open its thread). */
+  onCommentActivate?: (id: string | null) => void;
 }
 
 /** A configured, not yet created, editor: call `create()` on it. */
@@ -89,6 +93,16 @@ export function buildEditor(options: EditorOptions): Crepe {
   const onLink = options.onLink ?? (() => false);
   crepe.editor.use(githubAlertPlugins);
   crepe.editor.use(underlinePlugins);
+  crepe.editor.use(commentSchemas);
+  crepe.editor.use(
+    commentPlugins(
+      {
+        isResolved: (id) => threadStore.get(id)?.resolved === true,
+        exists: (id) => threadStore.has(id),
+      },
+      (id) => options.onCommentActivate?.(id),
+    ),
+  );
   crepe.editor.use(headingBackspace);
   crepe.editor.use(slashShortcutInputRule);
   crepe.editor.use(slashShortcutKeys);

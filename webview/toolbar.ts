@@ -25,6 +25,7 @@ const MAIN = [
   ["bold", "italic", "underline", "strike", "inline-code", "link"],
   ["bullet-list", "ordered-list", "task-list", "outdent", "indent"],
   ["quote", "code-block", "table", "divider", "image", "frontmatter"],
+  ["comment-add", "comments"],
 ];
 
 const TABLE = [
@@ -34,6 +35,7 @@ const TABLE = [
   ["row-up", "row-down", "col-left-move", "col-right-move"],
   ["align-left", "align-center", "align-right", "table-width"],
   ["delete-row", "delete-col", "delete-table"],
+  ["comment-add", "comments"],
 ];
 
 class Toolbar {
@@ -137,6 +139,9 @@ class Toolbar {
       const active = !!cmd.isActive?.(state);
       b.disabled = !enabled;
       b.classList.toggle("active", active);
+      const badge = cmd.badge?.(state) ?? 0;
+      if (badge) b.dataset.badge = String(badge);
+      else delete b.dataset.badge;
       b.setAttribute("aria-pressed", String(active));
     }
   }

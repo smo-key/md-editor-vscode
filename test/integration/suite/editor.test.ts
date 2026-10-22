@@ -691,6 +691,37 @@ describe("Ken Markdown Editor", function () {
     assert.strictEqual(await webview(uri, { kind: "count", selector: ".crepe-placeholder" }), 0);
   });
 
+  it("opens a commented file without rewriting it, and shows the thread", async () => {
+    const uri = fixture("commented.md");
+    const doc = await openEditor(uri);
+    assert.ok((await webview(uri, { kind: "count", selector: ".ProseMirror .ken-comment" })) as number >= 1);
+    assert.strictEqual(await webview(uri, { kind: "getAttr", selector: '[data-id="comments"]', name: "data-badge" }), "1");
+    await sleep(500);
+    assert.strictEqual(doc.isDirty, false);
+    await vscode.commands.executeCommand("kenMarkdown.toggleComments");
+    await until("thread shown", () => webview(uri, { kind: "count", selector: ".ken-comment-card" }), (n) => n === 1);
+    await webview(uri, { kind: "fill", selector: ".ken-comment-card textarea", value: "The one in the deck." });
+    await webview(uri, { kind: "click", selector: ".ken-comment-card .ken-comment-send" });
+    await until("reply saved", () => doc.getText(), (t) => t.includes('"text":"The one in the deck."') && t.includes('"text":"Which date?"'));
+  });
+
+  it("adds a comment with the Add Comment command", async () => {
+    const uri = fixture("attach.md");
+    const doc = await openEditor(uri);
+    assert.ok(await webview(uri, { kind: "selectText", text: "target" }));
+    await vscode.commands.executeCommand("kenMarkdown.addComment");
+    await until("card", () => webview(uri, { kind: "count", selector: ".ken-comment-card" }), (n) => n === 1);
+    await sleep(300);
+    assert.ok(!doc.getText().includes("ken:comment"), "nothing written while the comment is empty");
+    await webview(uri, { kind: "fill", selector: ".ken-comment-card textarea", value: "Check this." });
+    await webview(uri, { kind: "click", selector: ".ken-comment-card .ken-comment-send" });
+    await until(
+      "comment written",
+      () => doc.getText(),
+      (t) => /Paste <!-- ken:comment (\w+) -->target<!-- \/ken:comment \1 --> paragraph/.test(t) && /<!-- ken:comments\n\{"\w+":\{"resolved":false,"messages":\[\{[^}]*"text":"Check this\."\}\]\}\}\n-->\n$/.test(t),
+    );
+  });
+
   it("keeps CRLF line endings", async () => {
     const uri = fixture("crlf.md");
     const doc = await openEditor(uri);

@@ -67,6 +67,8 @@ import {
   Lightbulb,
   Link,
   List,
+  MessageSquarePlus,
+  MessagesSquare,
   ListIndentDecrease,
   ListIndentIncrease,
   ListChecks,
@@ -96,9 +98,10 @@ import { insertGithubAlertCommand, type GithubAlertKind } from "./markdown/githu
 import { insertTocCommand } from "./markdown/toc";
 import { tableAt, toggleTableFullWidthCommand } from "./markdown/tableFullWidth";
 import { hasFrontmatterPanel, openFrontmatter } from "./frontmatter";
+import { addComment, commentsOpen, openCommentCount, toggleComments } from "./comments/panel";
 import { withColumnWidths } from "./tableResize";
 
-export type CommandGroup = "history" | "text" | "format" | "list" | "insert" | "alert" | "table";
+export type CommandGroup = "history" | "text" | "format" | "list" | "insert" | "alert" | "comment" | "table";
 
 export interface EditorCommand {
   id: string;
@@ -113,6 +116,10 @@ export interface EditorCommand {
   toolbar?: boolean;
   /** A key built into the editor (not a VS Code keybinding), for hints. */
   builtinKey?: string;
+  /** Leave focus where the command put it (it opens its own input). */
+  keepFocus?: boolean;
+  /** A count shown on the toolbar button (e.g. open comments). */
+  badge?(state: EditorState): number;
   danger?: boolean;
   run(ctx: Ctx, view: EditorView): void;
   isActive?(state: EditorState): boolean;
@@ -596,6 +603,7 @@ export const COMMANDS: EditorCommand[] = [
     keywords: ["frontmatter", "properties", "metadata", "yaml"],
     slash: true,
     toolbar: true,
+    keepFocus: true,
     run: () => openFrontmatter(),
     isEnabled: () => hasFrontmatterPanel(),
   },
@@ -685,6 +693,31 @@ export const COMMANDS: EditorCommand[] = [
     slash: true,
     run: (ctx) => call(ctx, insertTocCommand.key),
     isEnabled: (state) => !inCodeBlock(state) && !inTable(state),
+  },
+
+  // Comments
+  {
+    id: "comment-add",
+    label: "Add comment",
+    icon: MessageSquarePlus,
+    group: "comment",
+    keywords: ["comment", "note", "review", "annotate"],
+    slash: true,
+    toolbar: true,
+    keepFocus: true,
+    run: () => addComment(),
+    isEnabled: (state) => !state.selection.empty || state.selection.$from.parent.content.size > 0,
+  },
+  {
+    id: "comments",
+    label: "Comments",
+    icon: MessagesSquare,
+    group: "comment",
+    toolbar: true,
+    keepFocus: true,
+    run: () => toggleComments(),
+    isActive: () => commentsOpen(),
+    badge: (state) => openCommentCount(state.doc),
   },
 
   // Alerts
@@ -871,5 +904,5 @@ export function execute(ctx: Ctx, cmd: EditorCommand): void {
   const view = ctx.get(editorViewCtx);
   if (cmd.isEnabled && !cmd.isEnabled(view.state)) return;
   cmd.run(ctx, view);
-  if (!view.hasFocus()) view.focus();
+  if (!cmd.keepFocus && !view.hasFocus()) view.focus();
 }

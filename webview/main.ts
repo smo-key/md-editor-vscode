@@ -35,6 +35,9 @@ import {
 } from "./markdown/attachments";
 import { closeLightbox, showLightbox } from "./lightbox";
 import { FrontmatterPanel } from "./frontmatter";
+import { threadStore, splitThreads } from "./comments/store";
+import { commentIds, refreshComments } from "./comments/anchors";
+import { CommentsPanel } from "./comments/panel";
 import { splitFrontmatter } from "./frontmatterModel";
 import { installKeyRouting } from "./keys";
 import { onLastHeadingLevel, setLastHeadingLevel } from "./headingControl";
@@ -55,6 +58,22 @@ const scroll = document.getElementById("scroll") as HTMLDivElement;
 const host = document.getElementById("editor") as HTMLDivElement;
 const toolbarHost = document.getElementById("toolbar") as HTMLDivElement;
 
+// Comment threads live in a block at the end of the file (comments/store.ts):
+// set aside like the frontmatter, and written back with only the threads
+// whose markers are still in the document.
+let lastBack = "";
+let loadingThreads = false;
+function threadsBlock(): string {
+  if (!view) return lastBack;
+  return threadStore.format(commentIds(view.state.doc));
+}
+threadStore.onChange(() => {
+  if (loadingThreads) return;
+  if (view) refreshComments(view);
+  dirty = true;
+  sync();
+});
+
 // Frontmatter is set aside from the editor and shown as a properties panel
 // above it (frontmatter.ts); its edits are saved with the document's.
 const frontmatterPanel = new FrontmatterPanel(
@@ -72,6 +91,7 @@ const frontmatterPanel = new FrontmatterPanel(
 );
 
 let crepe: Crepe | undefined;
+let commentsPanel: CommentsPanel | null = null;
 let view: EditorView | null = null;
 let docPath = "README.md";
 /** The full document text (frontmatter included) the editor last agreed with the host on. */
@@ -280,10 +300,12 @@ function sync(silent = false): string | null {
   crepe.editor.action((ctx) => {
     markdown = serialize(ctx);
   });
-  if (markdown === lastSerialized && front === lastFront) return null;
+  const back = threadsBlock();
+  if (markdown === lastSerialized && front === lastFront && back === lastBack) return null;
   lastSerialized = markdown;
   lastFront = front;
-  const text = front + unescapeWikiLinks(markdown);
+  lastBack = back;
+  const text = front + unescapeWikiLinks(markdown) + (back ? `${markdown ? "\n" : ""}${back}` : "");
   if (text === lastText) return null;
   lastText = text;
   if (!silent) post({ type: "edit", text });
@@ -297,23 +319,30 @@ function serialize(ctx: Ctx): string {
 async function createEditor(text: string) {
   front = splitFront(text);
   lastFront = front;
+  const { body, block } = splitThreads(text.slice(front.length));
+  loadingThreads = true;
+  threadStore.load(block);
+  loadingThreads = false;
   frontmatterPanel.set(front);
   lastText = text;
   crepe = buildEditor({
     root: host,
-    markdown: text.slice(front.length),
+    markdown: body,
     onLink: openLink,
     fileDrop,
     onUpload: uploadFromImageBlock,
     proxyDomURL: proxyImageSrc,
     toolbarHost,
+    onCommentActivate: (id) => commentsPanel?.open(id),
   });
   crepe.editor.use(changePlugin);
   await crepe.create();
+  commentsPanel = new CommentsPanel(() => view);
   crepe.editor.action((ctx) => {
     view = ctx.get(editorViewCtx);
     // Opening a file is not an edit: the editor's normalised form of it is the baseline.
     lastSerialized = serialize(ctx);
+    lastBack = threadsBlock();
   });
 }
 
@@ -330,9 +359,13 @@ function applyExternal(text: string) {
   front = splitFront(text);
   lastFront = front;
   frontmatterPanel.set(front);
+  const { body, block } = splitThreads(text.slice(front.length));
+  loadingThreads = true;
+  threadStore.load(block);
+  loadingThreads = false;
   crepe.editor.action((ctx) => {
     const v = ctx.get(editorViewCtx);
-    const next = ctx.get(parserCtx)(text.slice(front.length));
+    const next = ctx.get(parserCtx)(body);
     if (!next) return;
     const doc = v.state.doc;
     const start = doc.content.findDiffStart(next.content);
@@ -353,6 +386,7 @@ function applyExternal(text: string) {
       }
     }
     lastSerialized = serialize(ctx);
+    lastBack = threadsBlock();
   });
 }
 
@@ -506,6 +540,7 @@ window.addEventListener("message", async (event: MessageEvent<HostMessage>) => {
       docPath = m.docPath;
       setShortcutLabels(m.shortcuts ?? {});
       setLastHeadingLevel(m.prefs?.lastHeading ?? 1);
+      threadStore.author = m.config.commentAuthor || "Me";
       applyConfig(m.config);
       if (!crepe) {
         try {

@@ -12,6 +12,8 @@ export interface EditorConfig {
   maxWidth: number;
   toolbar: ToolbarPosition;
   alwaysShowProperties: boolean;
+  /** Name shown on new comments. */
+  commentAuthor: string;
 }
 
 /** A file dropped from VS Code's Explorer, as the document should reference it. */

@@ -168,6 +168,18 @@
       "title": "Add or Edit Properties (Frontmatter)"
     },
     {
+      "command": "kenMarkdown.addComment",
+      "editor": "comment-add",
+      "title": "Add Comment",
+      "key": "ctrl+alt+m",
+      "mac": "cmd+alt+m"
+    },
+    {
+      "command": "kenMarkdown.toggleComments",
+      "editor": "comments",
+      "title": "Show or Hide Comments"
+    },
+    {
       "command": "kenMarkdown.alertNote",
       "editor": "alert-note",
       "title": "Insert Note Alert"

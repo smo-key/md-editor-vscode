@@ -1611,3 +1611,236 @@ textarea.ken-fm-value,
 body.has-frontmatter .milkdown .crepe-placeholder::before {
   content: none !important;
 }
+
+/* --- Comments (comments/*.ts) ------------------------------------------------- */
+/* The markers themselves take no space and are never seen. */
+.ken-c-anchor {
+  display: inline;
+  width: 0;
+}
+.ken-c-block-anchor {
+  height: 0;
+  margin: 0;
+  overflow: hidden;
+}
+/* Commented text: VS Code's own comment-range colours. */
+.measure .milkdown .ken-comment {
+  background: var(--vscode-editorCommentsWidget-rangeBackground, color-mix(in srgb, var(--vscode-editorWarning-foreground) 18%, transparent));
+  border-bottom: 2px solid var(--vscode-editorCommentsWidget-unresolvedBorder, var(--vscode-editorWarning-foreground));
+  cursor: pointer;
+}
+.measure .milkdown .ken-comment-active {
+  background: var(--vscode-editorCommentsWidget-rangeActiveBackground, color-mix(in srgb, var(--vscode-editorWarning-foreground) 32%, transparent));
+}
+.measure .milkdown .ken-comment-block,
+.measure .milkdown .ken-comment-active-block {
+  outline: 2px solid var(--vscode-editorCommentsWidget-unresolvedBorder, var(--vscode-editorWarning-foreground));
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+.measure .milkdown [class~="ken-comment-active-block"],
+.measure .milkdown .ken-comment.ken-comment-active-block {
+  outline-width: 3px;
+}
+
+/* Toolbar count badge (open comments). */
+.ken-toolbar-button[data-badge] {
+  position: relative;
+}
+.ken-toolbar-button[data-badge]::after {
+  content: attr(data-badge);
+  position: absolute;
+  top: 0;
+  right: 0;
+  min-width: 13px;
+  height: 13px;
+  padding: 0 3px;
+  box-sizing: border-box;
+  border-radius: 7px;
+  background: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+  font-family: var(--vscode-font-family);
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 13px;
+  text-align: center;
+}
+
+/* The sidebar: at the right; the text column makes room for it. */
+body.comments-open .editor-scroll {
+  margin-right: 320px;
+}
+.ken-comments {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  width: 320px;
+  box-sizing: border-box;
+  border-left: 1px solid var(--vscode-editorGroup-border, var(--vscode-panel-border, transparent));
+  background: var(--vscode-sideBar-background, var(--vscode-editor-background));
+  color: var(--vscode-sideBar-foreground, var(--vscode-foreground));
+  font-family: var(--vscode-font-family);
+  font-size: 12.5px;
+}
+.ken-comments[hidden] {
+  display: none;
+}
+body[data-toolbar="bottom"] .ken-comments {
+  bottom: 34px;
+}
+body[data-toolbar="top"] .ken-comments {
+  top: 34px;
+}
+.ken-comments header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 8px 8px 12px;
+  border-bottom: 1px solid var(--vscode-editorGroup-border, var(--vscode-panel-border, transparent));
+}
+.ken-comments h2 {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.ken-comments-resolved {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--vscode-descriptionForeground);
+  cursor: pointer;
+}
+.ken-comments-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+.ken-comments-empty {
+  margin: 16px 4px;
+  color: var(--vscode-descriptionForeground);
+}
+.ken-comment-card {
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--vscode-editorWidget-border, var(--vscode-widget-border, transparent));
+  border-radius: 6px;
+  background: var(--vscode-editorWidget-background, var(--vscode-editor-background));
+}
+.ken-comment-card.active {
+  border-color: var(--vscode-focusBorder);
+}
+.ken-comment-card.resolved {
+  opacity: 0.7;
+}
+.ken-comment-quote {
+  display: block;
+  width: 100%;
+  margin: 0 0 6px;
+  padding: 0 0 0 8px;
+  border: none;
+  border-left: 3px solid var(--vscode-editorCommentsWidget-unresolvedBorder, var(--vscode-editorWarning-foreground));
+  background: transparent;
+  color: var(--vscode-descriptionForeground);
+  font: inherit;
+  font-style: italic;
+  text-align: left;
+  cursor: pointer;
+}
+.ken-comment-message {
+  padding: 4px 0;
+}
+.ken-comment-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 11.5px;
+}
+.ken-comment-meta strong {
+  color: var(--vscode-foreground);
+}
+.ken-comment-delete-msg {
+  margin-left: auto;
+  opacity: 0;
+}
+.ken-comment-message:hover .ken-comment-delete-msg {
+  opacity: 1;
+}
+.ken-comment-text {
+  margin-top: 2px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.ken-comment-input {
+  box-sizing: border-box;
+  width: 100%;
+  margin-top: 6px;
+  padding: 4px 6px;
+  border: 1px solid var(--vscode-input-border, var(--vscode-widget-border, transparent));
+  border-radius: 3px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  font: inherit;
+  resize: vertical;
+  outline: none;
+}
+.ken-comment-input:focus {
+  border-color: var(--vscode-focusBorder);
+}
+.ken-comment-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+.ken-comment-spacer {
+  flex: 1;
+}
+.ken-comment-send,
+.ken-comment-cancel {
+  padding: 2px 10px;
+  border: 1px solid var(--vscode-button-border, transparent);
+  border-radius: 3px;
+  font: inherit;
+  cursor: pointer;
+}
+.ken-comment-send {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+.ken-comment-send:hover {
+  background: var(--vscode-button-hoverBackground);
+}
+.ken-comment-cancel {
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+}
+.ken-comment-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--vscode-icon-foreground, inherit);
+  cursor: pointer;
+}
+.ken-comment-button:hover {
+  background: var(--vscode-toolbar-hoverBackground, var(--vscode-list-hoverBackground));
+}
+.ken-comment-button.danger:hover {
+  color: var(--vscode-errorForeground);
+}

@@ -14,6 +14,24 @@ import { classifyHref, imageFolder, minimalChange, toEOL, toLF, uniqueName } fro
 
 export const VIEW_TYPE = "kenMarkdown.editor";
 
+let gitAuthor: string | undefined;
+/** Your name for comments: git's user.name, else the OS account name. */
+function defaultAuthor(): string {
+  if (gitAuthor === undefined) {
+    try {
+      gitAuthor = require("child_process").execFileSync("git", ["config", "user.name"], { encoding: "utf8", timeout: 2000 }).trim();
+    } catch {
+      gitAuthor = "";
+    }
+  }
+  if (gitAuthor) return gitAuthor;
+  try {
+    return require("os").userInfo().username;
+  } catch {
+    return "Me";
+  }
+}
+
 /** The toolbar setting; `true`/`false` from versions before it had positions. */
 export function toolbarPosition(value: unknown): ToolbarPosition {
   if (value === false || value === "hidden") return "hidden";
@@ -37,6 +55,7 @@ export function readConfig(scope?: vscode.Uri): EditorConfig {
     maxWidth: c.get<number>("maxWidth", 720),
     toolbar: toolbarPosition(c.get<unknown>("toolbar", "bottom")),
     alwaysShowProperties: c.get<boolean>("alwaysShowProperties", false),
+    commentAuthor: c.get<string>("commentAuthor", "").trim() || defaultAuthor(),
   };
 }
 

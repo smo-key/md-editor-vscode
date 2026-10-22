@@ -180,6 +180,16 @@
         "category": "Ken Markdown"
       },
       {
+        "command": "kenMarkdown.addComment",
+        "title": "Add Comment",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.toggleComments",
+        "title": "Show or Hide Comments",
+        "category": "Ken Markdown"
+      },
+      {
         "command": "kenMarkdown.alertNote",
         "title": "Insert Note Alert",
         "category": "Ken Markdown"
@@ -429,6 +439,14 @@
           "when": "activeCustomEditorId == 'kenMarkdown.editor'"
         },
         {
+          "command": "kenMarkdown.addComment",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.toggleComments",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
           "command": "kenMarkdown.alertNote",
           "when": "activeCustomEditorId == 'kenMarkdown.editor'"
         },
@@ -590,6 +608,11 @@
           "type": "boolean",
           "default": false,
           "markdownDescription": "Show the Properties (frontmatter) panel above every document, even one without frontmatter. Nothing is added to the file until you add a property."
+        },
+        "kenMarkdown.commentAuthor": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Your name on comments you add. Empty uses git's `user.name`, else your OS account name."
         }
       }
     },
@@ -700,6 +723,12 @@
         "command": "kenMarkdown.codeBlock",
         "key": "ctrl+alt+c",
         "mac": "cmd+alt+c",
+        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+      },
+      {
+        "command": "kenMarkdown.addComment",
+        "key": "ctrl+alt+m",
+        "mac": "cmd+alt+m",
         "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
       },
       {

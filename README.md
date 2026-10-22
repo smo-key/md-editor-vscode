@@ -131,6 +131,46 @@ button, `/frontmatter` (or `/properties`) in the slash menu, or the
 With `kenMarkdown.alwaysShowProperties` on, every document shows the panel,
 and frontmatter is only written once you add a property.
 
+## Comments
+
+Select any span (part of a sentence, several paragraphs, a table, an image,
+or all of these together) and click **Add comment** in the toolbar (or
+press ⌥⌘M / Ctrl+Alt+M, or `/comment`). Write the comment in the sidebar
+(⌘Enter / Ctrl+Enter to post). Each comment is a thread: anyone can reply,
+resolve it (its highlight goes away) or reopen it, or delete it. Click
+highlighted text to see its thread; the **Comments** toolbar button (with the
+number of open comments) shows them all. New comments carry your name
+(`kenMarkdown.commentAuthor`, else git's `user.name`).
+
+Markdown has no comments, so they are stored as HTML comments, which GitHub
+and other renderers hide. The commented content is wrapped in markers, and the
+threads are kept in one block at the end of the file, one thread per line:
+
+```markdown
+Revenue grew <!-- ken:comment c1 -->**12%** in Q3.
+
+| Region | Q3 |
+| ------ | -- |
+| EU     | 4%<!-- /ken:comment c1 --> |
+
+<!-- ken:comments
+{"c1":{"resolved":false,"messages":[{"id":"m1","author":"Ana","date":"2026-10-22T15:00:00.000Z","text":"Source?"}]}}
+-->
+```
+
+The editor keeps this valid through any edit:
+
+- A marker never starts a line (in Markdown that would turn the line into
+  HTML): at the start of a paragraph or list item it goes at the end of the
+  previous line, or on a line of its own before the block.
+- Comments on code blocks and diagrams wrap the whole block.
+- Deleting content that holds one end of a comment moves that end to where
+  the deletion was, so the comment covers what is left; deleting all of it
+  removes the comment's markers (undo brings them back).
+- Copying commented text does not copy the comment.
+- The caret, Backspace and Delete step over the invisible markers.
+- A comment you never wrote anything in is not saved.
+
 ## Pasting and dropping files
 
 - **Images** you paste (e.g. a screenshot) or drop are copied into an
@@ -195,6 +235,8 @@ Defaults:
 | Insert Mermaid Diagram | — | — | `kenMarkdown.insertDiagram` |
 | Insert Table of Contents | — | — | `kenMarkdown.insertTableOfContents` |
 | Add or Edit Properties (Frontmatter) | — | — | `kenMarkdown.editProperties` |
+| Add Comment | ⌥⌘M | Ctrl+Alt+M | `kenMarkdown.addComment` |
+| Show or Hide Comments | — | — | `kenMarkdown.toggleComments` |
 | Insert Note Alert | — | — | `kenMarkdown.alertNote` |
 | Insert Tip Alert | — | — | `kenMarkdown.alertTip` |
 | Insert Important Alert | — | — | `kenMarkdown.alertImportant` |
@@ -276,6 +318,7 @@ The header row is GFM's: it stays first and cannot be deleted on its own
 | `kenMarkdown.maxWidth` | `720` | Width of the text column in px. |
 | `kenMarkdown.toolbar` | `bottom` | Where the formatting toolbar sits: `bottom`, `top` or `hidden`. |
 | `kenMarkdown.alwaysShowProperties` | `false` | Show the Properties panel above every document, even without frontmatter (nothing is written until you add one). |
+| `kenMarkdown.commentAuthor` | *(git's `user.name`)* | Your name on comments you add. |
 | `kenMarkdown.imageFolder` | `_Images` | Folder next to the document that pasted and dropped images are copied into; empty for beside the document. |
 
 Hanken Grotesk, Newsreader and JetBrains Mono (Ken's fonts) are bundled; any
@@ -317,6 +360,7 @@ document for visual checks.
 ```sh
 KEN_DUMP_THEMES=/tmp/themes npm run test:integration   # captures Light/Dark Modern
 node harness/check-editing.mjs /tmp/themes/Default-Dark-Modern.json
+node harness/check-comments.mjs /tmp/themes/Default-Light-Modern.json
 node harness/screenshot.mjs /tmp/themes/Default-Dark-Modern.json test/fixtures/gfm.md /tmp/out.png
 ```
 

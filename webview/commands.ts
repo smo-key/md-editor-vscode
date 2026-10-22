@@ -8,6 +8,7 @@ import type { Ctx } from "@milkdown/kit/ctx";
 import type { MarkType, Node as ProseNode } from "@milkdown/kit/prose/model";
 import { lift, setBlockType, toggleMark, wrapIn } from "@milkdown/kit/prose/commands";
 import { redo, undo, redoDepth, undoDepth } from "@milkdown/kit/prose/history";
+import { sharedHistory } from "./collab";
 import { liftListItem, sinkListItem, wrapInList } from "@milkdown/kit/prose/schema-list";
 import { TextSelection, type EditorState } from "@milkdown/kit/prose/state";
 import {
@@ -443,8 +444,12 @@ export const COMMANDS: EditorCommand[] = [
     icon: Undo2,
     group: "history",
     toolbar: true,
-    run: (_ctx, view) => run(view, undo),
-    isEnabled: (state) => undoDepth(state) > 0,
+    // In a collaboration session, only your own changes (collab.ts).
+    run: (_ctx, view) => run(view, sharedHistory(view.state)?.undo ?? undo),
+    isEnabled: (state) => {
+      const shared = sharedHistory(state);
+      return shared ? !!shared.undo(state) : undoDepth(state) > 0;
+    },
   },
   {
     id: "redo",
@@ -452,8 +457,11 @@ export const COMMANDS: EditorCommand[] = [
     icon: Redo2,
     group: "history",
     toolbar: true,
-    run: (_ctx, view) => run(view, redo),
-    isEnabled: (state) => redoDepth(state) > 0,
+    run: (_ctx, view) => run(view, sharedHistory(view.state)?.redo ?? redo),
+    isEnabled: (state) => {
+      const shared = sharedHistory(state);
+      return shared ? !!shared.redo(state) : redoDepth(state) > 0;
+    },
   },
 
   // Block types

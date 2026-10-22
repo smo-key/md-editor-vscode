@@ -22,7 +22,7 @@ const contexts = await Promise.all([
     platform: "node",
     format: "cjs",
     target: "node18",
-    external: ["vscode"],
+    external: ["vscode", "bufferutil", "utf-8-validate"],
   }),
   esbuild.context({
     ...shared,

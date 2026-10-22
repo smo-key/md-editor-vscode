@@ -1905,3 +1905,91 @@ body[data-toolbar="top"] .ken-comments {
   font: inherit;
   cursor: pointer;
 }
+
+/* --- Collaboration (collab.ts, presence.ts) ------------------------------------ */
+
+/* Someone else's caret: a thin bar in their colour, their name above it. */
+.ken-collab-caret {
+  position: relative;
+  margin-left: -1px;
+  margin-right: -1px;
+  border-left: 2px solid var(--who);
+  word-break: normal;
+  pointer-events: none;
+}
+.ken-collab-name {
+  position: absolute;
+  top: -1.35em;
+  left: -2px;
+  padding: 1px 5px;
+  border-radius: 3px 3px 3px 0;
+  background: var(--who);
+  color: var(--vscode-editor-background);
+  font-family: var(--vscode-font-family);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+  user-select: none;
+  opacity: 0.95;
+}
+.ken-collab-selection {
+  background-color: color-mix(in srgb, var(--who) 22%, transparent);
+}
+
+/* Who else is here, top right. */
+.ken-presence {
+  position: fixed;
+  top: 8px;
+  right: 14px;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--vscode-font-family);
+  font-size: 11px;
+}
+.ken-presence[hidden] {
+  display: none;
+}
+body[data-toolbar="top"] .ken-presence {
+  top: 44px;
+}
+.ken-presence-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-right: 2px;
+  padding: 2px 8px 2px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--vscode-editorWidget-border, var(--vscode-widget-border, transparent));
+  background: var(--vscode-editorWidget-background, var(--vscode-editor-background));
+  color: var(--vscode-descriptionForeground);
+  cursor: default;
+}
+.ken-presence-live::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--vscode-charts-green, #89d185);
+}
+.ken-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--who);
+  color: var(--vscode-editor-background);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: default;
+  box-shadow: 0 0 0 2px var(--vscode-editor-background);
+}
+.ken-avatar + .ken-avatar {
+  margin-left: -6px;
+}

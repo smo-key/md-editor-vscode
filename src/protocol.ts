@@ -40,6 +40,13 @@ export type HostMessage =
   | { type: "fileWritten"; id: number; error?: string }
   | { type: "diagramCreated"; id: number; path?: string; error?: string }
   | { type: "flush"; id: number }
+  /** A collaboration session began for this editor (collab.ts): `seed` fills the empty shared document. */
+  | { type: "collabStart"; seed: boolean; state: Uint8Array; awareness: Uint8Array; name: string }
+  | { type: "collabUpdate"; data: Uint8Array }
+  | { type: "collabAwareness"; data: Uint8Array }
+  /** Whether this editor writes the shared document to its file. */
+  | { type: "collabWriter"; writer: boolean }
+  | { type: "collabStop" }
   | { type: "test"; id: number; action: TestAction };
 
 export type TestAction =
@@ -62,6 +69,8 @@ export type TestAction =
   | { kind: "selectText"; text: string }
   | { kind: "caretAfter"; text: string }
   | { kind: "undo" }
+  /** Collaboration state: whether shared, writing, and who else is here. */
+  | { kind: "collab" }
   | { kind: "key"; key: string; code: string; meta?: boolean; ctrl?: boolean; shift?: boolean };
 
 /** Choices the editor remembers across editors and sessions. */
@@ -90,5 +99,9 @@ export type WebviewMessage =
   | { type: "openLink"; href: string }
   | { type: "openWikiLink"; target: string }
   | { type: "flushed"; id: number; text: string | null }
+  | { type: "collabUpdate"; data: Uint8Array }
+  | { type: "collabAwareness"; data: Uint8Array }
+  /** The editor left the session; a non-writer wants the file's text back. */
+  | { type: "collabStopped"; writer: boolean }
   | { type: "testResult"; id: number; result: unknown }
   | { type: "error"; message: string };

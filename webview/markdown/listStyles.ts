@@ -53,6 +53,7 @@ import type {
   SerializerState,
 } from "@milkdown/kit/transformer";
 import { $inputRule, $prose, $remark } from "@milkdown/kit/utils";
+import { isRemoteChange } from "../remoteChange";
 
 export type ListDelimiter = "." | ")";
 
@@ -308,7 +309,7 @@ export const listLabelPlugin = $prose(
     new Plugin({
       key: new PluginKey("ken-list-labels"),
       appendTransaction: (transactions, _old, state) =>
-        transactions.some((tr) => tr.docChanged)
+        transactions.some((tr) => tr.docChanged) && !isRemoteChange(transactions)
           ? fixLabels(ctx, state)
           : null,
       view: (view) => {

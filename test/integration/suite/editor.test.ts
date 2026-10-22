@@ -820,6 +820,95 @@ describe("Ken Markdown Editor", function () {
     }
   });
 
+  it("shares a document live: two editors and a guest over the network", async () => {
+    const Y = await import("yjs");
+    const { Awareness, encodeAwarenessUpdate } = await import("y-protocols/awareness");
+    const { WebSocket } = await import("ws");
+    const fs = await import("fs");
+    const uri = fixture("collab-scratch.md");
+    fs.writeFileSync(uri.fsPath, "# Shared\n\nFirst line.\n");
+    let socket: InstanceType<typeof WebSocket> | undefined;
+    const at = (index: number, action: TestAction) =>
+      vscode.commands.executeCommand("kenMarkdown._testAt", uri.toString(), index, action);
+    type CollabState = { active: boolean; writer: boolean; people: string[] };
+    try {
+      await vscode.commands.executeCommand("kenMarkdown.collaboration.start");
+      const stats = await vscode.commands.executeCommand<{ role: string; invite: string }>("kenMarkdown._testCollab");
+      assert.strictEqual(stats.role, "host");
+      assert.match(stats.invite, /^ws:\/\/localhost:\d+\/\?token=/);
+
+      // Two editors on one file: both join, one of them writes it.
+      const doc = await openEditor(uri);
+      await vscode.commands.executeCommand("vscode.openWith", uri, VIEW_TYPE, vscode.ViewColumn.Two);
+      await until("second editor", () => vscode.commands.executeCommand<number>("kenMarkdown._testEditors", uri.toString()), (n) => n === 2);
+      await until("second editor mounted", () => at(1, { kind: "count", selector: ".milkdown .ProseMirror" }), (n) => n === 1, 90000);
+      const states = await until(
+        "both shared",
+        async () => [(await at(0, { kind: "collab" })) as CollabState, (await at(1, { kind: "collab" })) as CollabState],
+        (s) => s.every((x) => x.active) && s.filter((x) => x.writer).length === 1,
+      );
+      assert.strictEqual(states[0].writer, true, "the first editor writes");
+
+      // Typing in the second editor reaches the first, and the file.
+      await at(1, { kind: "insertText", text: " From two.", at: "end" });
+      await until("first editor has it", () => at(0, { kind: "getMarkdown" }), (t) => String(t).includes("First line. From two."));
+      await until("file has it", () => doc.getText(), (t) => t.includes("First line. From two."));
+
+      // A guest elsewhere joins with the invite and types.
+      socket = new WebSocket(stats.invite);
+      const ws = socket;
+      const ydoc = new Y.Doc();
+      const awareness = new Awareness(ydoc);
+      const peer = "guest-1";
+      const room = "collab-scratch.md";
+      const send = (m: unknown) => ws.send(JSON.stringify(m));
+      const welcomed = new Promise<void>((resolve) => {
+        ws.on("message", (raw) => {
+          const m = JSON.parse(String(raw));
+          if (m.to !== peer) return;
+          if (m.t === "welcome" || m.t === "update") Y.applyUpdate(ydoc, Buffer.from(m.t === "welcome" ? m.state : m.data, "base64"), "hub");
+          if (m.t === "welcome") resolve();
+        });
+      });
+      await new Promise<void>((resolve, reject) => {
+        ws.once("open", () => resolve());
+        ws.once("error", reject);
+      });
+      send({ t: "join", room, peer, name: "Remote Rita", store: "elsewhere" });
+      await welcomed;
+      ydoc.on("update", (u: Uint8Array, origin: unknown) => {
+        if (origin !== "hub") send({ t: "update", room, peer, data: Buffer.from(u).toString("base64") });
+      });
+      awareness.on("update", ({ added, updated }: { added: number[]; updated: number[] }) =>
+        send({ t: "awareness", room, peer, data: Buffer.from(encodeAwarenessUpdate(awareness, [...added, ...updated])).toString("base64") }),
+      );
+      awareness.setLocalStateField("user", { name: "Remote Rita", hue: "green" });
+      const paragraph = ydoc
+        .getXmlFragment("prosemirror")
+        .toArray()
+        .find((n) => n instanceof Y.XmlElement && n.nodeName === "paragraph") as InstanceType<typeof Y.XmlElement>;
+      (paragraph.get(0) as InstanceType<typeof Y.XmlText>).insert(0, "Rita: ");
+      await until("file has the guest's edit", () => doc.getText(), (t) => t.includes("Rita: First line. From two."));
+      await until("the guest is shown", () => at(1, { kind: "count", selector: '.ken-avatar[title="Remote Rita"]' }), (n) => n === 1);
+
+      // The host ends the session: everyone works alone again, nothing lost.
+      await vscode.commands.executeCommand("kenMarkdown.collaboration.leave");
+      await until("left", () => at(0, { kind: "collab" }), (s) => !(s as CollabState).active);
+      assert.strictEqual(((await at(1, { kind: "collab" })) as CollabState).active, false);
+      await until("guest disconnected", () => ws.readyState, (r) => r === WebSocket.CLOSED);
+      await at(0, { kind: "insertText", text: "Solo ", at: "start" });
+      await until("solo edit saved through the file", () => doc.getText(), (t) => t.startsWith("# Solo Shared"));
+      await until("and seen by the other editor the usual way", () => at(1, { kind: "getMarkdown" }), (t) => String(t).startsWith("# Solo Shared"));
+      assert.match(doc.getText(), /Rita: First line\. From two\./);
+    } finally {
+      socket?.close();
+      await vscode.commands.executeCommand("kenMarkdown.collaboration.leave");
+      await vscode.commands.executeCommand("workbench.action.files.revert");
+      await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+      fs.rmSync(uri.fsPath, { force: true });
+    }
+  });
+
   it("can switch to the Markdown source and back", async () => {
     const uri = fixture("sample.md");
     await openEditor(uri);

@@ -7,7 +7,7 @@ import { extname, join, resolve } from "path";
 
 const types = { ".js": "text/javascript", ".css": "text/css", ".woff2": "font/woff2", ".woff": "font/woff", ".svg": "image/svg+xml", ".png": "image/png" };
 
-export async function openHarness({ themeFile, markdown, width = 1100, height = 900, fontSize = 16 }) {
+export async function openHarness({ themeFile, markdown, width = 1100, height = 900, fontSize = 16, beforeLoad }) {
   const theme = JSON.parse(readFileSync(themeFile, "utf8"));
   const root = resolve(".");
   const html = `<!doctype html><html style='${theme.style.replace(/'/g, "&#39;")}'><head><meta charset="utf-8">
@@ -19,6 +19,7 @@ export async function openHarness({ themeFile, markdown, width = 1100, height = 
   window.__sent = [];
   window.acquireVsCodeApi = () => ({ postMessage(m) {
     window.__sent.push(m);
+    if (window.__hostHook && /^collab/.test(m.type)) window.__hostHook(m.type, m.data ? (() => { let s = ""; for (const c of m.data) s += String.fromCharCode(c); return btoa(s); })() : null, m.writer ?? null);
     if (m.type === "ready") setTimeout(() => window.postMessage({ type: "init", text: ${JSON.stringify(markdown)}, docPath: "doc.md",
       config: { fontSize: ${Number(fontSize)}, bodyFontFamily: "", headingFontFamily: "", codeFontFamily: "", lineHeight: 1.85, maxWidth: 720, toolbar: "${process.env.KEN_TOOLBAR ?? "bottom"}", alwaysShowProperties: ${process.env.KEN_ALWAYS_PROPS === "1"} } }, "*"));
     // Stand-in for the host: "saved" files live in memory as blob URLs,
@@ -94,6 +95,7 @@ export async function openHarness({ themeFile, markdown, width = 1100, height = 
   });
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e)));
+  if (beforeLoad) await beforeLoad(page);
   await page.goto(`http://localhost:${server.address().port}/`);
   await page.waitForSelector("body.ready .milkdown .ProseMirror");
   return {

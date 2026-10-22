@@ -36,7 +36,9 @@ import {
 import { closeLightbox, showLightbox } from "./lightbox";
 import { initDrawio, versionOf } from "./drawio";
 import { FrontmatterPanel } from "./frontmatter";
-import { threadStore, splitThreads } from "./comments/store";
+import { threadStore, splitThreads, formatThreads, type CommentThread } from "./comments/store";
+import { Collab, sharedHistory } from "./collab";
+import { Presence } from "./presence";
 import { commentIds, refreshComments } from "./comments/anchors";
 import { CommentsPanel } from "./comments/panel";
 import { splitFrontmatter } from "./frontmatterModel";
@@ -71,9 +73,30 @@ function threadsBlock(): string {
 threadStore.onChange(() => {
   if (loadingThreads) return;
   if (view) refreshComments(view);
+  collab?.setThreads(sharedThreads());
   dirty = true;
   sync();
 });
+
+/** The threads to share in a collaboration session (drafts stay local until posted). */
+function sharedThreads(): string[] {
+  return threadStore
+    .all()
+    .filter((t) => t.messages.length > 0)
+    .map((t) => JSON.stringify(t));
+}
+
+/** Load threads without that counting as an edit here; keeps local drafts. */
+function loadThreads(block: string) {
+  const drafts = threadStore.all().filter((t) => t.messages.length === 0);
+  loadingThreads = true;
+  try {
+    threadStore.load(block);
+    for (const d of drafts) if (!threadStore.has(d.id)) threadStore.create(d.id);
+  } finally {
+    loadingThreads = false;
+  }
+}
 
 // Frontmatter is set aside from the editor and shown as a properties panel
 // above it (frontmatter.ts); its edits are saved with the document's.
@@ -82,6 +105,7 @@ const frontmatterPanel = new FrontmatterPanel(
   host,
   (next) => {
     front = next;
+    collab?.setFront(next);
     dirty = true;
     sync();
   },
@@ -105,6 +129,106 @@ let front = "";
 const splitFront = splitFrontmatter;
 /** The frontmatter as last written, so a properties-only edit is still saved. */
 let lastFront = "";
+
+// --- Collaboration ---------------------------------------------------------------
+// While a session is on, the document is shared live (collab.ts). One editor
+// per copy of the file writes it (the hub elects it); the others only follow.
+
+let collab: Collab | null = null;
+/** Whether this editor writes its changes to the file (always, outside a session). */
+let writer = true;
+const presence = new Presence();
+let editorCreated!: () => void;
+const created = new Promise<void>((resolve) => (editorCreated = resolve));
+let collabChain: Promise<void> = Promise.resolve();
+
+function startCollab(m: Extract<HostMessage, { type: "collabStart" }>) {
+  if (!view) return;
+  collab?.stop();
+  // Pending keystrokes belong to the file as it was.
+  dirty = true;
+  sync();
+  // Until the hub says otherwise, someone else may be writing the file.
+  writer = false;
+  collab = new Collab(
+    view,
+    {
+      send: (data) => post({ type: "collabUpdate", data }),
+      sendAwareness: (data) => post({ type: "collabAwareness", data }),
+      onFront: (next) => {
+        if (next === front) return;
+        front = next;
+        frontmatterPanel.set(next);
+        dirty = true;
+        scheduleSync();
+      },
+      onThreads: (list) => {
+        const threads: CommentThread[] = [];
+        for (const json of list) {
+          try {
+            threads.push(JSON.parse(json) as CommentThread);
+          } catch {
+            // Skipped.
+          }
+        }
+        loadThreads(formatThreads(threads));
+        if (view) refreshComments(view);
+        dirty = true;
+        scheduleSync();
+      },
+      onPeople: (people) => presence.show(people),
+    },
+    m.name || threadStore.author || "Someone",
+  );
+  collab.start(m.seed, m.state, m.awareness, front, sharedThreads());
+  document.body.classList.add("collab");
+}
+
+function stopCollab() {
+  if (!collab) return;
+  const wrote = writer;
+  collab.stop();
+  collab = null;
+  writer = true;
+  presence.hide();
+  document.body.classList.remove("collab");
+  if (wrote) {
+    dirty = true;
+    sync();
+  }
+  post({ type: "collabStopped", writer: wrote });
+}
+
+/** Became (or stopped being) the editor that writes the file. */
+function setWriter(next: boolean) {
+  writer = next;
+  if (!next) return;
+  // Write what the shared document says now, even if this editor saw it before.
+  lastText = "\u0000";
+  lastSerialized = "\u0000";
+  dirty = true;
+  sync();
+}
+
+function onCollabMessage(m: HostMessage) {
+  switch (m.type) {
+    case "collabStart":
+      startCollab(m);
+      return;
+    case "collabUpdate":
+      collab?.apply(m.data);
+      return;
+    case "collabAwareness":
+      collab?.applyAwareness(m.data);
+      return;
+    case "collabWriter":
+      if (collab) setWriter(m.writer);
+      return;
+    case "collabStop":
+      stopCollab();
+      return;
+  }
+}
 // The serializer escapes `[` in text, turning every [[wiki link]] into \[\[text]]: put them back.
 const unescapeWikiLinks = (md: string) => md.replace(/\\\[\\\[([^\n]+?)\\?\]\\?\]/g, "[[$1]]");
 
@@ -309,14 +433,18 @@ const changePlugin = $prose(
         update(v, prev) {
           if (applyingExternal || v.state.doc.eq(prev.doc)) return;
           dirty = true;
-          clearTimeout(syncTimer);
-          syncTimer = setTimeout(() => sync(), SYNC_DELAY_MS);
+          scheduleSync();
         },
       }),
     }),
 );
 
-/** The full text if the editor changed since the last sync; posts it unless `silent`. */
+function scheduleSync() {
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => sync(), SYNC_DELAY_MS);
+}
+
+/** The full text if the editor changed since the last sync; posts it unless `silent` (or not the writer). */
 function sync(silent = false): string | null {
   clearTimeout(syncTimer);
   if (!dirty || !crepe) return null;
@@ -333,7 +461,7 @@ function sync(silent = false): string | null {
   const text = front + unescapeWikiLinks(markdown) + (back ? `${markdown ? "\n" : ""}${back}` : "");
   if (text === lastText) return null;
   lastText = text;
-  if (!silent) post({ type: "edit", text });
+  if (!silent && writer) post({ type: "edit", text });
   return text;
 }
 
@@ -369,6 +497,7 @@ async function createEditor(text: string) {
     lastSerialized = serialize(ctx);
     lastBack = threadsBlock();
   });
+  editorCreated();
 }
 
 /**
@@ -377,6 +506,9 @@ async function createEditor(text: string) {
  * so the caret and scroll position survive.
  */
 function applyExternal(text: string) {
+  // In a session, only the writer follows its file (and shares what changed
+  // there); the others' files are written for them.
+  if (collab && !writer) return;
   // Unsynced keystrokes go first, so the host's text is compared with the editor's latest.
   sync();
   if (!crepe || text === lastText) return;
@@ -384,10 +516,10 @@ function applyExternal(text: string) {
   front = splitFront(text);
   lastFront = front;
   frontmatterPanel.set(front);
+  collab?.setFront(front);
   const { body, block } = splitThreads(text.slice(front.length));
-  loadingThreads = true;
-  threadStore.load(block);
-  loadingThreads = false;
+  loadThreads(block);
+  collab?.setThreads(sharedThreads());
   crepe.editor.action((ctx) => {
     const v = ctx.get(editorViewCtx);
     const next = ctx.get(parserCtx)(body);
@@ -517,8 +649,14 @@ function runTest(action: TestAction): unknown {
       );
     case "getAttr":
       return document.querySelector(action.selector)?.getAttribute(action.name) ?? null;
-    case "undo":
-      return view ? undo(view.state, view.dispatch) : false;
+    case "undo": {
+      if (!view) return false;
+      const shared = sharedHistory(view.state);
+      return shared ? shared.undo(view.state, view.dispatch) : undo(view.state, view.dispatch);
+    }
+    case "collab":
+      sync();
+      return { active: !!collab, writer, people: collab?.people().map((p) => p.name) ?? [] };
     case "key": {
       if (!view) return false;
       view.focus();
@@ -594,7 +732,22 @@ window.addEventListener("message", async (event: MessageEvent<HostMessage>) => {
       toggleShortcutsPanel();
       return;
     case "flush":
-      post({ type: "flushed", id: m.id, text: sync(true) });
+      post({ type: "flushed", id: m.id, text: writer ? sync(true) : null });
+      return;
+    case "collabStart":
+    case "collabUpdate":
+    case "collabAwareness":
+    case "collabWriter":
+    case "collabStop":
+      // In order, and only once the editor exists.
+      collabChain = collabChain.then(async () => {
+        await created;
+        try {
+          onCollabMessage(m);
+        } catch (err) {
+          post({ type: "error", message: `collaboration: ${err}` });
+        }
+      });
       return;
     case "attachmentSaved":
     case "resolved":

@@ -4,10 +4,24 @@ import * as path from "path";
 import { SHORTCUTS, editorShortcutLabels, parseJsonc } from "./keybindings";
 import type { TestAction } from "./protocol";
 import { KenMarkdownEditorProvider, VIEW_TYPE } from "./provider";
+import { CollabManager } from "./collab/manager";
 
 export function activate(context: vscode.ExtensionContext) {
-  const provider = new KenMarkdownEditorProvider(context);
+  const collab = new CollabManager();
+  const provider = new KenMarkdownEditorProvider(context, collab);
+  const collabContext = () =>
+    void vscode.commands.executeCommand("setContext", "kenMarkdown.collaboration", collab.role ?? false);
+  collabContext();
   context.subscriptions.push(
+    collab,
+    collab.onDidChange(collabContext),
+    vscode.commands.registerCommand("kenMarkdown.collaboration.start", () => collab.start()),
+    vscode.commands.registerCommand("kenMarkdown.collaboration.join", (invite?: string) =>
+      collab.join(typeof invite === "string" ? invite : undefined),
+    ),
+    vscode.commands.registerCommand("kenMarkdown.collaboration.copyInvite", () => collab.copyInvite()),
+    vscode.commands.registerCommand("kenMarkdown.collaboration.leave", () => collab.leave()),
+    vscode.commands.registerCommand("kenMarkdown.collaboration.menu", () => collab.menu()),
     vscode.window.registerCustomEditorProvider(VIEW_TYPE, provider, {
       webviewOptions: { retainContextWhenHidden: true, enableFindWidget: true },
       supportsMultipleEditorsPerDocument: true,
@@ -55,6 +69,13 @@ export function activate(context: vscode.ExtensionContext) {
   if (context.extensionMode === vscode.ExtensionMode.Test) {
     context.subscriptions.push(
       vscode.commands.registerCommand("kenMarkdown._testKeybindingsFile", () => keybindingsFile),
+      vscode.commands.registerCommand("kenMarkdown._testCollab", () => collab.stats()),
+      vscode.commands.registerCommand("kenMarkdown._testEditors", (uri: string) => provider.sessionsFor(uri).length),
+      vscode.commands.registerCommand("kenMarkdown._testAt", async (uri: string, index: number, action: TestAction) => {
+        const session = provider.sessionsFor(uri)[index];
+        if (!session) throw new Error(`no editor #${index} for ${uri}`);
+        return session.runTest(action);
+      }),
       vscode.commands.registerCommand("kenMarkdown._test", async (uri: string, action?: TestAction) => {
         const session = provider.sessions.get(uri);
         if (!action) return session?.isReady ?? false;

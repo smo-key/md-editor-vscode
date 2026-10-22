@@ -21,6 +21,7 @@ import { $prose } from "@milkdown/kit/utils";
 
 import type { ColumnWidths } from "./markdown/tableFullWidth";
 import { MIN_COLUMN } from "./markdown/tableLayout";
+import { isRemoteChange } from "./remoteChange";
 
 /** How close to a border (px) the pointer has to be to grab it. */
 const GRAB = 5;
@@ -271,6 +272,6 @@ export const columnResizePlugin = $prose(
       key: new PluginKey("ken-column-resize"),
       view: (view) => new ColumnResizeView(view),
       appendTransaction: (trs, _old, state) =>
-        trs.some((tr) => tr.docChanged) ? reconcile(trs[trs.length - 1]!, state) : null,
+        trs.some((tr) => tr.docChanged) && !isRemoteChange(trs) ? reconcile(trs[trs.length - 1]!, state) : null,
     }),
 );

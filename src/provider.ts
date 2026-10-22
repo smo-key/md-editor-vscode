@@ -11,6 +11,8 @@ import type {
   WebviewMessage,
 } from "./protocol";
 import { classifyHref, imageFolder, minimalChange, toEOL, toLF, uniqueName } from "./sync";
+import type { CollabManager, Endpoint } from "./collab/manager";
+import { fromBase64, toBase64 } from "./collab/wire";
 
 export const VIEW_TYPE = "kenMarkdown.editor";
 
@@ -80,6 +82,9 @@ class EditorSession {
   /** Whether the webview has keyboard focus (drives `kenMarkdown.editorFocused`). */
   focused = false;
 
+  /** This editor's part in a collaboration session, while there is one. */
+  private collab: { peer: string; room: string; endpoint: Endpoint; listener: vscode.Disposable } | undefined;
+
   constructor(
     private readonly document: vscode.TextDocument,
     readonly panel: vscode.WebviewPanel,
@@ -127,6 +132,7 @@ class EditorSession {
           this.post({ type: "config", config: readConfig(this.document.uri) });
         }
       }),
+      this.host.collab.onDidChange(() => this.syncCollab()),
       this.panel.onDidChangeViewState(() => {
         if (!this.panel.active) this.setFocused(false);
         // A hidden webview may have missed nothing (retainContextWhenHidden),
@@ -152,6 +158,8 @@ class EditorSession {
   private async onMessage(m: WebviewMessage): Promise<void> {
     switch (m.type) {
       case "ready":
+        // A reloaded webview starts over in the session too.
+        this.leaveCollab(true, false);
         this.ready = true;
         this.webviewText = toLF(this.document.getText());
         this.post({
@@ -162,6 +170,7 @@ class EditorSession {
           shortcuts: this.host.shortcutLabels(),
           prefs: this.host.prefs(),
         });
+        this.syncCollab();
         return;
       case "setPrefs":
         this.host.setPrefs(m.prefs);
@@ -244,6 +253,25 @@ class EditorSession {
         this.pendingFlushes.get(m.id)?.(m.text);
         this.pendingFlushes.delete(m.id);
         return;
+      case "collabUpdate":
+        if (this.collab) {
+          const { endpoint, room, peer } = this.collab;
+          endpoint.send({ t: "update", room, peer, data: toBase64(m.data) });
+        }
+        return;
+      case "collabAwareness":
+        if (this.collab) {
+          const { endpoint, room, peer } = this.collab;
+          endpoint.send({ t: "awareness", room, peer, data: toBase64(m.data) });
+        }
+        return;
+      case "collabStopped":
+        // An editor that did not write is behind its file: catch it up.
+        if (!m.writer) {
+          this.webviewText = "\u0000";
+          this.pushIfChanged();
+        }
+        return;
       case "testResult":
         this.pendingTests.get(m.id)?.(m.result);
         this.pendingTests.delete(m.id);
@@ -252,6 +280,61 @@ class EditorSession {
         console.error(`[ken-markdown webview] ${m.message}`);
         return;
     }
+  }
+
+  /** Join the session's room for this document, or leave it, to match the session. */
+  private syncCollab(): void {
+    const endpoint = this.host.collab.endpoint;
+    if (this.collab && this.collab.endpoint !== endpoint) this.leaveCollab(true, true);
+    if (!endpoint || this.collab || !this.ready) return;
+    const peer = makeNonce().slice(0, 16);
+    const room = this.docPath;
+    const listener = endpoint.onMessage((m) => {
+      if (m.to !== peer || m.room !== room) return;
+      switch (m.t) {
+        case "welcome":
+          this.post({
+            type: "collabStart",
+            seed: m.seed,
+            state: fromBase64(m.state),
+            awareness: fromBase64(m.awareness),
+            name: readConfig(this.document.uri).commentAuthor,
+          });
+          return;
+        case "update":
+          this.post({ type: "collabUpdate", data: fromBase64(m.data) });
+          return;
+        case "awareness":
+          this.post({ type: "collabAwareness", data: fromBase64(m.data) });
+          return;
+        case "writer":
+          this.post({ type: "collabWriter", writer: m.writer });
+          return;
+      }
+    });
+    this.collab = { peer, room, endpoint, listener };
+    endpoint.send({
+      t: "join",
+      room,
+      peer,
+      name: readConfig(this.document.uri).commentAuthor,
+      store: this.host.collab.storeFor(this.document.uri),
+    });
+  }
+
+  private leaveCollab(tellHub: boolean, tellWebview: boolean): void {
+    const c = this.collab;
+    if (!c) return;
+    this.collab = undefined;
+    c.listener.dispose();
+    if (tellHub) {
+      try {
+        c.endpoint.send({ t: "leave", room: c.room, peer: c.peer });
+      } catch {
+        // The session is already gone.
+      }
+    }
+    if (tellWebview && this.ready) this.post({ type: "collabStop" });
   }
 
   private async applyEdit(text: string): Promise<void> {
@@ -390,6 +473,10 @@ class EditorSession {
     });
   }
 
+  get uri(): string {
+    return this.document.uri.toString();
+  }
+
   get isReady(): boolean {
     return this.ready;
   }
@@ -428,6 +515,7 @@ class EditorSession {
   }
 
   dispose(): void {
+    this.leaveCollab(true, false);
     this.setFocused(false);
     for (const d of this.disposables.splice(0)) d.dispose();
   }
@@ -454,6 +542,7 @@ function makeNonce(): string {
 
 /** What sessions need from the provider. */
 interface SessionHost {
+  readonly collab: CollabManager;
   shortcutLabels(): ShortcutLabels;
   prefs(): EditorPrefs;
   setPrefs(prefs: EditorPrefs): void;
@@ -466,7 +555,10 @@ export class KenMarkdownEditorProvider implements vscode.CustomTextEditorProvide
   private readonly all = new Set<EditorSession>();
   private labels: ShortcutLabels = {};
 
-  constructor(private readonly context: vscode.ExtensionContext) {}
+  constructor(
+    private readonly context: vscode.ExtensionContext,
+    readonly collab: CollabManager,
+  ) {}
 
   resolveCustomTextEditor(document: vscode.TextDocument, panel: vscode.WebviewPanel): void {
     const session = new EditorSession(document, panel, this.context.extensionUri, this);
@@ -478,6 +570,11 @@ export class KenMarkdownEditorProvider implements vscode.CustomTextEditorProvide
       if (this.sessions.get(key) === session) this.sessions.delete(key);
     });
     session.start();
+  }
+
+  /** Every open editor on a document, oldest first (tests). */
+  sessionsFor(uri: string): EditorSession[] {
+    return [...this.all].filter((s) => s.uri === uri);
   }
 
   shortcutLabels(): ShortcutLabels {

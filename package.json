@@ -18,6 +18,10 @@
     "editor",
     "milkdown"
   ],
+  "galleryBanner": {
+    "color": "#3a3f44",
+    "theme": "dark"
+  },
   "icon": "media/icon.png",
   "main": "./dist/extension.js",
   "activationEvents": [],
@@ -49,6 +53,32 @@
         "title": "Open Markdown Source",
         "category": "Ken Markdown",
         "icon": "$(go-to-file)"
+      },
+      {
+        "command": "kenMarkdown.collaboration.start",
+        "title": "Start Collaboration Session",
+        "category": "Ken Markdown",
+        "icon": "$(broadcast)"
+      },
+      {
+        "command": "kenMarkdown.collaboration.join",
+        "title": "Join Collaboration Session…",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.collaboration.copyInvite",
+        "title": "Copy Collaboration Invite",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.collaboration.leave",
+        "title": "Leave Collaboration Session",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.collaboration.menu",
+        "title": "Collaboration…",
+        "category": "Ken Markdown"
       },
       {
         "command": "kenMarkdown.bold",
@@ -341,6 +371,14 @@
           "when": "activeCustomEditorId == kenMarkdown.editor"
         },
         {
+          "command": "kenMarkdown.collaboration.copyInvite",
+          "when": "kenMarkdown.collaboration == 'host'"
+        },
+        {
+          "command": "kenMarkdown.collaboration.leave",
+          "when": "kenMarkdown.collaboration"
+        },
+        {
           "command": "kenMarkdown.bold",
           "when": "activeCustomEditorId == 'kenMarkdown.editor'"
         },
@@ -623,6 +661,18 @@
           "type": "string",
           "default": "",
           "markdownDescription": "Your name on comments you add. Empty uses git's `user.name`, else your OS account name."
+        },
+        "kenMarkdown.collaboration.port": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "maximum": 65535,
+          "markdownDescription": "Port the collaboration hub listens on when you start a session. `0` picks a free port."
+        },
+        "kenMarkdown.collaboration.allowNetwork": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Let people on your network join sessions you start (the hub listens on all interfaces instead of only this machine). Invites still carry a secret token. Not needed for Live Share, which forwards the port for you."
         }
       }
     },
@@ -790,12 +840,18 @@
     "@milkdown/kit": "^7.21.2",
     "dompurify": "^3.4.17",
     "lucide": "^1.60.0",
-    "mermaid": "^11.17.2"
+    "mermaid": "^11.17.2",
+    "vsls": "^1.0.4753",
+    "ws": "^8.22.0",
+    "y-prosemirror": "^1.3.7",
+    "y-protocols": "^1.0.7",
+    "yjs": "^13.6.33"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
     "@types/node": "^22.20.5",
     "@types/vscode": "^1.90.0",
+    "@types/ws": "^8.18.2",
     "@vscode/test-electron": "^3.1.0",
     "@vscode/vsce": "^4.0.0",
     "esbuild": "^0.28.2",

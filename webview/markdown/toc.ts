@@ -53,6 +53,7 @@ import {
 import { $command, $prose, $remark } from "@milkdown/kit/utils";
 
 import { collectHeadings, type HeadingEntry } from "./anchors";
+import { isRemoteChange } from "../remoteChange";
 
 /** The marker written to disk, exactly as it is emitted. */
 export const TOC_COMMENT = "<!-- ken:toc -->";
@@ -446,7 +447,7 @@ export const tocSyncPlugin = $prose(
     new Plugin({
       key: new PluginKey("ken-toc-sync"),
       appendTransaction: (transactions, _oldState, newState) => {
-        if (!transactions.some((tr) => tr.docChanged)) return null;
+        if (!transactions.some((tr) => tr.docChanged) || isRemoteChange(transactions)) return null;
         return tocReconcileTransaction(newState);
       },
       view: (view) => {

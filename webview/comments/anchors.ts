@@ -28,6 +28,7 @@
 import type { Node as ProseNode, NodeType, Schema } from "@milkdown/kit/prose/model";
 import { Fragment, Slice } from "@milkdown/kit/prose/model";
 import { Plugin, PluginKey, TextSelection, type EditorState, type Transaction } from "@milkdown/kit/prose/state";
+import { isRemoteChange } from "../remoteChange";
 import { Decoration, DecorationSet, type EditorView } from "@milkdown/kit/prose/view";
 import type { MarkdownNode, ParserState, SerializerState } from "@milkdown/kit/transformer";
 import { $nodeSchema, $prose, $remark } from "@milkdown/kit/utils";
@@ -576,7 +577,8 @@ export function commentPlugins(opts: HighlightOptions, onActivate: (id: string |
           },
         },
         appendTransaction(trs, oldState, newState) {
-          if (!trs.some((tr) => tr.docChanged)) return null;
+          // Someone else's change arrives already normalized by their editor.
+          if (!trs.some((tr) => tr.docChanged) || isRemoteChange(trs)) return null;
           return restoreLostEdges(trs, oldState, newState) ?? normalizeMarkers(newState);
         },
         props: {

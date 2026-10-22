@@ -3,9 +3,11 @@
   "displayName": "Ken Markdown Editor",
   "description": "A calm WYSIWYG Markdown editor in the style of Ken's editor, themed by your VS Code color theme.",
   "version": "0.2.0",
-  "publisher": "arthur-pachachura",
-  "license": "UNLICENSED",
-  "private": true,
+  "publisher": "ArthurPachachura",
+  "license": "MIT",
+  "repository": "https://github.com/smo-key/md-editor-vscode",
+  "bugs": "https://github.com/smo-key/md-editor-vscode",
+  "homepage": "https://github.com/smo-key/md-editor-vscode",
   "engines": {
     "vscode": "^1.90.0"
   },

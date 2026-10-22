@@ -234,22 +234,6 @@ body {
   }
 
   /* --- Mermaid ------------------------------------------------------------ */
-  /* In diagram mode (preview only: the CodeMirror host is hidden) the toolbar
-     is a distraction, so it only fades in while the block is hovered or has
-     focus. In code mode it stays put, as it always has. */
-  .measure
-    .milkdown .milkdown-code-block:has(.codemirror-host.hidden) .tools {
-    opacity: 0;
-    transition: opacity 120ms ease;
-  }
-  .measure
-    .milkdown .milkdown-code-block:has(.codemirror-host.hidden):hover .tools,
-  .measure
-    .milkdown
-        .milkdown-code-block:has(.codemirror-host.hidden):focus-within
-        .tools {
-    opacity: 1;
-  }
   .measure .milkdown .mermaid-preview {
     display: flex;
     justify-content: center;
@@ -588,17 +572,9 @@ body {
 
   /* --- Heading links ------------------------------------------------------ */
   /* A hover-only "copy link" button in the text column's left gutter. It is a
-     ProseMirror widget, so it is never part of the document.
-
-     Crepe's block drag/insert handle already sits in that gutter, from 82px to
-     16px left of the text, and appears on the same hover — so the button goes
-     further out still, leaving both clickable. How far out is what the gutter
-     allows: `(100cqw - 100%) / 2` is the distance from the text column's edge
-     to the pane's, against `.editor-scroll` as the query container. Wide
-     panes give the full 110px, which clears Crepe's handle; narrower ones
-     slide the button in towards the text until it is flush with the pane
-     edge, where it still clears the text (and sits above Crepe's handle,
-     which is itself clipped at those widths). */
+     ProseMirror widget, so it is never part of the document. It sits a fixed
+     16px left of the heading text, whatever the pane width (there is no block
+     handle in the gutter to clear here: only checklist items have one). */
   .measure .milkdown h1,
   .measure .milkdown h2,
   .measure .milkdown h3,
@@ -673,7 +649,9 @@ body {
 
   .measure .milkdown .ken-heading-link {
     position: absolute;
-    left: calc(-1 * clamp(28px, (100cqw - 100%) / 2 - 4px, 110px));
+    /* Its right edge 16px from the text: the button's width plus the gap. */
+    --ken-heading-link-gap: 16px;
+    left: calc(-1 * (22px + var(--ken-heading-link-gap)));
     /* Centred on the heading's first line, whatever its size. A button does
        not inherit the font size by default, so `em` would otherwise resolve
        against the UA's 13.3px rather than the heading's type. */
@@ -766,14 +744,52 @@ body {
   caret-color: var(--vscode-editorCursor-foreground, var(--ink));
 }
 
-/* Block quotes use the theme's own quote colours, as VS Code's preview does. */
+/* Block quotes: no fill, just the bar, in the theme's own quote colour (as
+   VS Code's preview draws it) rather than Crepe's selection colour. */
 .measure .milkdown .ProseMirror blockquote {
-  border-left-color: var(--vscode-textBlockQuote-border, var(--border-strong));
+  background: transparent;
+}
+.measure .milkdown .ProseMirror blockquote::before {
+  background: var(--vscode-textBlockQuote-border, var(--border-strong));
 }
 
-/* Code blocks: the theme's code background, scaled from the base font size. */
+/* Code blocks: the theme's code background, scaled from the base font size,
+   with the same padding above and below the code. */
 .measure .milkdown .milkdown-code-block {
   background: var(--vscode-textCodeBlock-background, var(--sunken));
+  padding: 12px 20px;
+}
+/* The language picker and copy buttons float just above the block, and only
+   while it is hovered, has the caret, or is selected — they take no room in
+   the block itself. The bottom padding (not a margin) keeps the pointer inside
+   the block's hover area on its way up to the buttons. */
+.measure .milkdown .milkdown-code-block .tools {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  z-index: 2;
+  padding-bottom: 4px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+.measure .milkdown .milkdown-code-block:hover .tools,
+.measure .milkdown .milkdown-code-block:focus-within .tools,
+.measure .milkdown .milkdown-code-block.selected .tools {
+  opacity: 1;
+  pointer-events: auto;
+}
+.measure .milkdown .milkdown-code-block .tools .language-button,
+.measure .milkdown .milkdown-code-block .tools .tools-button-group > button {
+  opacity: 1;
+  margin: 0;
+  background: var(--vscode-editorWidget-background, var(--surface));
+  border: 1px solid var(--vscode-editorWidget-border, var(--vscode-widget-border, var(--border-strong)));
+}
+.measure .milkdown .milkdown-code-block .tools .language-button:hover,
+.measure .milkdown .milkdown-code-block .tools .tools-button-group > button:hover {
+  background: var(--vscode-list-hoverBackground, var(--crepe-color-hover));
 }
 .measure .milkdown .milkdown-code-block .cm-editor {
   font-size: 0.875em;

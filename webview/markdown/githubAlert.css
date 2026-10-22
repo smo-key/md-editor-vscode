@@ -7,7 +7,12 @@
   border-left: 3px solid var(--alert-color);
   border-radius: 0 var(--radius-control) var(--radius-control) 0;
   background: color-mix(in srgb, var(--alert-color) 7%, transparent);
-  padding: 12px;
+  /* The body's tall line-height leaves half its leading (plus a little of
+     the font's own descent room) under the last line of text; the bottom
+     padding gives that back, so the space below the text matches the space
+     above the title. */
+  padding: 12px 12px
+    max(0px, calc(12px - (var(--md-line-height, 1.6) - 1) * 0.5em - 0.125em));
   margin: 12px 0;
 }
 

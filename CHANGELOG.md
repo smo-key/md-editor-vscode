@@ -4,6 +4,10 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 
 ## [Unreleased]
 
+### Added
+- **LaTeX math**, rendered with KaTeX: inline `$…$` and `$$…$$`, and `$$` blocks or ```` ```math ```` fences, as on GitHub. Click a formula to edit it in place with a live preview; a block shows its source while the caret is in it. Type `$x^2$` or `$$ ` and a space, or insert one from the slash menu (*Equation*, *Inline equation*). Prices like `$5 and $10` stay plain text.
+
+
 ## [0.3.2] - 2026-10-22
 
 ### Fixed

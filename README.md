@@ -39,18 +39,19 @@ Everything in the [GFM spec](https://github.github.com/gfm/) plus GitHub's exten
 - Strikethrough, autolinks, footnotes and nested lists that keep their numbering style (`1.`, `a.`, `i.`, `1)`)
 - **Code blocks** with syntax highlighting
 - **GitHub alerts**: `> [!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]`, `[!CAUTION]`
+- **LaTeX math**, rendered with KaTeX: inline `$e^{i\pi} + 1 = 0$` (or `$$…$$` within a line) and `$$` blocks or ```` ```math ```` fences, as GitHub writes them. Click a formula to edit its source with a live preview
 - Underline (written as `<ins>`, which GitHub renders underlined) and sanitized inline or block HTML (`<kbd>`, `<sub>`, `<mark>`, centered images…); double-click any HTML to edit its source
 - `[[Wiki links]]` and relative links that open the target file; `#anchor` links that scroll within the document; copy-link buttons on headings
 
-Saving normalises some syntax without changing what GitHub shows (setext headings become `#` headings, `*`/`+` bullets become `-`, reference-style links are written inline). Math (`$…$`) is intentionally left as plain text, so prices like `$5 and $10` stay literal.
+Saving normalises some syntax without changing what GitHub shows (setext headings become `#` headings, `*`/`+` bullets become `-`, reference-style links are written inline). Math follows GitHub's rules: the opening `$` must be followed and the closing `$` preceded by a non-space, and the closing `$` must not be followed by a digit, so prices like `$5 and $10` stay text. A literal `$` is escaped (`\$`) only where it would otherwise start math.
 
 ### Slash menu and toolbar
 
-Type `/` at the start of a line or after a space and a compact menu opens instantly: text and headings, lists and checklists, quote, code block, table, divider, image, diagrams, table of contents and the five alerts. Keep typing to filter. Direct shortcuts such as `/h2 `, `/todo `, `/quote ` and `/toc ` work too.
+Type `/` at the start of a line or after a space and a compact menu opens instantly: text and headings, lists and checklists, quote, code block, table, divider, image, diagrams, equations, table of contents and the five alerts. Keep typing to filter. Direct shortcuts such as `/h2 `, `/todo `, `/quote ` and `/toc ` work too.
 
 A slim toolbar (bottom by default; move it to the top or hide it with `kenMarkdown.toolbar`) covers undo/redo, a heading control, bold, italic, underline, strikethrough, inline code, links, lists, quote, code block, table, divider and image. Buttons show the state at the caret, and hovering shows each name and shortcut.
 
-Typing Markdown works as you'd expect: `# `, `- `, `1. `, `[ ] `, `> `, `` ``` ``, `---`, `**bold**`, `*italic*`, `~~strike~~` and `` `code` `` convert as you type.
+Typing Markdown works as you'd expect: `# `, `- `, `1. `, `[ ] `, `> `, `` ``` ``, `---`, `**bold**`, `*italic*`, `~~strike~~`, `` `code` ``, `$x^2$` and `$$ ` (an equation block) convert as you type.
 
 ### Tables
 

@@ -158,6 +158,16 @@
       "title": "Insert Mermaid Diagram"
     },
     {
+      "command": "kenMarkdown.insertEquation",
+      "editor": "math-block",
+      "title": "Insert Equation (LaTeX)"
+    },
+    {
+      "command": "kenMarkdown.insertInlineEquation",
+      "editor": "math-inline",
+      "title": "Insert Inline Equation (LaTeX)"
+    },
+    {
       "command": "kenMarkdown.insertDrawioDiagram",
       "editor": "drawio",
       "title": "Insert draw.io Diagram"

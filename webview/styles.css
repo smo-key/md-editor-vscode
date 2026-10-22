@@ -974,6 +974,94 @@ body {
   resize: vertical;
   outline: none;
 }
+/* --- Math (markdown/math.ts) ------------------------------------------------ */
+/* Crepe's own `math_inline` styles (an accent colour, padding) are reset:
+   a formula reads in the text colour. */
+.measure .milkdown .ken-math {
+  display: inline-block;
+  vertical-align: baseline;
+  color: inherit;
+  cursor: pointer;
+  border-radius: 3px;
+  padding: 0 1px;
+}
+.measure .milkdown .ken-math:hover {
+  background: var(--crepe-color-hover);
+}
+.measure .milkdown .ken-math.ProseMirror-selectednode {
+  outline: 2px solid var(--vscode-focusBorder);
+  outline-offset: 1px;
+}
+.measure .milkdown .ken-math-empty {
+  color: var(--ink-tertiary);
+  font-style: italic;
+  font-size: 0.9em;
+}
+/* LaTeX that does not parse shows as its source, underlined. */
+.measure .milkdown .ken-math-error {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  color: var(--danger);
+  text-decoration: underline wavy var(--danger);
+}
+/* `$$…$$` alone in a paragraph is a centred display formula, as on GitHub. */
+.measure .milkdown p.ken-math-display {
+  text-align: center;
+}
+.measure .milkdown .ken-math-editing {
+  position: relative;
+  display: inline-block;
+  cursor: auto;
+}
+.measure .milkdown .ken-math-editing:hover {
+  background: none;
+}
+.measure .milkdown .ken-math-input {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  padding: 1px 6px;
+  border: 1px solid var(--vscode-focusBorder);
+  border-radius: 4px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  outline: none;
+}
+/* The live preview floats under the input, so the line does not move. */
+.measure .milkdown .ken-math-preview {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 4px);
+  z-index: 20;
+  padding: 6px 10px;
+  white-space: nowrap;
+  background: var(--vscode-editorWidget-background);
+  color: var(--vscode-editorWidget-foreground, var(--ink));
+  border: 1px solid var(--vscode-editorWidget-border, var(--border-strong));
+  border-radius: 4px;
+  box-shadow: 0 2px 8px var(--vscode-widget-shadow);
+}
+.measure .milkdown .ken-math-preview[hidden] {
+  display: none;
+}
+.measure .milkdown .ken-math-block {
+  overflow-x: auto;
+  overflow-y: hidden;
+  cursor: text;
+}
+/* The source shows by itself while editing: no Code/Diagram toggle. */
+.measure .milkdown .milkdown-code-block[data-math] .preview-toggle-button {
+  display: none;
+}
+/* Outside editing, a math block is just its formula, as on GitHub. */
+.measure .milkdown .milkdown-code-block[data-math]:not([data-editing]) {
+  background: transparent;
+}
+/* A math block shows its formula; the source opens above it while the caret is in it. */
+.measure .milkdown .milkdown-code-block[data-math][data-editing] .codemirror-host.hidden {
+  /* Crepe hides it with !important. */
+  display: block !important;
+}
+
 /* Paired inline tags: hidden unless the caret is at the pair. */
 .measure .milkdown .ken-html-tag-hidden {
   display: none;

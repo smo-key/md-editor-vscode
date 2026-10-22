@@ -25,7 +25,7 @@ No linter is configured. `harness/` (Playwright/Chromium against `dist/webview` 
 Two bundles built by `esbuild.mjs`:
 
 - **Extension host** (`src/`, node/cjs, `vscode` external): `provider.ts` is the `CustomTextEditorProvider`; it syncs the webview with the `TextDocument`, handles attachments (pasted/dropped images saved next to the doc), link resolution and config. `extension.ts` registers commands.
-- **Webview** (`webview/`, browser/esm, Mermaid code-split and lazy-loaded): `editorSetup.ts` (`buildEditor`) assembles Crepe + the editor plugins; `main.ts` wires messaging. Feature plugins live in `webview/markdown/*` (anchors, GFM fidelity, alerts, wiki links, table layout/menu, TOC, mermaid, underline as `<ins>`, etc.).
+- **Webview** (`webview/`, browser/esm, Mermaid code-split and lazy-loaded): `editorSetup.ts` (`buildEditor`) assembles Crepe + the editor plugins; `main.ts` wires messaging. Feature plugins live in `webview/markdown/*` (anchors, GFM fidelity, alerts, wiki links, table layout/menu, TOC, mermaid, LaTeX math, underline as `<ins>`, etc.).
 - **Protocol**: all host↔webview messages are typed in `src/protocol.ts` (`HostMessage` / webview messages, plus `TestAction` used by integration tests). Change both sides together.
 - **Edit sync**: the webview serializes Markdown; `src/sync.ts` (pure, no `vscode` import so vitest covers it) computes `minimalChange` so only the changed span is applied to the `TextDocument`, keeping undo/dirty state/Git clean. Files must not be rewritten merely by opening them.
 - **Commands**: `webview/commands.ts` is the single list of editing commands; slash menu, toolbar and table context menu all draw from it.
@@ -36,5 +36,5 @@ Two bundles built by `esbuild.mjs`:
 - Keep `src/sync.ts`-style logic free of `vscode` imports so it is unit-testable.
 - Colors/fonts must come from `--vscode-*` variables, never hard-coded, so themes update live.
 - Unit tests mount the real editor headlessly via `test/unit/editorEnv.ts` (`stubLayout()` stubs layout APIs missing from happy-dom, plus `buildEditor`); reuse it for new plugin tests. Fixtures are in `test/fixtures`; integration tests in `test/integration/suite`.
-- Saved Markdown intentionally normalizes syntax (setext→`#`, `*`/`+`→`-`, reference links inlined, etc.) while preserving rendered meaning; GFM round-trips are covered in `test/unit/gfm.test.ts`. Math (`$…$`) is deliberately left as plain text.
+- Saved Markdown intentionally normalizes syntax (setext→`#`, `*`/`+`→`-`, reference links inlined, etc.) while preserving rendered meaning; GFM round-trips are covered in `test/unit/gfm.test.ts`. Math (`webview/markdown/math.ts`, syntax in `mathSyntax.ts`) uses GitHub/Pandoc `$` rules so prices stay text, and escapes a literal `$` only where it would read back as math; Crepe's own LaTeX feature stays disabled.
 - Underline is serialized as `<ins>`; existing `<u>` is preserved.

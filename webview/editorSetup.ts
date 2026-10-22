@@ -30,6 +30,7 @@ import { columnResizePlugin } from "./tableResize";
 import { blockExitPlugin } from "./blockExit";
 import { drawioPlugin } from "./drawio";
 import { underlinePlugins } from "./markdown/underline";
+import { configureMathText, isMathLanguage, mathPlugins, renderMathPreview } from "./markdown/math";
 import { commentPlugins, commentSchemas } from "./comments/anchors";
 import { threadStore } from "./comments/store";
 import { toolbarPlugin } from "./toolbar";
@@ -57,7 +58,8 @@ export function buildEditor(options: EditorOptions): Crepe {
     root: options.root,
     defaultValue: options.markdown,
     features: {
-      // `$…$` (two dollar amounts in a sentence) stays literal text.
+      // Replaced by markdown/math.ts, whose `$…$` rules leave prices
+      // ("$5 and $10") as text.
       [Crepe.Feature.Latex]: false,
       // Crepe's block handle, "+" button and slash menu are replaced by
       // slashMenu.ts, taskHandle.ts (checklists only) and the bottom toolbar.
@@ -68,7 +70,10 @@ export function buildEditor(options: EditorOptions): Crepe {
     },
     featureConfigs: {
       [Crepe.Feature.CodeMirror]: {
-        renderPreview: renderMermaidPreview,
+        renderPreview: (language, content, applyPreview) =>
+          isMathLanguage(language)
+            ? renderMathPreview(language, content, applyPreview)
+            : renderMermaidPreview(language, content, applyPreview),
         // Only has an effect where a preview exists, i.e. mermaid fences.
         previewOnlyByDefault: true,
         previewToggleText: mermaidPreviewToggleText,
@@ -112,6 +117,8 @@ export function buildEditor(options: EditorOptions): Crepe {
   crepe.editor.use(wikiLinkPlugin(onLink, () => false));
   // Order matters: these replace preset nodes, so they register after them.
   crepe.editor.use(tableFullWidthPlugins);
+  crepe.editor.use(mathPlugins);
+  crepe.editor.config(configureMathText);
   crepe.editor.use(tocPlugins);
   crepe.editor.use(listStylePlugins);
   crepe.editor.config(configureListDelimiter);

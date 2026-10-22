@@ -93,6 +93,8 @@ import {
   Underline,
   Undo2,
   Workflow,
+  Sigma,
+  Radical,
   type IconNode,
 } from "lucide";
 
@@ -101,6 +103,7 @@ import { insertTocCommand } from "./markdown/toc";
 import { tableAt, toggleTableFullWidthCommand } from "./markdown/tableFullWidth";
 import { hasFrontmatterPanel, openFrontmatter } from "./frontmatter";
 import { insertDiagram } from "./drawio";
+import { insertInlineMath } from "./markdown/math";
 import { insertAttachments } from "./fileDrop";
 import { addComment, commentsOpen, openCommentCount, toggleComments } from "./comments/panel";
 import { withColumnWidths } from "./tableResize";
@@ -701,6 +704,28 @@ export const COMMANDS: EditorCommand[] = [
       insertBlock(view, code.create({ language: "mermaid" }, view.state.schema.text("graph TD\n  A --> B")));
     },
     isEnabled: (state) => !inCodeBlock(state) && !inTable(state),
+  },
+  {
+    id: "math-block",
+    label: "Equation",
+    icon: Sigma,
+    group: "insert",
+    keywords: ["math", "latex", "tex", "katex", "formula", "$$"],
+    slash: true,
+    run: (ctx, view) => insertBlock(view, codeBlockSchema.type(ctx).create({ language: "LaTeX" })),
+    isEnabled: (state) => !inCodeBlock(state) && !inTable(state),
+  },
+  {
+    id: "math-inline",
+    label: "Inline equation",
+    icon: Radical,
+    group: "insert",
+    keywords: ["math", "latex", "tex", "katex", "formula", "$"],
+    slash: true,
+    // Its editor takes focus.
+    keepFocus: true,
+    run: (ctx) => insertInlineMath(ctx),
+    isEnabled: (state) => !inCodeBlock(state),
   },
   {
     id: "drawio",

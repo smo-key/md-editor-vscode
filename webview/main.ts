@@ -48,6 +48,7 @@ import { command, execute, setShortcutLabels } from "./commands";
 import { closeShortcutsPanel, initShortcutsPanel, isShortcutsPanelOpen, toggleShortcutsPanel } from "./shortcutsPanel";
 import type { EditorConfig, HostMessage, TestAction, WebviewMessage } from "../src/protocol";
 import "@milkdown/crepe/theme/common/style.css";
+import "katex/dist/katex.min.css";
 import "@milkdown/crepe/theme/frame.css";
 import "./markdown/githubAlert.css";
 import "./styles.css";

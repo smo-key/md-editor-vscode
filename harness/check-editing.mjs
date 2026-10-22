@@ -227,6 +227,66 @@ await check("toolbar checklist on the last line keeps the caret in the new item"
   assert.match(await lastText(), /\n- \[ \] (<ins>)?todo item(<\/ins>)?\n$/);
 });
 
+// LaTeX, in a document of its own.
+{
+  const m = await openHarness({ themeFile, markdown: "Intro\n", width: 900, height: 700 });
+  const p = m.page;
+  const text = () => p.evaluate(() => window.__lastText());
+  /** Caret at the end of the paragraph containing `t` (through the DOM selection, as a click would). */
+  const caretAtEnd = async (t) => {
+    await p.focus(".ProseMirror");
+    await p.evaluate((t) => {
+      const el = [...document.querySelectorAll(".ProseMirror p")].find((e) => e.textContent.includes(t));
+      const range = document.createRange();
+      range.selectNodeContents(el.lastChild.nodeType === 3 ? el.lastChild : el);
+      range.collapse(false);
+      getSelection().removeAllRanges();
+      getSelection().addRange(range);
+    }, t);
+    await p.waitForTimeout(100);
+  };
+  await check("LaTeX: typed $…$ renders with KaTeX and edits in place; prices stay text", async () => {
+    await caretAtEnd("Intro");
+    await p.keyboard.press("Enter");
+    await p.keyboard.type("Costs $5 and $10, area $\\pi r^2$ ok");
+    await p.waitForTimeout(250);
+    assert.equal(await text(), "Intro\n\nCosts $5 and $10, area $\\pi r^2$ ok\n");
+    await p.waitForSelector(".ken-math .katex");
+    // Click: its source opens, selected, in place.
+    await p.click(".ken-math");
+    await p.keyboard.press("ArrowRight");
+    await p.keyboard.type("+1");
+    await p.keyboard.press("Enter");
+    // The caret is after the formula; a $ typed there does not reach back across it.
+    await p.keyboard.type(" $");
+    await p.waitForTimeout(250);
+    assert.equal(await text(), "Intro\n\nCosts $5 and $10, area $\\pi r^2+1$ $ ok\n");
+  });
+  await check("LaTeX: $$ and a space opens a block, previewed; its source shows only while editing", async () => {
+    await p.keyboard.press("Backspace");
+    await p.keyboard.press("Backspace");
+    await caretAtEnd("Costs");
+    await p.keyboard.press("Enter");
+    await p.keyboard.type("$$ ");
+    await p.keyboard.type("\\frac{a}{b}");
+    await p.waitForTimeout(250);
+    assert.match(await text(), /ok\n\n\$\$\n\\frac\{a\}\{b\}\n\$\$\n$/);
+    await p.waitForSelector(".milkdown-code-block[data-math] .katex-display");
+    const shown = () => p.evaluate(() => getComputedStyle(document.querySelector(".milkdown-code-block[data-math] .codemirror-host")).display);
+    assert.equal(await shown(), "block");
+    await p.click(".ProseMirror p >> text=Intro");
+    await p.waitForTimeout(250);
+    assert.equal(await shown(), "none");
+    // A click on the formula edits it again.
+    await p.click(".milkdown-code-block[data-math] .preview-panel");
+    await p.waitForTimeout(250);
+    assert.equal(await shown(), "block");
+    assert.ok(await p.evaluate(() => !!document.activeElement?.closest(".cm-editor")));
+  });
+  assert.deepEqual(m.errors, []);
+  await m.close();
+}
+
 assert.deepEqual(h.errors, []);
 await h.close();
 console.log(`ok: ${checks.length} checks\n- ${checks.join("\n- ")}`);

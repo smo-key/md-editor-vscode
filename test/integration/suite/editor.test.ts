@@ -738,6 +738,21 @@ describe("Ken Markdown Editor", function () {
     await until("draw.io ready", () => webview(uri, { kind: "count", selector: ".ken-drawio[data-ready='true']" }), (n) => n === 1, 60000);
   });
 
+  it("renders LaTeX with KaTeX, without touching the file", async () => {
+    const uri = fixture("math.md");
+    const doc = await openEditor(uri);
+    // KaTeX is a lazily loaded chunk, styled by bundled fonts (webview CSP).
+    await until("inline math", () => webview(uri, { kind: "count", selector: ".ken-math .katex" }), (n) => n === 1);
+    await until("block math", () => webview(uri, { kind: "count", selector: ".milkdown-code-block[data-math] .katex-display" }), (n) => n === 1);
+    await sleep(300);
+    assert.strictEqual(doc.isDirty, false);
+    await webview(uri, { kind: "insertText", text: "Literal $y_9$", at: "end" });
+    await until("edit synced", () => doc.getText(), (t) => t.includes("y_9"));
+    assert.match(doc.getText(), /Literal \\\$y_9\$\n$/);
+    // Inserted as text, so its dollars are escaped; the prices are left alone.
+    assert.match(doc.getText(), /prices like \$5 and \$10 stay text\./);
+  });
+
   it("inserts a new draw.io diagram file in the image folder", async () => {
     const uri = fixture("attach.md");
     const doc = await openEditor(uri);

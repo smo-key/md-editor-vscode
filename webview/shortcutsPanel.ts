@@ -48,6 +48,8 @@ const MARKDOWN: [string, string][] = [
   ["Code block", "``` then Enter"],
   ["Divider", "---"],
   ["Bold / italic / strike / code", "**b** *i* ~~s~~ `c`"],
+  ["Inline equation (LaTeX)", "$x^2$"],
+  ["Equation block (LaTeX)", "$$ then space"],
   ["Block types by name", "/h1 /quote /todo /tip … then space"],
 ];
 

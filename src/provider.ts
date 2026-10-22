@@ -211,7 +211,9 @@ class EditorSession {
       }
       case "readFile":
         try {
-          this.post({ type: "fileRead", id: m.id, data: await vscode.workspace.fs.readFile(this.inRoot(m.path)) });
+          // A plain copy: a Node Buffer would reach the webview as {type: "Buffer", data} (Buffer.toJSON).
+          const data = new Uint8Array(await vscode.workspace.fs.readFile(this.inRoot(m.path)));
+          this.post({ type: "fileRead", id: m.id, data });
         } catch (err) {
           this.post({ type: "fileRead", id: m.id, error: String(err) });
         }

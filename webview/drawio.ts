@@ -79,9 +79,12 @@ export async function editDiagram(src: string, onSaved?: () => void): Promise<vo
     load = png
       ? { xmlpng: `data:image/png;base64,${toBase64(bytes)}` }
       : { xml: diagramXml(new TextDecoder().decode(bytes)) ?? "" };
-  } catch {
-    load = { xml: "" };
+  } catch (err) {
+    // Never open a blank editor over an existing file: saving it would erase the diagram.
+    if (!open) showNotice(`The diagram could not be read: ${err instanceof Error ? err.message : String(err)}`, h, path);
+    return;
   }
+  if (open) return;
 
   const dark = document.body.classList.contains("vscode-dark") || document.body.classList.contains("vscode-high-contrast");
   const overlay = document.createElement("div");
@@ -181,6 +184,36 @@ function button(label: string, onClick: () => void): HTMLButtonElement {
   b.textContent = label;
   b.addEventListener("click", onClick);
   return b;
+}
+
+/** A message over the document in place of the editor, offering VS Code instead. */
+function showNotice(message: string, h: DrawioHost, path: string): void {
+  const overlay = document.createElement("div");
+  overlay.className = "ken-drawio";
+  overlay.setAttribute("role", "alertdialog");
+  overlay.setAttribute("aria-label", "Edit diagram");
+  const status = document.createElement("div");
+  status.className = "ken-drawio-status";
+  const close = () => {
+    window.removeEventListener("keydown", onKey, true);
+    overlay.remove();
+    open = null;
+  };
+  const onKey = (e: KeyboardEvent) => {
+    if (e.key === "Escape") close();
+  };
+  status.append(
+    document.createTextNode(message),
+    button("Open in VS Code", () => {
+      close();
+      h.openInVsCode(path);
+    }),
+    button("Close", close),
+  );
+  overlay.append(status);
+  document.body.append(overlay);
+  window.addEventListener("keydown", onKey, true);
+  open = { close };
 }
 
 /** Reload every displayed copy of a saved diagram. */

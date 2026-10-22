@@ -1,21 +1,50 @@
 {
   "name": "ken-markdown-editor",
   "displayName": "Ken Markdown Editor",
-  "description": "A calm WYSIWYG Markdown editor in the style of Ken's editor, themed by your VS Code color theme.",
+  "description": "WYSIWYG Markdown editor: write rendered Markdown with slash commands, tables, Mermaid and draw.io diagrams, comments and frontmatter, themed by VS Code.",
   "version": "0.2.0",
   "publisher": "arthur-pachachura",
   "license": "UNLICENSED",
   "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/smo-key/md-editor-vscode.git"
+  },
+  "bugs": {
+    "url": "https://github.com/smo-key/md-editor-vscode/issues"
+  },
+  "homepage": "https://github.com/smo-key/md-editor-vscode#readme",
   "engines": {
     "vscode": "^1.90.0"
   },
   "categories": [
+    "Programming Languages",
+    "Visualization",
+    "Formatters",
     "Other"
   ],
   "keywords": [
     "markdown",
+    "markdown editor",
     "wysiwyg",
-    "editor",
+    "wysiwyg markdown",
+    "visual editor",
+    "rich text",
+    "md",
+    "gfm",
+    "github flavored markdown",
+    "mermaid",
+    "drawio",
+    "draw.io",
+    "diagram",
+    "table editor",
+    "frontmatter",
+    "slash commands",
+    "task list",
+    "notes",
+    "documentation",
+    "readme",
+    "comments",
     "milkdown"
   ],
   "galleryBanner": {

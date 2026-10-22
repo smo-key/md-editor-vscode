@@ -1,6 +1,6 @@
 /**
  * A small DOM context menu for the editor, styled with VS Code's menu tokens.
- * Stands in for Ken's shared Svelte `ContextMenu`; same `MenuEntry` shape.
+ * A small context menu; entries share one `MenuEntry` shape.
  */
 import { createElement, type IconNode } from "lucide";
 

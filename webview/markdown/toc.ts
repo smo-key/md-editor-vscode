@@ -25,7 +25,7 @@
  * One deliberate deviation from the obvious implementation: a flagged list is
  * serialized as a single verbatim block (marker and list lines together)
  * rather than as an mdast `html` node joined to an mdast `list`. The reason is
- * Ken's list serialization — Milkdown stores `spread` as a *string*, which
+ * the editor's list serialization — Milkdown stores `spread` as a *string*, which
  * mdast-util-to-markdown does not recognize as a boolean, so it puts a blank
  * line between every list item and its nested list. A table of contents full
  * of blank lines is unreadable, and writing the block ourselves keeps the

@@ -1,4 +1,4 @@
-// The editor webview: Ken's Crepe-based Markdown editor, bound to a VS Code
+// The editor webview: the Crepe-based Markdown editor, bound to a VS Code
 // TextDocument through postMessage. VS Code owns the file (save, autosave,
 // dirty state, backups); this side only ever reports the edited Markdown.
 import { Crepe } from "@milkdown/crepe";
@@ -236,7 +236,7 @@ const unescapeWikiLinks = (md: string) => md.replace(/\\\[\\\[([^\n]+?)\\?\]\\?\
 
 function applyConfig(config: EditorConfig) {
   const root = document.documentElement.style;
-  // An empty setting falls back to the stylesheet's default (Ken's fonts).
+  // An empty setting falls back to the stylesheet's default (the bundled fonts).
   const font = (prop: string, value: string) => (value.trim() ? root.setProperty(prop, value) : root.removeProperty(prop));
   font("--font-sans", config.bodyFontFamily ?? "");
   font("--font-serif", config.headingFontFamily ?? "");

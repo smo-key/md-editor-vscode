@@ -1,4 +1,4 @@
-// happy-dom lacks a few layout APIs ProseMirror, Crepe and Ken's table layout
+// happy-dom lacks a few layout APIs ProseMirror, Crepe and the table layout
 // call; stub them so the real editor (webview/editorSetup.ts) mounts headlessly.
 import { beforeAll } from "vitest";
 import { buildEditor, type EditorOptions } from "../../webview/editorSetup";

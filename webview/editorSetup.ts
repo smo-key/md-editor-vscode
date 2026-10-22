@@ -1,7 +1,7 @@
 /**
  * The editor itself: Crepe (Milkdown's batteries-included editor, with the
  * CommonMark and GitHub-flavoured Markdown presets) configured and extended
- * exactly as Ken configures it. Kept apart from the webview wiring so the unit
+ * exactly as the shipped editor uses it. Kept apart from the webview wiring so the unit
  * tests exercise the same editor that ships.
  */
 import { Crepe } from "@milkdown/crepe";

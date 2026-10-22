@@ -81,7 +81,7 @@ describe("Ken Markdown Editor", function () {
     assert.strictEqual(doc.isDirty, false);
   });
 
-  it("renders GitHub-flavoured Markdown the way Ken does", async () => {
+  it("renders GitHub-flavoured Markdown the way GitHub does", async () => {
     const uri = fixture("sample.md");
     await openEditor(uri);
     assert.strictEqual(await webview(uri, { kind: "count", selector: ".milkdown h1" }), 1, "h1");

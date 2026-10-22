@@ -1,4 +1,4 @@
-/* Ken's Markdown editor layout and typography, coloured by the active VS Code
+/* The Markdown editor layout and typography, coloured by the active VS Code
    theme. Every colour token below resolves to a `--vscode-*` variable, so the
    editor follows whatever theme the user has applied (light, dark, high
    contrast), and updates live when it changes. */
@@ -16,7 +16,7 @@
   /* List items sit closer together than paragraphs. */
   --md-list-line-height: calc(var(--md-line-height) * 0.86);
 
-  /* Semantic tokens Ken's styles are written against, mapped onto the theme. */
+  /* Semantic tokens the styles are written against, mapped onto the theme. */
   --surface: var(--vscode-editor-background);
   --paper: var(--vscode-editor-background);
   --ink: var(--vscode-editor-foreground);
@@ -62,7 +62,7 @@ body {
 }
 
 /* ------------------------------------------------------------------------ */
-/* Ported from Ken's MarkdownEditor.svelte                                   */
+/* Editor base styles                                                        */
 /* ------------------------------------------------------------------------ */
 
   /* A clicked citation's block, flashed so the eye lands on it. */
@@ -144,7 +144,7 @@ body {
   /* Every link in the document reads as one, the table of contents included:
      accent ink and an underline. Crepe's reset says as much already, but the
      app-wide `a` rule (no underline) and the TOC's own styling both pull
-     against it, so Ken states it once here, with the app's deeper hover. */
+     against it, so it is stated once here, with the app's deeper hover. */
   .measure .milkdown .ProseMirror a {
     color: var(--accent);
     text-decoration: underline;
@@ -155,7 +155,7 @@ body {
 
   /* --- Crepe controls ----------------------------------------------------- */
   /* Crepe draws every button glyph in `--crepe-color-outline`, the same token
-     it uses for hairlines. Mapped to Ken's `--border-strong` that is right for
+     it uses for hairlines. Mapped to `--border-strong` that is right for
      the borders but leaves the icons all but invisible, worst of all in dark
      mode. The token stays a border colour; the glyphs are recoloured one rule
      at a time to the secondary ink, rising to full ink on hover. Active and
@@ -195,7 +195,7 @@ body {
     fill: var(--ink);
   }
   /* Crepe paints its floating popups in `--crepe-color-surface`, which is
-     Ken's `--surface` — the pane's own colour — so a menu read as a hole in
+     `--surface` — the pane's own colour — so a menu read as a hole in
      the page rather than something above it. Each overlay gets its own
      surface, a step of ink mixed into the pane (darker on paper, lighter in
      dark mode), a real edge, and a hover a further step on so rows stay
@@ -314,7 +314,7 @@ body {
   }
 
   /* Crepe's cell borders are the outline colour at 20% opacity, which all but
-     disappears on paper. Ken draws the full hairline instead, with a heavier
+     disappears on paper. The full hairline is drawn instead, with a heavier
      rule under the header row. Long cells wrap; `anywhere` is what lets a
      single unbroken token (a URL, an id) give way rather than spill out of a
      column that tableLayout.ts has had to make narrower than it. */
@@ -367,7 +367,7 @@ body {
   }
 
   /* Crepe draws the row/column handles in `--crepe-color-outline`, which maps
-     to Ken's hairline `--border-strong` and left them all but invisible against
+     to the hairline `--border-strong` and left them all but invisible against
      the paper. Give the pills a readable glyph and an edge so they read as
      controls; everything else in the table block is Crepe's. */
   .measure .milkdown .milkdown-table-block .cell-handle,
@@ -417,7 +417,7 @@ body {
   /* Crepe sets an ordinal in a fixed 32px box at the editor's inherited
      14.5px, while its paragraphs are 16px on a 1.85 line — so "1." sat smaller
      than its text and a few pixels high. The marker's box mirrors the
-     paragraph's instead (Crepe's `p`: 16px, `padding: 4px 0`; Ken's line
+     paragraph's instead (Crepe's `p`: 16px, `padding: 4px 0`; the editor's line
      height), which puts ordinals on the text's baseline and centres bullets
      and task checkboxes on its first line (Crepe's own 32px box left the
      checkbox 2px high of it). */

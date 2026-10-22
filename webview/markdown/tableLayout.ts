@@ -1,7 +1,7 @@
 /**
  * Content-proportional column widths for Markdown tables.
  *
- * A table in Ken never scrolls sideways: it is capped at the text column (or,
+ * A table never scrolls sideways: it is capped at the text column (or,
  * in full-width mode, at the pane's gutters) and its cells wrap. Getting that
  * guarantee out of CSS alone needs `overflow-wrap: anywhere` on the cells,
  * because only `anywhere` lets a single unbreakable token (a URL, an id) give

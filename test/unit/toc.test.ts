@@ -209,7 +209,7 @@ describe("markdown round trip", () => {
     expect(await roundTrip(out)).toBe(md);
   });
 
-  // Ken's list serialization writes a blank line between items (Milkdown
+  // The editor's list serialization writes a blank line between items (Milkdown
   // stores `spread` as a string, which remark-stringify reads as "loose"), so
   // the expected output here is that existing form, unchanged by this plugin.
   it("leaves a plain bullet list alone", async () => {

@@ -1844,3 +1844,64 @@ body[data-toolbar="top"] .ken-comments {
 .ken-comment-button.danger:hover {
   color: var(--vscode-errorForeground);
 }
+
+/* --- draw.io (drawio.ts) ------------------------------------------------------ */
+.measure .milkdown .milkdown-image-block {
+  position: relative;
+}
+.measure .milkdown .ken-drawio-edit {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 20;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border: 1px solid var(--vscode-button-border, transparent);
+  border-radius: 4px;
+  background: var(--vscode-button-secondaryBackground, var(--vscode-editorWidget-background));
+  color: var(--vscode-button-secondaryForeground, var(--vscode-foreground));
+  font-family: var(--vscode-font-family);
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity 120ms ease;
+  cursor: pointer;
+}
+.measure .milkdown .milkdown-image-block:hover .ken-drawio-edit,
+.measure .milkdown .ken-drawio-edit:focus-visible {
+  opacity: 1;
+}
+.ken-drawio {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  display: flex;
+  flex-direction: column;
+  background: var(--vscode-editor-background);
+}
+.ken-drawio-frame {
+  flex: 1;
+  width: 100%;
+  border: none;
+}
+.ken-drawio-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  font-family: var(--vscode-font-family);
+  color: var(--vscode-descriptionForeground);
+}
+.ken-drawio[data-ready="true"] .ken-drawio-status {
+  display: none;
+}
+.ken-drawio-status button {
+  padding: 2px 10px;
+  border: 1px solid var(--vscode-button-border, transparent);
+  border-radius: 3px;
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  font: inherit;
+  cursor: pointer;
+}

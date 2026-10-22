@@ -34,6 +34,7 @@ import {
   type AttachmentAdapter,
 } from "./markdown/attachments";
 import { closeLightbox, showLightbox } from "./lightbox";
+import { initDrawio, versionOf } from "./drawio";
 import { FrontmatterPanel } from "./frontmatter";
 import { threadStore, splitThreads } from "./comments/store";
 import { commentIds, refreshComments } from "./comments/anchors";
@@ -202,15 +203,39 @@ function proxyImageSrc(src: string): string | Promise<string> {
   const target = resolveSrc(docPath, src);
   if (!target) return src;
   const hit = resolved.get(target);
-  if (hit) return hit;
+  if (hit) return versionOf(target) ? `${hit}?v=${versionOf(target)}` : hit;
   return Promise.resolve()
     .then(() => attachments.resolve(target))
     .then((url) => {
       resolved.set(target, url);
       return url;
     })
+    // A diagram saved since it was first shown: load the new file.
+    .then((url) => (versionOf(target) ? `${url}?v=${versionOf(target)}` : url))
     .catch(() => src);
 }
+
+// draw.io diagrams: files read, written and created by the host, by
+// root-relative path (see drawio.ts).
+initDrawio({
+  pathOf: (src) => resolveSrc(docPath, src),
+  async readFile(path) {
+    const r = await request<Extract<HostMessage, { type: "fileRead" }>>((id) => ({ type: "readFile", id, path }));
+    if (!r.data) throw new Error(r.error ?? "read failed");
+    return r.data;
+  },
+  async writeFile(path, data) {
+    const r = await request<Extract<HostMessage, { type: "fileWritten" }>>((id) => ({ type: "writeFile", id, path, data }));
+    if (r.error) throw new Error(r.error);
+  },
+  async createDiagram() {
+    const r = await request<Extract<HostMessage, { type: "diagramCreated" }>>((id) => ({ type: "createDiagram", id }));
+    if (!r.path) throw new Error(r.error ?? "could not create the diagram");
+    return r.path;
+  },
+  hrefFor: (path) => encodeHref(relativeTo(docDir(docPath), path)),
+  openInVsCode: (path) => post({ type: "openFile", path }),
+});
 
 // Files dropped in the margins, outside ProseMirror's own element (drops on
 // the text are handled by fileDrop.ts before they get here).
@@ -574,6 +599,9 @@ window.addEventListener("message", async (event: MessageEvent<HostMessage>) => {
     case "attachmentSaved":
     case "resolved":
     case "linkedUris":
+    case "fileRead":
+    case "fileWritten":
+    case "diagramCreated":
       waiting.get(m.id)?.(m);
       waiting.delete(m.id);
       return;

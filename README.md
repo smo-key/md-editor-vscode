@@ -171,6 +171,23 @@ The editor keeps this valid through any edit:
 - The caret, Backspace and Delete step over the invisible markers.
 - A comment you never wrote anything in is not saved.
 
+## draw.io diagrams
+
+Diagrams are draw.io's editable images, `.drawio.svg` (or `.drawio.png`):
+ordinary images that GitHub and every renderer show, with the diagram source
+embedded, so the Markdown just links them (`![](_Images/notes-diagram.drawio.svg)`).
+
+- **Insert** one with `/drawio` (slash menu) or *Insert draw.io Diagram*: a new
+  diagram file is created in the image folder and opened for editing.
+- **Edit** one by hovering it and clicking *Edit diagram*, or double-clicking
+  it. The diagrams.net editor opens over the document; *Save* (or *Save &
+  Exit*) writes the same file back, picture and source together, and the
+  document shows the new version.
+- The editor is diagrams.net's embed mode, loaded from
+  `https://embed.diagrams.net` (it runs in the frame; diagrams are not
+  uploaded). Without a connection, *Open in VS Code* opens the file there,
+  where the Draw.io Integration extension, if installed, edits it.
+
 ## Pasting and dropping files
 
 - **Images** you paste (e.g. a screenshot) or drop are copied into an
@@ -233,6 +250,7 @@ Defaults:
 | Insert Divider | — | — | `kenMarkdown.insertDivider` |
 | Insert Image | — | — | `kenMarkdown.insertImage` |
 | Insert Mermaid Diagram | — | — | `kenMarkdown.insertDiagram` |
+| Insert draw.io Diagram | — | — | `kenMarkdown.insertDrawioDiagram` |
 | Insert Table of Contents | — | — | `kenMarkdown.insertTableOfContents` |
 | Add or Edit Properties (Frontmatter) | — | — | `kenMarkdown.editProperties` |
 | Add Comment | ⌥⌘M | Ctrl+Alt+M | `kenMarkdown.addComment` |
@@ -361,6 +379,7 @@ document for visual checks.
 KEN_DUMP_THEMES=/tmp/themes npm run test:integration   # captures Light/Dark Modern
 node harness/check-editing.mjs /tmp/themes/Default-Dark-Modern.json
 node harness/check-comments.mjs /tmp/themes/Default-Light-Modern.json
+node harness/check-drawio.mjs /tmp/themes/Default-Light-Modern.json   # uses diagrams.net
 node harness/screenshot.mjs /tmp/themes/Default-Dark-Modern.json test/fixtures/gfm.md /tmp/out.png
 ```
 

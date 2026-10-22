@@ -28,6 +28,7 @@ import { useTaskHandle } from "./taskHandle";
 import { headingLevelKeys, tableCellClickFix, tableKeys } from "./tableKeys";
 import { columnResizePlugin } from "./tableResize";
 import { blockExitPlugin } from "./blockExit";
+import { drawioPlugin } from "./drawio";
 import { underlinePlugins } from "./markdown/underline";
 import { commentPlugins, commentSchemas } from "./comments/anchors";
 import { threadStore } from "./comments/store";
@@ -117,6 +118,7 @@ export function buildEditor(options: EditorOptions): Crepe {
   crepe.editor.use(tableLayoutPlugin);
   crepe.editor.use(columnResizePlugin);
   crepe.editor.use(blockExitPlugin);
+  crepe.editor.use(drawioPlugin);
   crepe.editor.use(tableContextMenu);
   // After Crepe's image block feature: replaces its schema by name.
   crepe.editor.use(imageBlockAltSchema);

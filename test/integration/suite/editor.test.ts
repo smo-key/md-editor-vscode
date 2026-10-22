@@ -722,6 +722,33 @@ describe("Ken Markdown Editor", function () {
     );
   });
 
+  it("shows draw.io diagrams and opens the diagrams.net editor on them", async function () {
+    const uri = fixture("diagram.md");
+    const doc = await openEditor(uri);
+    await until(
+      "diagram shown",
+      () => webview(uri, { kind: "images" }) as Thenable<{ loaded: boolean }[]>,
+      (imgs) => imgs.length === 1 && imgs[0]!.loaded,
+    );
+    await sleep(300);
+    assert.strictEqual(doc.isDirty, false);
+    await until("edit button", () => webview(uri, { kind: "count", selector: ".ken-drawio-edit" }), (n) => n === 1);
+    await webview(uri, { kind: "click", selector: ".ken-drawio-edit" });
+    // The real editor, in VS Code's webview (CSP frame-src, network).
+    await until("draw.io ready", () => webview(uri, { kind: "count", selector: ".ken-drawio[data-ready='true']" }), (n) => n === 1, 60000);
+  });
+
+  it("inserts a new draw.io diagram file in the image folder", async () => {
+    const uri = fixture("attach.md");
+    const doc = await openEditor(uri);
+    assert.ok(await webview(uri, { kind: "caretAfter", text: "Second line." }));
+    await vscode.commands.executeCommand("kenMarkdown.insertDrawioDiagram");
+    await until("linked", () => doc.getText(), (t) => t.includes("![](_Images/attach-diagram.drawio.svg)"));
+    const file = vscode.Uri.joinPath(uri, "..", "_Images", "attach-diagram.drawio.svg");
+    const svg = Buffer.from(await vscode.workspace.fs.readFile(file)).toString("utf8");
+    assert.match(svg, /content="&lt;mxfile/);
+  });
+
   it("keeps CRLF line endings", async () => {
     const uri = fixture("crlf.md");
     const doc = await openEditor(uri);

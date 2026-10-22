@@ -33,8 +33,31 @@ export async function openHarness({ themeFile, markdown, width = 1100, height = 
       window.__saved[name] = URL.createObjectURL(new Blob([m.data]));
       setTimeout(() => window.postMessage({ type: "attachmentSaved", id: m.id, path: name }, "*"));
     }
+    // draw.io: files by root-relative path, kept in memory.
+    window.__files = window.__files || {};
+    if (m.type === "readFile") (async () => {
+      let data = window.__files[m.path];
+      if (!data) { const r = await fetch("/test/fixtures/" + m.path); data = r.ok ? new Uint8Array(await r.arrayBuffer()) : undefined; }
+      window.postMessage({ type: "fileRead", id: m.id, data, error: data ? undefined : "not found" }, "*");
+    })();
+    if (m.type === "writeFile") {
+      window.__files[m.path] = m.data;
+      window.__saved = window.__saved || {};
+      window.__saved[m.path] = URL.createObjectURL(new Blob([m.data], { type: m.path.endsWith(".png") ? "image/png" : "image/svg+xml" }));
+      setTimeout(() => window.postMessage({ type: "fileWritten", id: m.id }, "*"));
+    }
+    if (m.type === "createDiagram") {
+      const path = "_Images/doc-diagram.drawio.svg";
+      const blank = '<svg xmlns="http://www.w3.org/2000/svg" width="1px" height="1px" viewBox="-0.5 -0.5 1 1" content="&lt;mxfile&gt;&lt;diagram id=&quot;p&quot; name=&quot;Page-1&quot;&gt;&lt;mxGraphModel&gt;&lt;root&gt;&lt;mxCell id=&quot;0&quot;/&gt;&lt;mxCell id=&quot;1&quot; parent=&quot;0&quot;/&gt;&lt;/root&gt;&lt;/mxGraphModel&gt;&lt;/diagram&gt;&lt;/mxfile&gt;"><g/></svg>';
+      window.__files[path] = new TextEncoder().encode(blank);
+      window.__saved = window.__saved || {};
+      window.__saved[path] = URL.createObjectURL(new Blob([blank], { type: "image/svg+xml" }));
+      setTimeout(() => window.postMessage({ type: "diagramCreated", id: m.id, path }, "*"));
+    }
+    // Files written in this page are served over HTTP (see page.route below),
+    // like VS Code's resource URLs, so a cache-busting ?v= works.
     if (m.type === "resolve") setTimeout(() => window.postMessage({ type: "resolved", id: m.id,
-      url: (window.__saved && window.__saved[m.path]) || "/test/fixtures/" + m.path }, "*"));
+      url: (window.__files && window.__files[m.path]) ? "/__files/" + m.path : (window.__saved && window.__saved[m.path]) || "/test/fixtures/" + m.path }, "*"));
   }});
   window.__lastText = () => { const e = window.__sent.filter((m) => m.type === "edit").pop(); return e ? e.text : null; };
 </script>
@@ -51,7 +74,24 @@ export async function openHarness({ themeFile, markdown, width = 1100, height = 
     }
   }).listen(0);
   const browser = await chromium.launch();
-  const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: 2 });
+  // A regular browser user agent: some services (diagrams.net) refuse "HeadlessChrome".
+  const page = await browser.newPage({
+    viewport: { width, height },
+    deviceScaleFactor: 2,
+    userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+  });
+  await page.route("**/__files/**", async (route) => {
+    const path = decodeURIComponent(new URL(route.request().url()).pathname.slice("/__files/".length));
+    const b64 = await page.evaluate((p) => {
+      const d = window.__files?.[p];
+      if (!d) return null;
+      let s = "";
+      for (const c of d) s += String.fromCharCode(c);
+      return btoa(s);
+    }, path);
+    if (!b64) return route.fulfill({ status: 404 });
+    await route.fulfill({ status: 200, contentType: path.endsWith(".png") ? "image/png" : "image/svg+xml", body: Buffer.from(b64, "base64") });
+  });
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e)));
   await page.goto(`http://localhost:${server.address().port}/`);

@@ -36,6 +36,9 @@ export type HostMessage =
   | { type: "attachmentSaved"; id: number; path?: string; error?: string }
   | { type: "resolved"; id: number; url?: string }
   | { type: "linkedUris"; id: number; items: LinkedUri[] }
+  | { type: "fileRead"; id: number; data?: Uint8Array; error?: string }
+  | { type: "fileWritten"; id: number; error?: string }
+  | { type: "diagramCreated"; id: number; path?: string; error?: string }
   | { type: "flush"; id: number }
   | { type: "test"; id: number; action: TestAction };
 
@@ -79,6 +82,11 @@ export type WebviewMessage =
   | { type: "saveAttachment"; id: number; name: string; data: Uint8Array; image: boolean }
   | { type: "resolve"; id: number; path: string }
   | { type: "linkUris"; id: number; uris: string[] }
+  /** Root-relative paths, as in `resolve`. */
+  | { type: "readFile"; id: number; path: string }
+  | { type: "writeFile"; id: number; path: string; data: Uint8Array }
+  | { type: "createDiagram"; id: number }
+  | { type: "openFile"; path: string }
   | { type: "openLink"; href: string }
   | { type: "openWikiLink"; target: string }
   | { type: "flushed"; id: number; text: string | null }

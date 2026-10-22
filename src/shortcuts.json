@@ -158,6 +158,11 @@
       "title": "Insert Mermaid Diagram"
     },
     {
+      "command": "kenMarkdown.insertDrawioDiagram",
+      "editor": "drawio",
+      "title": "Insert draw.io Diagram"
+    },
+    {
       "command": "kenMarkdown.insertTableOfContents",
       "editor": "toc",
       "title": "Insert Table of Contents"

@@ -170,6 +170,11 @@
         "category": "Ken Markdown"
       },
       {
+        "command": "kenMarkdown.insertDrawioDiagram",
+        "title": "Insert draw.io Diagram",
+        "category": "Ken Markdown"
+      },
+      {
         "command": "kenMarkdown.insertTableOfContents",
         "title": "Insert Table of Contents",
         "category": "Ken Markdown"
@@ -428,6 +433,10 @@
         },
         {
           "command": "kenMarkdown.insertDiagram",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.insertDrawioDiagram",
           "when": "activeCustomEditorId == 'kenMarkdown.editor'"
         },
         {

@@ -79,6 +79,7 @@ import {
   Minus,
   OctagonAlert,
   Pilcrow,
+  Shapes,
   Redo2,
   Strikethrough,
   Table,
@@ -98,6 +99,8 @@ import { insertGithubAlertCommand, type GithubAlertKind } from "./markdown/githu
 import { insertTocCommand } from "./markdown/toc";
 import { tableAt, toggleTableFullWidthCommand } from "./markdown/tableFullWidth";
 import { hasFrontmatterPanel, openFrontmatter } from "./frontmatter";
+import { insertDiagram } from "./drawio";
+import { insertAttachments } from "./fileDrop";
 import { addComment, commentsOpen, openCommentCount, toggleComments } from "./comments/panel";
 import { withColumnWidths } from "./tableResize";
 
@@ -682,6 +685,20 @@ export const COMMANDS: EditorCommand[] = [
       const code = codeBlockSchema.type(ctx);
       insertBlock(view, code.create({ language: "mermaid" }, view.state.schema.text("graph TD\n  A --> B")));
     },
+    isEnabled: (state) => !inCodeBlock(state) && !inTable(state),
+  },
+  {
+    id: "drawio",
+    label: "draw.io diagram",
+    icon: Shapes,
+    group: "insert",
+    keywords: ["drawio", "draw.io", "diagrams.net", "diagram", "flowchart", "whiteboard"],
+    slash: true,
+    keepFocus: true,
+    run: (_ctx, view) =>
+      void insertDiagram(view, (href) =>
+        view.dispatch(insertAttachments(view.state.tr, view.state.selection.from, [{ href, name: "", image: true }])),
+      ),
     isEnabled: (state) => !inCodeBlock(state) && !inTable(state),
   },
   {

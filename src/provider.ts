@@ -14,6 +14,10 @@ import { classifyHref, imageFolder, minimalChange, toEOL, toLF, uniqueName } fro
 
 export const VIEW_TYPE = "kenMarkdown.editor";
 
+/** An empty draw.io diagram, as an editable SVG (the diagram rides in `content`). */
+const BLANK_DRAWIO_SVG =
+  '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="1px" height="1px" viewBox="-0.5 -0.5 1 1" content="&lt;mxfile&gt;&lt;diagram id=&quot;page1&quot; name=&quot;Page-1&quot;&gt;&lt;mxGraphModel&gt;&lt;root&gt;&lt;mxCell id=&quot;0&quot;/&gt;&lt;mxCell id=&quot;1&quot; parent=&quot;0&quot;/&gt;&lt;/root&gt;&lt;/mxGraphModel&gt;&lt;/diagram&gt;&lt;/mxfile&gt;"><defs/><g/></svg>\n';
+
 let gitAuthor: string | undefined;
 /** Your name for comments: git's user.name, else the OS account name. */
 function defaultAuthor(): string {
@@ -196,6 +200,37 @@ class EditorSession {
         this.post({ type: "resolved", id: m.id, url: this.panel.webview.asWebviewUri(uri).toString() });
         return;
       }
+      case "readFile":
+        try {
+          this.post({ type: "fileRead", id: m.id, data: await vscode.workspace.fs.readFile(this.inRoot(m.path)) });
+        } catch (err) {
+          this.post({ type: "fileRead", id: m.id, error: String(err) });
+        }
+        return;
+      case "writeFile":
+        try {
+          await vscode.workspace.fs.writeFile(this.inRoot(m.path), m.data);
+          this.post({ type: "fileWritten", id: m.id });
+        } catch (err) {
+          this.post({ type: "fileWritten", id: m.id, error: String(err) });
+        }
+        return;
+      case "createDiagram":
+        try {
+          const stem = this.docPath.slice(this.docPath.lastIndexOf("/") + 1).replace(/\.(md|markdown)$/i, "");
+          const path = await this.saveAttachment(`${stem}-diagram.drawio.svg`, new TextEncoder().encode(BLANK_DRAWIO_SVG), true);
+          this.post({ type: "diagramCreated", id: m.id, path });
+        } catch (err) {
+          this.post({ type: "diagramCreated", id: m.id, error: String(err) });
+        }
+        return;
+      case "openFile":
+        try {
+          await openFile(this.inRoot(m.path));
+        } catch {
+          // Reported by openFile.
+        }
+        return;
       case "linkUris":
         this.post({ type: "linkedUris", id: m.id, items: m.uris.map((u) => this.linkFor(u)) });
         return;
@@ -256,6 +291,13 @@ class EditorSession {
     const docDir = this.docPath.includes("/") ? this.docPath.slice(0, this.docPath.lastIndexOf("/")) : "";
     const rel = folder ? `${folder}/${finalName}` : finalName;
     return docDir ? `${docDir}/${rel}` : rel;
+  }
+
+  /** A root-relative path from the webview, refused if it climbs out of the root. */
+  private inRoot(path: string): vscode.Uri {
+    const parts = path.split(/[\\/]+/).filter((p) => p && p !== ".");
+    if (parts.some((p) => p === "..")) throw new Error(`path outside the workspace: ${path}`);
+    return vscode.Uri.joinPath(this.root, ...parts);
   }
 
   /** How the document should reference a file dropped from the Explorer. */
@@ -365,6 +407,8 @@ class EditorSession {
       `font-src ${webview.cspSource} data:`,
       `script-src 'nonce-${nonce}' ${webview.cspSource}`,
       `connect-src ${webview.cspSource}`,
+      // The draw.io (diagrams.net) editor, for editing .drawio.svg/.png diagrams.
+      "frame-src https://embed.diagrams.net",
     ].join("; ");
     return `<!doctype html>
 <html lang="en">

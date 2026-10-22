@@ -179,7 +179,7 @@ class EditorSession {
         this.setFocused(m.focused);
         return;
       case "openKeybindings":
-        await vscode.commands.executeCommand("workbench.action.openGlobalKeybindings", "@ext:arthur-pachachura.ken-markdown-editor");
+        await vscode.commands.executeCommand("workbench.action.openGlobalKeybindings", "@ext:ArthurPachachura.ken-markdown-editor");
         return;
       case "edit":
         this.webviewText = m.text;

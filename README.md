@@ -19,7 +19,7 @@
 1. Install **Ken Markdown Editor** from the Extensions view (<kbd>⇧⌘X</kbd> / <kbd>Ctrl+Shift+X</kbd>), or run:
 
    ```sh
-   code --install-extension arthur-pachachura.ken-markdown-editor
+   code --install-extension ArthurPachachura.ken-markdown-editor
    ```
 
 2. Open any Markdown file. It opens in the editor.

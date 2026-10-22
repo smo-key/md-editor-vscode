@@ -11,7 +11,7 @@ git clone https://github.com/smo-key/md-editor-vscode.git && cd md-editor-vscode
 
 Then reload open VS Code windows (*Developer: Reload Window*). Re-running the script updates in place. For another VS Code build or fork, name its CLI: `CODE=code-insiders ./install.sh` (likewise `cursor`, `codium`).
 
-To uninstall: `code --uninstall-extension arthur-pachachura.ken-markdown-editor`.
+To uninstall: `code --uninstall-extension ArthurPachachura.ken-markdown-editor`.
 
 ## Development
 
@@ -53,7 +53,7 @@ Releases are published by CI; don't publish by hand.
 
 - **Start a release** by running the `/release` skill in Claude Code or GitHub Copilot (`.claude/skills/release/SKILL.md`; optionally `/release patch|minor|major|x.y.z`). It checks the tree, finalizes the `## [Unreleased]` section of `CHANGELOG.md`, bumps the version, runs the checks and pushes the release commit to `main`.
 - **`.github/workflows/release.yml`** runs when a push to `main` changes the `package.json` version (or when run manually). If the version has no `v<version>` tag, it tests, packages and publishes to the VS Code Marketplace (and Open VSX), then creates the tag and a GitHub release with the `.vsix` and the CHANGELOG notes. It fails if `CHANGELOG.md` has no section for the version.
-- **Secrets:** `VSCE_PAT` (required) and `OVSX_PAT` (optional, for Open VSX); set them with `gh secret set VSCE_PAT`. `VSCE_PAT` is an Azure DevOps PAT created by an account that can publish for the `arthur-pachachura` publisher, scoped to **one specific organization** (any you belong to; global *All accessible organizations* PATs stop working on 2026-12-01) with scope *Marketplace → Manage*. Check it with `npx vsce verify-pat arthur-pachachura`. PATs expire, so renew the secret before the expiry date.
+- **Secrets:** `VSCE_PAT` (required) and `OVSX_PAT` (optional, for Open VSX); set them with `gh secret set VSCE_PAT`. `VSCE_PAT` is an Azure DevOps PAT created by an account that can publish for the `ArthurPachachura` publisher, scoped to **one specific organization** (any you belong to; global *All accessible organizations* PATs stop working on 2026-12-01) with scope *Marketplace → Manage*. Check it with `npx vsce verify-pat ArthurPachachura`. PATs expire, so renew the secret before the expiry date.
 - **`.github/workflows/ci.yml`** runs typecheck, unit tests and a production build on pull requests and pushes to `main`.
 
 ## Storage formats

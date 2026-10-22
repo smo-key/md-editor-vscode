@@ -339,7 +339,7 @@ async function shareOverLiveShare(port: number): Promise<vscode.Disposable | und
   if (!ext) return undefined;
   try {
     const exports = ext.isActive ? ext.exports : await ext.activate();
-    const api = await exports?.getApi?.("1.0.4753", "arthur-pachachura.ken-markdown-editor");
+    const api = await exports?.getApi?.("1.0.4753", "ArthurPachachura.ken-markdown-editor");
     // Role 1 is Host in vsls.Role.
     if (!api?.session || api.session.role !== 1) return undefined;
     return await api.shareServer({ port, displayName: "Ken Markdown collaboration" });

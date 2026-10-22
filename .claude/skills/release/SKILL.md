@@ -80,7 +80,7 @@ gh run watch <run-id> --exit-status
 
 When it succeeds, report:
 
-- Marketplace: https://marketplace.visualstudio.com/items?itemName=arthur-pachachura.ken-markdown-editor (the listing can take a few minutes to update)
+- Marketplace: https://marketplace.visualstudio.com/items?itemName=ArthurPachachura.ken-markdown-editor (the listing can take a few minutes to update)
 - GitHub release: `gh release view v<version> --json url -q .url`
 
 If it fails, show the failing step with `gh run view <run-id> --log-failed`, explain the cause, and suggest the fix. After fixing (with a normal commit to `main`), rerun the release for the same version with `gh workflow run release.yml`; it skips versions that are already tagged and versions already on the Marketplace.

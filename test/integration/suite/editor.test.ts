@@ -363,7 +363,7 @@ describe("Ken Markdown Editor", function () {
     it("shows the user's own bindings once they customize them", async () => {
       const fs = await import("fs");
       const pathMod = await import("path");
-      const ext = vscode.extensions.all.find((e) => e.id.toLowerCase() === "arthur-pachachura.ken-markdown-editor")!;
+      const ext = vscode.extensions.all.find((e) => e.id.toLowerCase() === "arthurpachachura.ken-markdown-editor")!;
       const uri = fixture("attach.md");
       await openEditor(uri);
       // The file Keyboard Shortcuts writes, as the extension locates it.
@@ -393,7 +393,7 @@ describe("Ken Markdown Editor", function () {
     });
 
     it("contributes keybindings VS Code can show and customize", async () => {
-      const ext = vscode.extensions.all.find((e) => e.id.toLowerCase() === "arthur-pachachura.ken-markdown-editor")!;
+      const ext = vscode.extensions.all.find((e) => e.id.toLowerCase() === "arthurpachachura.ken-markdown-editor")!;
       const keybindings = ext.packageJSON.contributes.keybindings as { command: string; mac: string; key: string; when: string }[];
       const bold = keybindings.find((k) => k.command === "kenMarkdown.bold")!;
       assert.strictEqual(bold.mac, "cmd+b");

@@ -38,6 +38,7 @@ import { threadStore } from "./comments/store";
 import { toolbarPlugin } from "./toolbar";
 import { blockSelectionKeys, blockSelectionPlugin, stableTableView } from "./markdown/blockSelection";
 import { keySelectionSync } from "./keySelectionSync";
+import { codePasteExtension, codePastePlugin } from "./markdown/codePaste";
 
 export interface EditorOptions {
   root: HTMLElement;
@@ -85,6 +86,8 @@ export function buildEditor(options: EditorOptions): Crepe {
         previewToggleText: mermaidPreviewToggleText,
         // Follows the VS Code theme instead of Crepe's One Dark.
         theme: vscodeCodeTheme,
+        // Text copied from the editor pastes as its rendered text (codePaste.ts).
+        extensions: [codePasteExtension],
       },
       // Covers inline images too: Crepe hands the same config to both.
       // Only in a completely empty document (not on every empty line).
@@ -102,6 +105,9 @@ export function buildEditor(options: EditorOptions): Crepe {
   // placed without splitting the line (fileDrop.ts). Ahead of Milkdown's own
   // upload plugin, which is left with nothing to do.
   if (options.fileDrop) crepe.editor.use(fileDropPlugin(options.fileDrop));
+  // Code and inline code get the clipboard's plain text, ahead of Milkdown's
+  // Markdown parsing of pastes (its handlePaste runs after DOM handlers).
+  crepe.editor.use(codePastePlugin);
   const onLink = options.onLink ?? (() => false);
   crepe.editor.use(githubAlertPlugins);
   crepe.editor.use(underlinePlugins);

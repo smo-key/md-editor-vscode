@@ -1015,6 +1015,106 @@ describe("Ken Markdown Editor", function () {
     }
   });
 
+  describe("Lucidchart previews", () => {
+    // test/fixtures/lucid.md: six previewable links, a linked published image,
+    // and Lucid links that must stay plain links (in a sentence, in a table).
+    // Only the DOM and URLs are checked, never what Lucid renders.
+    const id = (prefix: string) => `${prefix}-1111-4222-8333-444455556666`;
+    const embed = (prefix: string, query = "") => `https://lucid.app/documents/embedded/${id(prefix)}${query}`;
+    const FRAMES = [
+      embed("3f2a1b4c", "?invitationId=inv_x"),
+      embed("4a2a1b4c"),
+      embed("5a2a1b4c"),
+      embed("6a2a1b4c"),
+      embed("7a2a1b4c"),
+      embed("8a2a1b4c"),
+    ];
+    const opened = () => vscode.commands.executeCommand<string[]>("kenMarkdown._testExternalOpened");
+
+    it("previews Lucid links alone in their paragraph, without writing the file", async () => {
+      const uri = fixture("lucid.md");
+      const doc = await openEditor(uri);
+      const count = (selector: string) => webview(uri, { kind: "count", selector });
+      await until("cards", () => count(".ken-lucid-card"), (n) => n === FRAMES.length);
+      assert.strictEqual(await count(".ken-lucid-toolbar"), 1, "the published image gets a toolbar");
+      assert.strictEqual(await count(".ken-lucid-toolbar iframe"), 0);
+      for (const url of FRAMES) assert.strictEqual(await count(`iframe.ken-lucid-frame[data-src="${url}"]`), 1, url);
+      assert.strictEqual(await count('iframe.ken-lucid-frame[sandbox="allow-scripts allow-same-origin"]'), FRAMES.length);
+      assert.strictEqual(await count('.ken-lucid-card[aria-label="Lucidchart diagram: Payments architecture"]'), 1);
+      // No preview for the link in a sentence or in the table.
+      assert.strictEqual(await count("table .ken-lucid-card, p:not(.ken-lucid-source) + .ken-lucid-card"), 0);
+      // The first card is in view: its frame loads the embed URL.
+      await until(
+        "first frame src",
+        () => webview(uri, { kind: "getAttr", selector: "iframe.ken-lucid-frame", name: "src" }),
+        (src) => src === FRAMES[0],
+      );
+      const csp = String(await webview(uri, { kind: "getAttr", selector: 'meta[http-equiv="Content-Security-Policy"]', name: "content" }));
+      assert.match(csp, /frame-src https:\/\/embed\.diagrams\.net https:\/\/lucid\.app(;|$)/);
+      await sleep(500);
+      assert.strictEqual(doc.isDirty, false, "opening must not rewrite the file");
+    });
+
+    it("keeps Lucid lines byte-identical when editing elsewhere", async () => {
+      const uri = fixture("lucid.md");
+      const doc = await openEditor(uri);
+      const before = doc.getText();
+      await until("cards", () => webview(uri, { kind: "count", selector: ".ken-lucid-card" }), (n) => n === FRAMES.length);
+      assert.ok(await webview(uri, { kind: "caretAfter", text: "Last paragraph." }));
+      await webview(uri, { kind: "insertText", text: " Edited.", at: "caret" });
+      await until("edit", () => doc.getText(), (t) => t.includes("Last paragraph. Edited."));
+      assert.strictEqual(doc.getText(), before.replace("Last paragraph.", "Last paragraph. Edited."));
+    });
+
+    it("turns previews off and to onClick without touching the file", async () => {
+      const uri = fixture("lucid.md");
+      const doc = await openEditor(uri);
+      const count = (selector: string) => webview(uri, { kind: "count", selector });
+      const config = vscode.workspace.getConfiguration("kenMarkdown");
+      await until("cards", () => count(".ken-lucid-card"), (n) => n === FRAMES.length);
+      try {
+        await config.update("lucidchart.preview", "off", vscode.ConfigurationTarget.Global);
+        await until("off", () => count(".ken-lucid-card, .ken-lucid-toolbar"), (n) => n === 0);
+        assert.strictEqual(await count(".ken-lucid-source"), 0);
+        await config.update("lucidchart.preview", "onClick", vscode.ConfigurationTarget.Global);
+        await until("onClick", () => count('.ken-lucid-card[data-state="click"]'), (n) => n === FRAMES.length);
+        assert.strictEqual(await count("iframe.ken-lucid-frame[src]"), 0, "nothing loads before a click");
+        assert.ok(await webview(uri, { kind: "click", selector: ".ken-lucid-card .ken-lucid-state button" }));
+        await until("loaded on click", () => count("iframe.ken-lucid-frame[src]"), (n) => n === 1);
+        await sleep(500);
+        assert.strictEqual(doc.isDirty, false, "settings never write the file");
+      } finally {
+        await config.update("lucidchart.preview", undefined, vscode.ConfigurationTarget.Global);
+      }
+    });
+
+    it("opens Edit and Open in the browser through the host", async () => {
+      const uri = fixture("lucid.md");
+      await openEditor(uri);
+      await until("cards", () => webview(uri, { kind: "count", selector: ".ken-lucid-card" }), (n) => n === FRAMES.length);
+      const card = (prefix: string) => `.ken-lucid-card:has(iframe[data-src^="${embed(prefix)}"])`;
+      const expectations: [string, string][] = [
+        // A lucid.app edit link is used as written, invitation included.
+        [`${card("3f2a1b4c")} .ken-lucid-edit`, `https://lucid.app/lucidchart/${id("3f2a1b4c")}/edit?invitationId=inv_x`],
+        [`${card("3f2a1b4c")} .ken-lucid-open`, `https://lucid.app/lucidchart/${id("3f2a1b4c")}/edit?invitationId=inv_x`],
+        // A view link edits as /edit, and opens as written.
+        [`${card("4a2a1b4c")} .ken-lucid-edit`, `https://lucid.app/lucidchart/${id("4a2a1b4c")}/edit`],
+        [`${card("4a2a1b4c")} .ken-lucid-open`, `https://lucid.app/lucidchart/${id("4a2a1b4c")}/view`],
+        // A legacy host goes to the canonical lucid.app link.
+        [`${card("7a2a1b4c")} .ken-lucid-open`, `https://lucid.app/lucidchart/${id("7a2a1b4c")}/edit`],
+        [`${card("8a2a1b4c")} .ken-lucid-edit`, `https://lucid.app/lucidspark/${id("8a2a1b4c")}/edit`],
+        // The published image edits the document it links to.
+        [".ken-lucid-toolbar .ken-lucid-edit", `https://lucid.app/lucidchart/${id("9a2a1b4c")}/edit`],
+      ];
+      for (const [selector, url] of expectations) {
+        const n = (await opened()).length;
+        assert.ok(await webview(uri, { kind: "click", selector }), selector);
+        const list = await until(`opened ${url}`, opened, (l) => l.length === n + 1);
+        assert.strictEqual(list[n], url, selector);
+      }
+    });
+  });
+
   it("can switch to the Markdown source and back", async () => {
     const uri = fixture("sample.md");
     await openEditor(uri);

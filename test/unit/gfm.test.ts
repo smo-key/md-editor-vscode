@@ -180,3 +180,107 @@ describe("underline (<ins>)", () => {
     await ed.destroy();
   });
 });
+
+describe("link form fidelity", () => {
+  const lucid = "https://lucid.app/lucidchart/abc-123/edit?viewport_loc=1&invitationId=inv_x";
+  it.each([
+    ["bare literal alone", `${lucid}\n`],
+    ["literal mid-sentence", `See ${lucid} inline.\n`],
+    ["www literal", "Go to www.example.com today.\n"],
+    ["email literal", "Mail mail@example.com now.\n"],
+    ["angle autolink", "<https://example.com/view>\n"],
+    ["angle email autolink", "<mail@example.com>\n"],
+    ["inline link with the url as text", "[https://x.com/a](https://x.com/a)\n"],
+    ["inline link with text", "[Architecture](https://example.com/edit)\n"],
+    ["literal before a full stop", "Read https://example.com.\n"],
+    ["literal before a comma", "Read https://example.com, then go.\n"],
+    ["literal in parentheses", "Docs (https://example.com) here.\n"],
+    ["literal before a colon", "At https://example.com: done\n"],
+    ["literal before ! and ?", "Wow https://example.com! Or https://example.org?\n"],
+    ["literal before ; and in quotes", "A https://a.com; 'https://b.com' \"https://c.com\"\n"],
+    ["literal ending in an entity-like name before ;", "A <https://a.com/?x&amp>; b\n"],
+    ["email literal in quotes", "\"mail@c.com\" and 'mail@d.com'\n"],
+    ["literal with balanced parentheses", "(https://x.com/a_(b))\n"],
+    ["literal with a query", "https://x.com/?a=1&b=2#top\n"],
+    ["literal in emphasis", "*https://example.com* and **https://example.org**\n"],
+    ["literal in strikethrough", "~~https://example.com~~\n"],
+    ["literal in a list item", "- https://example.com\n- [https://y.com](https://y.com)\n"],
+    ["literal in a blockquote", "> https://example.com\n"],
+    [
+      "literal in a table cell",
+      "| a                   | b               |\n| ------------------- | --------------- |\n| https://example.com | <https://y.com> |\n",
+    ],
+    ["two links in one paragraph", "https://a.com and [https://b.com](https://b.com)\n"],
+    ["linked image", "[![Arch](https://example.com/i.png)](https://example.com/edit)\n"],
+  ])("%s survives unchanged", async (_name, md) => {
+    expect(await roundTrip(md)).toBe(md);
+  });
+
+  async function withView(markdown: string) {
+    const ed = await load(markdown);
+    const { editorViewCtx } = await import("@milkdown/kit/core");
+    const view = ed.crepe.editor.action((ctx) => ctx.get(editorViewCtx));
+    return { ed, view };
+  }
+
+  /** Position just after the first occurrence of `text` in the document. */
+  function after(view: { state: { doc: { descendants: (f: (n: { isText: boolean; text?: string }, pos: number) => boolean | void) => void } } }, text: string): number {
+    let at = -1;
+    view.state.doc.descendants((n, pos) => {
+      if (at >= 0) return false;
+      if (n.isText && n.text?.includes(text)) at = pos + n.text.indexOf(text) + text.length;
+      return undefined;
+    });
+    if (at < 0) throw new Error(`no ${text}`);
+    return at;
+  }
+
+  it("an unrelated edit keeps every link's form", async () => {
+    const md = `First paragraph.\n\n${lucid}\n\nSee https://a.com and [https://b.com](https://b.com) and <https://c.com>.\n`;
+    const { ed, view } = await withView(md);
+    view.dispatch(view.state.tr.insertText(" More", after(view, "First paragraph.")));
+    const out = normalizeTrailingNewlines(ed.markdown());
+    await ed.destroy();
+    expect(out).toBe(md.replace("First paragraph.", "First paragraph. More"));
+  });
+
+  it("a literal with text typed right after it falls back to <url>", async () => {
+    const { ed, view } = await withView("Go https://example.com now\n");
+    const { schema } = view.state;
+    const pos = after(view, "https://example.com");
+    view.dispatch(view.state.tr.insert(pos, schema.text("x")));
+    const out = normalizeTrailingNewlines(ed.markdown());
+    await ed.destroy();
+    expect(out).toBe("Go <https://example.com>x now\n");
+  });
+
+  it("a new link whose text is its url keeps today's <url> form", async () => {
+    const { ed, view } = await withView("Start\n");
+    const { schema } = view.state;
+    const link = schema.marks.link!.create({ href: "https://new.com" });
+    view.dispatch(view.state.tr.insert(after(view, "Start"), [schema.text(" "), schema.text("https://new.com", [link])]));
+    const out = normalizeTrailingNewlines(ed.markdown());
+    await ed.destroy();
+    expect(out).toBe("Start <https://new.com>\n");
+  });
+
+  it("a literal whose text was edited is written as an inline link", async () => {
+    const { ed, view } = await withView("Go https://example.com now\n");
+    const pos = after(view, "https://example");
+    view.dispatch(view.state.tr.insertText("-x", pos));
+    const out = normalizeTrailingNewlines(ed.markdown());
+    await ed.destroy();
+    expect(out).toBe("Go [https://example-x.com](https://example.com) now\n");
+  });
+});
+
+describe("link form in the DOM", () => {
+  it("is a data attribute, not an <a form>", async () => {
+    const ed = await load("See https://example.com now\n");
+    const a = ed.root.querySelector(".ProseMirror a")!;
+    expect(a.getAttribute("data-ken-form")).toBe("literal");
+    expect(a.hasAttribute("form")).toBe(false);
+    expect(a.getAttribute("href")).toBe("https://example.com");
+    await ed.destroy();
+  });
+});

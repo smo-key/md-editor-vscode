@@ -5,7 +5,13 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_HEADING_NUMBER_SEPARATOR,
   DEFAULT_HEADING_NUMBER_STYLES,
+  effectiveHeadingNumbers,
+  formatNumberingProperty,
   HEADING_NUMBER_STYLES,
+  numberingChoice,
+  parseNumberingProperty,
+  separatorProblem,
+  type NumberingChoice,
   formatCounter,
   headingNumberLabels,
   headingNumbersConfig,
@@ -185,5 +191,121 @@ describe("kenMarkdown.headingNumbers settings", () => {
       expect((setting.enumDescriptions as string[]).length).toBe(HEADING_NUMBER_STYLES.length);
       expect(setting.default).toBe(DEFAULT_HEADING_NUMBER_STYLES[i]);
     }
+  });
+});
+
+describe("ken-heading-numbering property", () => {
+  const settings = headingNumbersConfig({ enabled: false });
+  const custom = (styles: HeadingNumberStyle[], separator = "."): NumberingChoice => ({ mode: "on", styles, separator });
+
+  it("parses on and off, plain or quoted, in any case", () => {
+    for (const raw of ["off", "false", "OFF", "False", '"off"', "'off'"]) expect(parseNumberingProperty(raw)).toEqual({ enabled: false });
+    for (const raw of ["on", "true", "On", "TRUE", '"on"']) expect(parseNumberingProperty(raw)).toEqual({ enabled: true, styles: [] });
+  });
+
+  it("parses a format string: one style token per level, H1 first", () => {
+    expect(parseNumberingProperty('"1.a.i.1.a.i"')).toEqual({
+      enabled: true,
+      styles: ["decimal", "lower-alpha", "lower-roman", "decimal", "lower-alpha", "lower-roman"],
+      separator: ".",
+    });
+    expect(parseNumberingProperty("1-A-i")).toEqual({ enabled: true, styles: ["decimal", "upper-alpha", "lower-roman"], separator: "-" });
+    expect(parseNumberingProperty("'I / 1'")).toEqual({ enabled: true, styles: ["upper-roman", "decimal"], separator: " / " });
+    expect(parseNumberingProperty('"_.1.a"')).toEqual({ enabled: true, styles: ["none", "decimal", "lower-alpha"], separator: "." });
+    expect(parseNumberingProperty('"1ai"')).toEqual({ enabled: true, styles: ["decimal", "lower-alpha", "lower-roman"], separator: "" });
+  });
+
+  it("takes the separator from the settings for a single level", () => {
+    expect(parseNumberingProperty("I")).toEqual({ enabled: true, styles: ["upper-roman"] });
+    expect(parseNumberingProperty("1")).toEqual({ enabled: true, styles: ["decimal"] });
+  });
+
+  it("unescapes quoted strings", () => {
+    expect(parseNumberingProperty('"1\\"a"')).toEqual({ enabled: true, styles: ["decimal", "lower-alpha"], separator: '"' });
+    expect(parseNumberingProperty("'1''a'")).toEqual({ enabled: true, styles: ["decimal", "lower-alpha"], separator: "'" });
+  });
+
+  it("rejects anything else", () => {
+    for (const raw of ["maybe", "1.a.i.1.a.i.1", "1.a-i", "1..", ".1", '"1.a', "[1, a]", "1.b", "x"]) {
+      expect(parseNumberingProperty(raw), raw).toBeNull();
+    }
+  });
+
+  it("treats an empty or null value as absent", () => {
+    expect(parseNumberingProperty("")).toBeUndefined();
+    expect(parseNumberingProperty("~")).toBeUndefined();
+    expect(parseNumberingProperty("null")).toBeUndefined();
+  });
+
+  describe("effective config", () => {
+    const on = headingNumbersConfig({ enabled: true, styles: ["upper-roman"], separator: "-" });
+
+    it("is the settings without the property", () => {
+      expect(effectiveHeadingNumbers(on, undefined)).toEqual({ config: on, invalid: false });
+    });
+
+    it("turns numbering off or on over the settings", () => {
+      expect(effectiveHeadingNumbers(on, "off").config.enabled).toBe(false);
+      expect(effectiveHeadingNumbers(settings, "on")).toEqual({ config: { ...settings, enabled: true }, invalid: false });
+    });
+
+    it("overrides the given levels and the separator, the rest from the settings", () => {
+      expect(effectiveHeadingNumbers(on, '"1.a"').config).toEqual({
+        enabled: true,
+        styles: ["decimal", "lower-alpha", "lower-roman", "decimal", "lower-alpha", "lower-roman"],
+        separator: ".",
+      });
+      expect(effectiveHeadingNumbers(on, "A").config).toEqual({ ...on, styles: ["upper-alpha", ...on.styles.slice(1)] });
+    });
+
+    it("ignores an invalid value, and says so", () => {
+      expect(effectiveHeadingNumbers(on, "bogus")).toEqual({ config: on, invalid: true });
+    });
+  });
+
+  describe("dialog choice", () => {
+    it("reads the property as a choice", () => {
+      expect(numberingChoice(undefined, settings)).toEqual({ choice: { mode: "settings" }, invalid: false });
+      expect(numberingChoice("bogus", settings)).toEqual({ choice: { mode: "settings" }, invalid: true });
+      expect(numberingChoice("off", settings).choice).toEqual({ mode: "off" });
+      expect(numberingChoice("on", settings).choice).toEqual(custom([...DEFAULT_HEADING_NUMBER_STYLES]));
+      expect(numberingChoice('"I-1"', settings).choice).toEqual(
+        custom(["upper-roman", "decimal", "lower-roman", "decimal", "lower-alpha", "lower-roman"], "-"),
+      );
+    });
+
+    it("writes the compact form", () => {
+      expect(formatNumberingProperty({ mode: "settings" }, settings)).toBeNull();
+      expect(formatNumberingProperty({ mode: "off" }, settings)).toBe("off");
+      expect(formatNumberingProperty(custom([...DEFAULT_HEADING_NUMBER_STYLES]), settings)).toBe("on");
+      expect(formatNumberingProperty(custom(["upper-roman", "decimal", "lower-roman", "decimal", "lower-alpha", "none"], "-"), settings)).toBe(
+        '"I-1-i-1-a-_"',
+      );
+      expect(formatNumberingProperty(custom([...DEFAULT_HEADING_NUMBER_STYLES], '"'), settings)).toBe('"1\\"a\\"i\\"1\\"a\\"i"');
+    });
+
+    it("round-trips every choice through the property", () => {
+      const choices: NumberingChoice[] = [
+        { mode: "settings" },
+        { mode: "off" },
+        custom([...DEFAULT_HEADING_NUMBER_STYLES]),
+        custom(["none", "decimal", "upper-alpha", "upper-roman", "lower-roman", "lower-alpha"], " / "),
+        custom(["decimal", "decimal", "decimal", "decimal", "decimal", "decimal"], ""),
+        custom([...DEFAULT_HEADING_NUMBER_STYLES], "\\"),
+        custom(["lower-alpha", ...DEFAULT_HEADING_NUMBER_STYLES.slice(1)], ")"),
+      ];
+      for (const choice of choices) {
+        const raw = formatNumberingProperty(choice, settings);
+        expect(numberingChoice(raw ?? undefined, settings), JSON.stringify(choice)).toEqual({ choice, invalid: false });
+      }
+    });
+
+    it("rejects separators the format string can't hold", () => {
+      expect(separatorProblem(".")).toBeNull();
+      expect(separatorProblem("")).toBeNull();
+      expect(separatorProblem("a")).toMatch(/can't contain/);
+      expect(separatorProblem("-1-")).toMatch(/can't contain/);
+      expect(separatorProblem("x\ny")).toMatch(/line/);
+    });
   });
 });

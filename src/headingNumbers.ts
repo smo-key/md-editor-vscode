@@ -138,3 +138,147 @@ export function headingNumberLabels(levels: readonly number[], config: HeadingNu
     return parts.join(config.separator);
   });
 }
+
+// --- The document's own setting ------------------------------------------------
+//
+// A frontmatter property overrides the settings for one document. It is a flat
+// scalar, so the Properties panel keeps showing it as a row:
+//
+//   ken-heading-numbering: off          numbering off, whatever the settings say
+//   ken-heading-numbering: on           on, with the settings' styles
+//   ken-heading-numbering: "1.a.i"      on, with these styles: one token per
+//                                       level from H1 down (1 a A i I, or _ for
+//                                       none) and the text between them as the
+//                                       separator; levels left out (and the
+//                                       separator, for one level) come from the
+//                                       settings
+//
+// `true`/`false` work as `on`/`off`. Anything else is ignored (the settings
+// apply) and the Properties panel flags it.
+
+export const HEADING_NUMBERING_PROPERTY = "ken-heading-numbering";
+
+/** The format-string token for each style. */
+export const STYLE_TOKENS: Readonly<Record<HeadingNumberStyle, string>> = {
+  decimal: "1",
+  "lower-alpha": "a",
+  "upper-alpha": "A",
+  "lower-roman": "i",
+  "upper-roman": "I",
+  none: "_",
+};
+
+const TOKEN_STYLES = new Map(Object.entries(STYLE_TOKENS).map(([style, token]) => [token, style as HeadingNumberStyle]));
+
+/** What a document's property says. */
+export type NumberingOverride =
+  | { enabled: false }
+  /** `styles` may be shorter than six; `separator` absent means the settings'. */
+  | { enabled: true; styles: HeadingNumberStyle[]; separator?: string };
+
+/** A YAML scalar as written after `key:`, unquoted; null when a quote isn't closed. */
+function unquote(text: string): string | null {
+  const t = text.trim();
+  if (t.startsWith('"')) {
+    const m = /^"((?:[^"\\]|\\.)*)"$/.exec(t);
+    return m ? m[1]!.replace(/\\(.)/g, "$1") : null;
+  }
+  if (t.startsWith("'")) {
+    const m = /^'((?:[^']|'')*)'$/.exec(t);
+    return m ? m[1]!.replace(/''/g, "'") : null;
+  }
+  return t;
+}
+
+/**
+ * The property's value (its YAML text, quotes included) as an override;
+ * `undefined` when it is empty or null (no override); `null` when invalid.
+ */
+export function parseNumberingProperty(raw: string): NumberingOverride | null | undefined {
+  const trimmed = raw.trim();
+  if (trimmed === "" || /^(?:~|null)$/i.test(trimmed)) return undefined;
+  const value = unquote(trimmed);
+  if (value === null) return null;
+  if (/^(?:off|false)$/i.test(value)) return { enabled: false };
+  if (/^(?:on|true)$/i.test(value)) return { enabled: true, styles: [] };
+  const first = TOKEN_STYLES.get(value[0] ?? "");
+  if (!first) return null;
+  const styles = [first];
+  let i = 1;
+  let j = i;
+  while (j < value.length && !TOKEN_STYLES.has(value[j]!)) j++;
+  if (j === value.length && j === 1) return { enabled: true, styles };
+  const separator = value.slice(i, j);
+  i = j;
+  while (i < value.length) {
+    const style = TOKEN_STYLES.get(value[i]!);
+    if (!style) return null;
+    styles.push(style);
+    i += 1;
+    if (i === value.length) break;
+    if (!value.startsWith(separator, i)) return null;
+    i += separator.length;
+    // A trailing separator, or a token where the separator should be.
+    if (i === value.length || (separator === "" && !TOKEN_STYLES.has(value[i]!))) return null;
+  }
+  if (styles.length > 6 || styles.length < 2) return null;
+  return { enabled: true, styles, separator };
+}
+
+/** The config for a document: its property (raw YAML text) over the settings. */
+export function effectiveHeadingNumbers(
+  settings: HeadingNumbersConfig,
+  raw: string | undefined,
+): { config: HeadingNumbersConfig; invalid: boolean } {
+  if (raw === undefined) return { config: settings, invalid: false };
+  const override = parseNumberingProperty(raw);
+  if (override === undefined) return { config: settings, invalid: false };
+  if (override === null) return { config: settings, invalid: true };
+  if (!override.enabled) return { config: { ...settings, enabled: false }, invalid: false };
+  return {
+    config: {
+      enabled: true,
+      styles: settings.styles.map((s, i) => override.styles[i] ?? s),
+      separator: override.separator ?? settings.separator,
+    },
+    invalid: false,
+  };
+}
+
+/** What the "Heading numbering" dialog edits. */
+export type NumberingChoice =
+  | { mode: "settings" }
+  | { mode: "off" }
+  | { mode: "on"; styles: HeadingNumberStyle[]; separator: string };
+
+/** The dialog's starting state for a document's property. */
+export function numberingChoice(raw: string | undefined, settings: HeadingNumbersConfig): { choice: NumberingChoice; invalid: boolean } {
+  const override = raw === undefined ? undefined : parseNumberingProperty(raw);
+  if (override === undefined) return { choice: { mode: "settings" }, invalid: false };
+  if (override === null) return { choice: { mode: "settings" }, invalid: true };
+  if (!override.enabled) return { choice: { mode: "off" }, invalid: false };
+  const { config } = effectiveHeadingNumbers(settings, raw);
+  return { choice: { mode: "on", styles: config.styles, separator: config.separator }, invalid: false };
+}
+
+/** Why a separator can't go in the format string, or null. */
+export function separatorProblem(separator: string): string | null {
+  if (/[\r\n]/.test(separator)) return "The separator must be on one line";
+  const token = [...separator].find((c) => TOKEN_STYLES.has(c));
+  if (token) return `The separator can't contain ${Object.values(STYLE_TOKENS).join(" ")}`;
+  return null;
+}
+
+/**
+ * The property value (YAML text) for a choice, in its compact form: `off`,
+ * `on` when the styles are the settings' own, otherwise the format string;
+ * null for "use editor settings" (no property).
+ */
+export function formatNumberingProperty(choice: NumberingChoice, settings: HeadingNumbersConfig): string | null {
+  if (choice.mode === "settings") return null;
+  if (choice.mode === "off") return "off";
+  const same = choice.separator === settings.separator && choice.styles.every((s, i) => s === settings.styles[i]);
+  if (same) return "on";
+  const format = choice.styles.map((s) => STYLE_TOKENS[s]).join(choice.separator);
+  return `"${format.replace(/["\\]/g, "\\$&")}"`;
+}

@@ -6,6 +6,7 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 
 ### Added
 
+- Legal heading numbering: presets (`kenMarkdown.headingNumbers.preset`, or `ken-heading-numbering: legal`) for outline, decimal (1.1.1), legal (1.1.1, (a), (i), (A)) and legal-article (Article I, Section 1.01, (a)); new styles 01, (a) and a); per-level parent numbers (full, legal digits, or own only) and prefixes such as "Article ". The Heading numbering dialog has a Preset menu and these fields.
 - Heading numbering per document: a `ken-heading-numbering` property (`off`, `on`, or a format such as `"1.a.i"` or `"I-1-a"`) overrides the settings for one file. Set it from the new Heading numbering dialog, via the gear in the Properties panel or by right-clicking a heading (the same menu also has Copy link to heading). Numbers always hang in the margin, so headings stay in line with the text even in narrow panes.
 - Heading numbers: turn on `kenMarkdown.headingNumbers.enabled` to show a small, muted number such as 1.a beside each heading and in the table of contents, with a style per level (1, a, A, i, I or none) and a separator. Display only: nothing is written to the file.
 - Lucidchart and Lucidspark links on a line of their own show a live preview, with Edit and Open in Lucidchart buttons (they open your browser) and Reload; linked published Lucid images get the same buttons. Set `kenMarkdown.lucidchart.preview` to `onClick` or `off` to load nothing from Lucid until you ask.

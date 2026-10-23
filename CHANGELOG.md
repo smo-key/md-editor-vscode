@@ -11,6 +11,7 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 ### Fixed
 
 - A literal dollar pair such as `\$x\$` in a line that starts or ends with a tab no longer turns into math after saving and reopening.
+- A bare link followed by `_`, `*` or `~` and a space (as in `https://example.com/a_b_ c`) is no longer rewritten as `<https://…>` when you edit the file.
 
 ## [0.5.0] - 2026-10-23
 

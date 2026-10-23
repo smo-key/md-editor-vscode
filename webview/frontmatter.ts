@@ -6,6 +6,11 @@
  * rows to add, a raw YAML view for anything the rows do not suit, and a way to
  * remove the properties altogether. Edits change only the lines they touch
  * (see frontmatterModel.ts) and are saved like any other edit.
+ *
+ * Values are coloured by YAML type. Fields are textareas over a coloured
+ * mirror of their text: the mirror sizes the field, so long values wrap and
+ * the YAML view grows with its content instead of scrolling. Frontmatter the
+ * rows cannot show faithfully (`rowsUnsupported`) opens as YAML only.
  */
 import { ChevronRight, Plus, Tags, Trash2, X, Braces, createElement, type IconNode } from "lucide";
 
@@ -13,16 +18,75 @@ import {
   entries,
   formatFrontmatter,
   parseFrontmatter,
-  previewValue,
+  highlightYaml,
+  previewTokens,
+  rowsUnsupported,
   setValueText,
   valueText,
+  yamlTokens,
   type FrontEntry,
   type Frontmatter,
+  type YamlToken,
 } from "./frontmatterModel";
 
 type Change = (front: string) => void;
 
 const icon = (node: IconNode, size = 14) => createElement(node, { width: size, height: size, "stroke-width": 1.75 });
+
+/** Append tokens as text, each coloured one in a `ken-yaml-<type>` span. */
+function paintTokens(parent: HTMLElement, tokens: YamlToken[]): void {
+  for (const t of tokens) {
+    if (!t.type) {
+      parent.append(t.text);
+      continue;
+    }
+    const span = document.createElement("span");
+    span.className = `ken-yaml-${t.type}`;
+    span.textContent = t.text;
+    parent.append(span);
+  }
+}
+
+/**
+ * A textarea over a coloured mirror of its text. The mirror is in the flow
+ * and the textarea covers it, so the field is exactly as tall (and, for keys,
+ * as wide) as its wrapped text: it grows while typing and never scrolls.
+ */
+function mirroredField(
+  kind: string,
+  text: string,
+  placeholder: string,
+  colour: (text: string, mirror: HTMLElement) => void,
+): { field: HTMLElement; area: HTMLTextAreaElement; repaint: () => void } {
+  const field = document.createElement("div");
+  field.className = `ken-fm-field ken-fm-${kind}-field`;
+  const mirror = document.createElement("div");
+  mirror.className = "ken-fm-mirror";
+  mirror.setAttribute("aria-hidden", "true");
+  const area = document.createElement("textarea");
+  area.className = `ken-fm-${kind}`;
+  area.value = text;
+  area.placeholder = placeholder;
+  area.spellcheck = false;
+  area.rows = 1;
+  const repaint = () => {
+    mirror.replaceChildren();
+    if (area.value) colour(area.value, mirror);
+    else {
+      // Keeps an empty field as wide as its placeholder.
+      const ph = document.createElement("span");
+      ph.className = "ken-fm-mirror-placeholder";
+      ph.textContent = placeholder;
+      mirror.append(ph);
+    }
+    // A trailing newline still gets its line.
+    mirror.append("\u200b");
+  };
+  repaint();
+  area.addEventListener("input", repaint);
+  field.append(mirror, area);
+  return { field, area, repaint };
+}
 
 let instance: FrontmatterPanel | null = null;
 
@@ -41,6 +105,9 @@ export class FrontmatterPanel {
   private model: Frontmatter | null = null;
   private expanded = false;
   private raw = false;
+  /** What the last render showed: the YAML view (chosen, or the only one possible). */
+  private shownRaw = false;
+  private yamlButton: HTMLButtonElement | null = null;
   /** Show the panel even when the document has no frontmatter (setting). */
   private alwaysShow = false;
   /** Opened on a document without frontmatter: a blank row, written once it has a name. */
@@ -122,8 +189,25 @@ export class FrontmatterPanel {
     this.el.hidden = !this.model;
     if (!this.model) return;
     this.el.classList.toggle("expanded", this.expanded);
+    this.shownRaw = this.raw || !!rowsUnsupported(this.model);
     this.el.append(this.header());
-    if (this.expanded) this.el.append(this.raw ? this.rawEditor() : this.rows());
+    if (this.expanded) this.el.append(this.shownRaw ? this.rawEditor() : this.rows());
+  }
+
+  /**
+   * The fields/YAML switch: unavailable, saying why, while the frontmatter
+   * is something only the YAML view can show.
+   */
+  private syncYamlButton() {
+    const b = this.yamlButton;
+    if (!b || !this.model) return;
+    const reason = rowsUnsupported(this.model);
+    const label = reason ?? (this.shownRaw ? "Edit as fields" : "Edit as YAML");
+    b.title = label;
+    b.setAttribute("aria-label", label);
+    if (reason) b.setAttribute("aria-disabled", "true");
+    else b.removeAttribute("aria-disabled");
+    b.classList.toggle("active", this.shownRaw);
   }
 
   private header(): HTMLElement {
@@ -147,11 +231,13 @@ export class FrontmatterPanel {
     });
     head.append(toggle);
     if (this.expanded) {
-      const yaml = this.smallButton(Braces, this.raw ? "Edit as fields" : "Edit as YAML", () => {
-        this.raw = !this.raw;
+      const yaml = this.smallButton(Braces, "Edit as YAML", () => {
+        if (yaml.getAttribute("aria-disabled") === "true") return;
+        this.raw = !this.shownRaw;
         this.render();
       });
-      yaml.classList.toggle("active", this.raw);
+      yaml.classList.add("ken-fm-yaml");
+      this.yamlButton = yaml;
       const remove = this.smallButton(Trash2, "Remove properties", () => {
         this.expanded = false;
         this.raw = false;
@@ -160,7 +246,8 @@ export class FrontmatterPanel {
       });
       remove.classList.add("danger");
       head.append(yaml, remove);
-    }
+      this.syncYamlButton();
+    } else this.yamlButton = null;
     return head;
   }
 
@@ -180,7 +267,9 @@ export class FrontmatterPanel {
       k.textContent = e.key;
       const v = document.createElement("span");
       v.className = "ken-fm-chip-value";
-      v.textContent = previewValue(e) || "—";
+      const tokens = previewTokens(e);
+      if (tokens.some((t) => t.text.trim())) paintTokens(v, tokens);
+      else v.textContent = "—";
       chip.append(k, v);
       box.append(chip);
     }
@@ -212,25 +301,28 @@ export class FrontmatterPanel {
   private row(entry: FrontEntry): HTMLElement {
     const row = document.createElement("div");
     row.className = "ken-fm-row";
-    const key = document.createElement("input");
-    key.className = "ken-fm-key";
-    key.value = entry.key;
-    key.placeholder = "key";
-    key.spellcheck = false;
+    const { field: keyField, area: key } = mirroredField("key", entry.key, "key", (text, m) =>
+      paintTokens(m, [{ type: "key", text }]),
+    );
     key.setAttribute("aria-label", "Property name");
     key.addEventListener("input", () => {
+      // A name is one line (a pasted newline goes).
+      if (key.value.includes("\n")) key.value = key.value.replace(/\r?\n/g, "");
       entry.key = key.value.replace(/[:\n]/g, "").trim();
       // A row without a name is not written until it has one.
       if (entry.key) this.update();
     });
     const multi = entry.continuation.length > 0;
-    const value = document.createElement(multi ? "textarea" : "input") as HTMLInputElement | HTMLTextAreaElement;
-    value.className = "ken-fm-value";
-    value.value = valueText(entry);
-    value.placeholder = "value";
-    value.spellcheck = false;
+    const { field: valueField, area: value } = mirroredField("value", valueText(entry), "value", (text, m) =>
+      paintTokens(
+        m,
+        // One line is a value as written after `key:`; more are YAML lines (a block list).
+        text.includes("\n")
+          ? highlightYaml(text).flatMap((line, i) => (i ? [{ type: null, text: "\n" }, ...line] : line))
+          : yamlTokens(text),
+      ),
+    );
     value.setAttribute("aria-label", `${entry.key || "Property"} value`);
-    if (value instanceof HTMLTextAreaElement) value.rows = Math.min(8, entry.continuation.length + 1);
     value.addEventListener("input", () => {
       setValueText(entry, value.value);
       if (entry.key) this.update();
@@ -250,30 +342,33 @@ export class FrontmatterPanel {
     });
     if (!multi) {
       value.addEventListener("keydown", (e) => {
-        if ((e as KeyboardEvent).key === "Enter") {
+        if (e.key === "Enter") {
           e.preventDefault();
           this.el.querySelector<HTMLButtonElement>(".ken-fm-add")?.click();
         }
       });
     }
-    row.append(key, value, remove);
+    row.append(keyField, valueField, remove);
     return row;
   }
 
   private rawEditor(): HTMLElement {
-    const area = document.createElement("textarea");
-    area.className = "ken-fm-raw";
-    area.spellcheck = false;
     const body = this.front.replace(/^---\r?\n/, "").replace(/\r?\n?---[ \t]*(\r?\n)?$/, "");
-    area.value = body;
-    area.rows = Math.min(16, Math.max(3, body.split("\n").length + 1));
+    const { field, area } = mirroredField("raw", body, "key: value", (text, m) =>
+      highlightYaml(text).forEach((line, i) => {
+        if (i) m.append("\n");
+        paintTokens(m, line);
+      }),
+    );
     area.setAttribute("aria-label", "Properties as YAML");
     area.addEventListener("input", () => {
       const eol = this.front.includes("\r\n") ? "\r\n" : "\n";
       const text = area.value.replace(/\r?\n/g, eol).replace(/\s+$/, "");
       this.commit(`---${eol}${text ? text + eol : ""}---${eol}`);
+      // The switch follows what was typed; the view itself stays put.
+      this.syncYamlButton();
     });
-    return area;
+    return field;
   }
 
   private smallButton(node: IconNode, label: string, onClick: () => void): HTMLButtonElement {

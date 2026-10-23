@@ -34,6 +34,7 @@ import {
   type AttachmentAdapter,
 } from "./markdown/attachments";
 import { closeLightbox, showLightbox } from "./lightbox";
+import { DRAG_SELECTING_CLASS } from "./markdown/blockSelection";
 import { initDrawio, versionOf } from "./drawio";
 import { FrontmatterPanel } from "./frontmatter";
 import { threadStore, splitThreads, formatThreads, type CommentThread } from "./comments/store";
@@ -385,8 +386,9 @@ scroll.addEventListener("pointerdown", (e) => {
 });
 scroll.addEventListener("click", (event) => {
   if (event.defaultPrevented || event.button !== 0) return;
-  // Shift+click extends the selection (markdown/blockSelection.ts).
-  if (event.shiftKey) return;
+  // Shift+click extends the selection, and letting go after a drag-select
+  // is not a click on the image (markdown/blockSelection.ts).
+  if (event.shiftKey || document.body.classList.contains(DRAG_SELECTING_CLASS)) return;
   if (pointerStart && (Math.abs(event.clientX - pointerStart.x) > 4 || Math.abs(event.clientY - pointerStart.y) > 4)) {
     return;
   }

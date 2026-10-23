@@ -377,7 +377,11 @@ export const tableFullWidthToggle = $prose(
             }
             const full = block.getAttribute("data-full-width") === "true";
             const label = full ? "Fit table to text column" : "Expand table to full width";
+            // Only on a change: this runs on every transaction, and rewriting
+            // the icon each time churned the DOM while selecting.
+            if (button.title === label && button.dataset.full === String(full)) continue;
             button.title = label;
+            button.dataset.full = String(full);
             button.setAttribute("aria-label", label);
             button.innerHTML = full ? SHRINK_ICON : EXPAND_ICON;
           }

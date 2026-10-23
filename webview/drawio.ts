@@ -262,7 +262,7 @@ export const drawioPlugin = $prose(
             const dom = view.nodeDOM(pos);
             if (!(dom instanceof HTMLElement)) return false;
             const src = node.attrs.src as string;
-            dom.setAttribute("data-src", src);
+            if (dom.getAttribute("data-src") !== src) dom.setAttribute("data-src", src);
             let b = dom.querySelector<HTMLButtonElement>(":scope > .ken-drawio-edit");
             if (!isDrawioSrc(src)) {
               b?.remove();

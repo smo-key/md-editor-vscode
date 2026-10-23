@@ -2194,3 +2194,25 @@ body[data-toolbar="top"] .ken-presence {
 .measure .milkdown .ProseMirror .ken-math.ken-block-selected {
   outline-offset: 1px;
 }
+/* No animation on the selection styling: it changes as the pointer moves. */
+.measure .milkdown .ProseMirror .ken-block-selected,
+.measure .milkdown .ProseMirror .ken-block-selected::after {
+  transition: none;
+}
+/* While dragging to select (body.ken-drag-selecting, blockSelection.ts):
+   a text cursor everywhere, so images and diagrams don't offer zoom-in, and
+   no hover affordances on the blocks the pointer passes over. */
+body.ken-drag-selecting .milkdown .ProseMirror,
+body.ken-drag-selecting .milkdown .ProseMirror * {
+  cursor: text !important;
+}
+body.ken-drag-selecting .milkdown .ken-drawio-edit,
+body.ken-drag-selecting .milkdown .milkdown-image-block .operation,
+body.ken-drag-selecting .milkdown .milkdown-image-block .image-resize-handle,
+body.ken-drag-selecting .milkdown .milkdown-code-block .tools,
+body.ken-drag-selecting .milkdown .milkdown-table-block .ken-table-width-toggle,
+body.ken-drag-selecting .milkdown .milkdown-table-block .ken-col-resize,
+body.ken-drag-selecting .milkdown .milkdown-table-block .cell-handle,
+body.ken-drag-selecting .milkdown .milkdown-table-block .line-handle {
+  visibility: hidden;
+}

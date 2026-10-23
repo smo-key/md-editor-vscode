@@ -31,6 +31,8 @@ import type { EditorView } from "@milkdown/kit/prose/view";
 
 /** Origin of changes that came from other people (not echoed back). */
 const REMOTE = "remote";
+/** Origin of this editor's frontmatter edits, which the shared history undoes with its body edits. */
+const FRONT = "ken-front";
 
 /** Each person's colour: VS Code's chart colours, so it follows the theme. */
 const HUES: Record<string, string> = {
@@ -52,8 +54,8 @@ export interface CollabHooks {
   /** A local change to the shared document, for everyone else. */
   send(update: Uint8Array): void;
   sendAwareness(update: Uint8Array): void;
-  /** Someone else changed the frontmatter. */
-  onFront(front: string): void;
+  /** Someone else changed the frontmatter, or (`undone`) an undo or redo here did. */
+  onFront(front: string, undone?: boolean): void;
   /** Someone else changed the comment threads: one JSON thread per entry. */
   onThreads(threads: string[]): void;
   /** Who else is here changed. */
@@ -114,7 +116,10 @@ export class Collab {
     );
     this.awareness.on("change", () => hooks.onPeople(this.people()));
     this.meta.observe((e) => {
-      if (e.transaction.origin === REMOTE && e.keysChanged.has("front")) hooks.onFront(this.meta.get("front") ?? "");
+      if (!e.keysChanged.has("front")) return;
+      const { origin } = e.transaction;
+      if (origin === REMOTE) hooks.onFront(this.meta.get("front") ?? "");
+      else if (origin instanceof Y.UndoManager) hooks.onFront(this.meta.get("front") ?? "", true);
     });
     this.threads.observe((e) => {
       if (e.transaction.origin === REMOTE) hooks.onThreads([...this.threads.values()]);
@@ -157,10 +162,12 @@ export class Collab {
         // your place visible to others) in the field it draws from.
         "focusedCursor",
       ),
-      yUndoPlugin(),
+      // Your frontmatter edits are undone in order with your body edits.
+      yUndoPlugin({ trackedOrigins: [FRONT] }),
       this.caretPlugin(),
     ];
     this.view.updateState(this.view.state.reconfigure({ plugins: [...this.view.state.plugins, ...this.plugins] }));
+    yUndoPluginKey.getState(this.view.state)?.undoManager.addToScope(this.meta);
     if (!seed) {
       this.hooks.onFront(this.meta.get("front") ?? "");
       this.hooks.onThreads([...this.threads.values()]);
@@ -176,9 +183,12 @@ export class Collab {
     if (!this.stopped) applyAwarenessUpdate(this.awareness, update, REMOTE);
   }
 
-  /** The frontmatter changed here. */
-  setFront(front: string) {
-    if (this.meta.get("front") !== front) this.meta.set("front", front);
+  /**
+   * The frontmatter changed here: an `edit` made in this editor (which your
+   * undo can take back), or else the file's or the history's own.
+   */
+  setFront(front: string, edit = false) {
+    if (this.meta.get("front") !== front) this.doc.transact(() => this.meta.set("front", front), edit ? FRONT : null);
   }
 
   /** The comment threads changed here: one JSON string per thread. */

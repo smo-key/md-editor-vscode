@@ -173,6 +173,26 @@ describe("properties panel", () => {
     done();
   });
 
+  it("shows an undone value in the field being edited, keeping the caret there", () => {
+    const { panel, expand, changes, done } = mount("---\ntitle: Hi\ncount: 3\n---\n");
+    expand();
+    const value = () => panel.el.querySelectorAll<HTMLTextAreaElement>("textarea.ken-fm-value")[1]!;
+    value().focus();
+    value().value = "34";
+    value().dispatchEvent(new Event("input"));
+    expect(changes.at(-1)).toBe("---\ntitle: Hi\ncount: 34\n---\n");
+    // An outside change waits for the field to be left...
+    panel.set("---\ntitle: Hi\ncount: 5\n---\n");
+    expect(value().value).toBe("34");
+    // ...but undo is the user's own: it shows at once, in the same field.
+    panel.restore("---\ntitle: Hi\ncount: 3\n---\n");
+    expect(value().value).toBe("3");
+    expect(document.activeElement).toBe(value());
+    expect(value().selectionStart).toBe(1);
+    expect(changes).toHaveLength(1);
+    done();
+  });
+
   it("raw view grows with its content instead of scrolling", () => {
     const { panel, expand, yamlButton, changes, done } = mount("---\ntitle: Hi\n---\n");
     expand();

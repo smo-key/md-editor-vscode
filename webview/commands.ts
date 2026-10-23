@@ -123,8 +123,8 @@ export interface EditorCommand {
   toolbar?: boolean;
   /** A key built into the editor (not a VS Code keybinding), for hints. */
   builtinKey?: string;
-  /** Leave focus where the command put it (it opens its own input). */
-  keepFocus?: boolean;
+  /** Leave focus where the command put it (it opens its own input), or where it is when this says so. */
+  keepFocus?: boolean | (() => boolean);
   /** A count shown on the toolbar button (e.g. open comments). */
   badge?(state: EditorState): number;
   danger?: boolean;
@@ -446,6 +446,9 @@ const alert = (kind: GithubAlertKind, label: string, icon: IconNode): EditorComm
   run: (ctx) => call(ctx, insertGithubAlertCommand.key, kind),
 });
 
+/** Focus is in a field of the Properties panel (frontmatter.ts). */
+const inProperties = () => !!document.activeElement?.closest(".ken-frontmatter");
+
 export const COMMANDS: EditorCommand[] = [
   // History
   {
@@ -456,6 +459,8 @@ export const COMMANDS: EditorCommand[] = [
     toolbar: true,
     // In a collaboration session, only your own changes (collab.ts).
     run: (_ctx, view) => run(view, sharedHistory(view.state)?.undo ?? undo),
+    // Undo while editing a property stays in the Properties panel (it may undo the property).
+    keepFocus: inProperties,
     isEnabled: (state) => {
       const shared = sharedHistory(state);
       return shared ? !!shared.undo(state) : undoDepth(state) > 0;
@@ -468,6 +473,7 @@ export const COMMANDS: EditorCommand[] = [
     group: "history",
     toolbar: true,
     run: (_ctx, view) => run(view, sharedHistory(view.state)?.redo ?? redo),
+    keepFocus: inProperties,
     isEnabled: (state) => {
       const shared = sharedHistory(state);
       return shared ? !!shared.redo(state) : redoDepth(state) > 0;
@@ -961,5 +967,6 @@ export function execute(ctx: Ctx, cmd: EditorCommand): void {
   const view = ctx.get(editorViewCtx);
   if (cmd.isEnabled && !cmd.isEnabled(view.state)) return;
   cmd.run(ctx, view);
-  if (!cmd.keepFocus && !view.hasFocus()) view.focus();
+  const keep = typeof cmd.keepFocus === "function" ? cmd.keepFocus() : cmd.keepFocus;
+  if (!keep && !view.hasFocus()) view.focus();
 }

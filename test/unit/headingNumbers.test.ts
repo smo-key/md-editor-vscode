@@ -354,6 +354,45 @@ describe("legal numbering", () => {
       "Article II",
       "Section 2.01",
     ]);
+    expect(labels("legal-full")).toEqual([
+      "1",
+      "1.1",
+      "1.2",
+      "1.2.1",
+      "1.2.1(a)",
+      "1.2.1(a)(i)",
+      "1.2.1(a)(i)(A)",
+      "1.2.1(b)",
+      "1.3",
+      "2",
+      "2.1",
+    ]);
+    expect(labels("legal-article-full")).toEqual([
+      "Article I",
+      "Section 1.01",
+      "Section 1.02",
+      "1.02(a)",
+      "1.02(a)(i)",
+      "1.02(a)(i)(A)",
+      "1.02(a)(i)(A)(1)",
+      "1.02(a)(ii)",
+      "Section 1.03",
+      "Article II",
+      "Section 2.01",
+    ]);
+  });
+
+  it("numbers the user's example: a second Section under Article I, then nested headings", () => {
+    const config = headingNumbersConfig({ enabled: true, preset: "legal-article-full" });
+    expect(headingNumberLabels([1, 2, 2, 3, 4, 5, 6], config)).toEqual([
+      "Article I",
+      "Section 1.01",
+      "Section 1.02",
+      "1.02(a)",
+      "1.02(a)(i)",
+      "1.02(a)(i)(A)",
+      "1.02(a)(i)(A)(1)",
+    ]);
   });
 
   it("has a preset setting that overrides the per-level settings", () => {
@@ -400,9 +439,17 @@ describe("legal numbering", () => {
       expect(headingNumberLabels([1, 2, 3, 4], c)).toEqual(["1", "1", "(a)", "i"]);
     });
 
-    it("writes every parent as plain digits with legal", () => {
+    it("writes plain letter and roman parents as digits with legal", () => {
       const c = config(["upper-roman", "lower-alpha", "decimal-leading-zero"], ["auto", "auto", "legal"]);
       expect(headingNumberLabels([1, 2, 3], c)).toEqual(["I", "I.a", "1.1.01"]);
+    });
+
+    it("keeps padded, parenthesized and right-paren parents as they are with legal", () => {
+      const c = config(
+        ["upper-roman", "decimal-leading-zero", "parenthesized-lower-alpha", "lower-roman-paren", "decimal"],
+        ["auto", "legal", "legal", "legal", "legal"],
+      );
+      expect(headingNumberLabels([1, 2, 3, 4, 5], c)).toEqual(["I", "1.01", "1.01(a)", "1.01(a).i)", "1.01(a).i).1"]);
     });
 
     it("keeps a right-paren part joined by the separator", () => {
@@ -464,6 +511,38 @@ describe("extended property grammar", () => {
     expect(parseNumberingProperty("A")).toEqual(old(["upper-alpha"]));
     const config = headingNumbersConfig({ enabled: true });
     expect(headingNumberLabels([1, 2, 3], effectiveHeadingNumbers(config, '"I-1-a"').config)).toEqual(["I", "I-1", "I-1-a"]);
+  });
+
+  it("gives old strings using # their documented result", () => {
+    const config = headingNumbersConfig({ enabled: true });
+    const labelsOf = (raw: string, levels: number[]) => headingNumberLabels(levels, effectiveHeadingNumbers(config, raw).config);
+    // Unchanged: plain letter and roman parents still become digits.
+    expect(labelsOf('"[Article ]I.[Section ]01#.(a).(i).(A).(1)"', [1, 2, 3])).toEqual(["Article I", "Section 1.01", "(a)"]);
+    expect(labelsOf('"I.a.1#"', [1, 2, 3])).toEqual(["I", "I.a", "1.1.1"]);
+    // Changed: padded and parenthesized parents now keep their style (was 1.1(a), 1.1.1(i)).
+    expect(labelsOf('"[Article ]I.[Section ]01#.(a)#.(i)#.(A)#.(1)#"', [1, 2, 3, 4, 5, 6])).toEqual([
+      "Article I",
+      "Section 1.01",
+      "1.01(a)",
+      "1.01(a)(i)",
+      "1.01(a)(i)(A)",
+      "1.01(a)(i)(A)(1)",
+    ]);
+    // Full keeps the roman numeral, and a decimal path is unaffected.
+    expect(labelsOf('"[Article ]I.[Section ]01#.(a)+.(i)+"', [1, 2, 3, 4])).toEqual(["Article I", "Section 1.01", "I.01(a)", "I.01(a)(i)"]);
+    expect(labelsOf('"1.01+.(a)+.(i)+.(A)+.(1)+"', [1, 2, 3, 4, 5, 6])).toEqual(["1", "1.01", "1.01(a)", "1.01(a)(i)", "1.01(a)(i)(A)", "1.01(a)(i)(A)(1)"]);
+  });
+
+  it("writes the new presets by name and reads them back", () => {
+    for (const name of ["legal-full", "legal-article-full"] as const) {
+      const raw = formatNumberingProperty({ mode: "on", ...presetLevels(name) }, settings);
+      expect(raw).toBe(name);
+      const back = numberingChoice(raw!, settings).choice as NumberingLevels;
+      expect(presetOf(back)).toBe(name);
+    }
+    expect(parseNumberingProperty('"[Article ]I.[Section ]01#.(a)#.(i)#.(A)#.(1)#"')).toEqual({ enabled: true, ...presetLevels("legal-article-full") });
+    expect(parseNumberingProperty('"1.1.1.(a)+.(i)+.(A)+"')).toMatchObject({ styles: presetLevels("legal-full").styles });
+    expect(presetOf(effectiveHeadingNumbers(settings, '"1.1.1.(a)+.(i)+.(A)+"').config)).toBe("legal-full");
   });
 
   it("rejects malformed levels", () => {

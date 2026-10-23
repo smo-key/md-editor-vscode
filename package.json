@@ -702,14 +702,18 @@
             "outline",
             "decimal",
             "legal",
-            "legal-article"
+            "legal-full",
+            "legal-article",
+            "legal-article-full"
           ],
           "enumDescriptions": [
             "The per-level settings below (`h1`…`h6`, their parents and prefixes, and the separator).",
             "1, 1.a, 1.a.i, 1.a.i.1, 1.a.i.1.a, 1.a.i.1.a.i",
             "1, 1.1, 1.1.1… (ISO and legal decimal numbering)",
             "1, 1.1, 1.1.1, then (a), (i), (A): standard contracts",
-            "Article I, Section 1.01, (a), (i), (A), (1): US agreements"
+            "1, 1.1, 1.1.1, then 1.1.1(a), 1.1.1(a)(i), 1.1.1(a)(i)(A): contracts citing the full path",
+            "Article I, Section 1.01, (a), (i), (A), (1): US agreements",
+            "Article I, Section 1.01, then 1.01(a), 1.01(a)(i), 1.01(a)(i)(A), 1.01(a)(i)(A)(1): US agreements citing the full path"
           ],
           "default": "custom",
           "markdownDescription": "A ready-made numbering scheme. Any preset but `custom` overrides the per-level settings (`#kenMarkdown.headingNumbers.h1#`…`h6`, their `Parents` and `Prefix`, and `#kenMarkdown.headingNumbers.separator#`)."
@@ -768,7 +772,7 @@
           "enumDescriptions": [
             "`own` for a parenthesized style, `full` otherwise.",
             "Parent numbers, then this level's: 1.a.i, or 1.01(a) before a parenthesized style.",
-            "Parent numbers as plain digits, as Word's legal style numbering: Section 1.01 under Article I.",
+            "Parent numbers, with plain letters and roman numerals (a, A, i, I) as digits, as Word's legal style numbering: Section 1.01 under Article I. Other parents keep their style: 1.01(a)(i).",
             "Only this level's own label: (a) rather than 1.01(a)."
           ],
           "default": "auto",
@@ -833,7 +837,7 @@
           "enumDescriptions": [
             "`own` for a parenthesized style, `full` otherwise.",
             "Parent numbers, then this level's: 1.a.i, or 1.01(a) before a parenthesized style.",
-            "Parent numbers as plain digits, as Word's legal style numbering: Section 1.01 under Article I.",
+            "Parent numbers, with plain letters and roman numerals (a, A, i, I) as digits, as Word's legal style numbering: Section 1.01 under Article I. Other parents keep their style: 1.01(a)(i).",
             "Only this level's own label: (a) rather than 1.01(a)."
           ],
           "default": "auto",
@@ -898,7 +902,7 @@
           "enumDescriptions": [
             "`own` for a parenthesized style, `full` otherwise.",
             "Parent numbers, then this level's: 1.a.i, or 1.01(a) before a parenthesized style.",
-            "Parent numbers as plain digits, as Word's legal style numbering: Section 1.01 under Article I.",
+            "Parent numbers, with plain letters and roman numerals (a, A, i, I) as digits, as Word's legal style numbering: Section 1.01 under Article I. Other parents keep their style: 1.01(a)(i).",
             "Only this level's own label: (a) rather than 1.01(a)."
           ],
           "default": "auto",
@@ -963,7 +967,7 @@
           "enumDescriptions": [
             "`own` for a parenthesized style, `full` otherwise.",
             "Parent numbers, then this level's: 1.a.i, or 1.01(a) before a parenthesized style.",
-            "Parent numbers as plain digits, as Word's legal style numbering: Section 1.01 under Article I.",
+            "Parent numbers, with plain letters and roman numerals (a, A, i, I) as digits, as Word's legal style numbering: Section 1.01 under Article I. Other parents keep their style: 1.01(a)(i).",
             "Only this level's own label: (a) rather than 1.01(a)."
           ],
           "default": "auto",
@@ -1028,7 +1032,7 @@
           "enumDescriptions": [
             "`own` for a parenthesized style, `full` otherwise.",
             "Parent numbers, then this level's: 1.a.i, or 1.01(a) before a parenthesized style.",
-            "Parent numbers as plain digits, as Word's legal style numbering: Section 1.01 under Article I.",
+            "Parent numbers, with plain letters and roman numerals (a, A, i, I) as digits, as Word's legal style numbering: Section 1.01 under Article I. Other parents keep their style: 1.01(a)(i).",
             "Only this level's own label: (a) rather than 1.01(a)."
           ],
           "default": "auto",
@@ -1093,7 +1097,7 @@
           "enumDescriptions": [
             "`own` for a parenthesized style, `full` otherwise.",
             "Parent numbers, then this level's: 1.a.i, or 1.01(a) before a parenthesized style.",
-            "Parent numbers as plain digits, as Word's legal style numbering: Section 1.01 under Article I.",
+            "Parent numbers, with plain letters and roman numerals (a, A, i, I) as digits, as Word's legal style numbering: Section 1.01 under Article I. Other parents keep their style: 1.01(a)(i).",
             "Only this level's own label: (a) rather than 1.01(a)."
           ],
           "default": "auto",

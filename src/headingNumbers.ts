@@ -16,8 +16,11 @@
 //       full   the counters of every level down to its own, in their own
 //              styles, joined by the separator ("1.a.i"); no separator goes
 //              before a parenthesized part ("1.01(a)");
-//       legal  the same path with every ancestor as plain digits, as Word's
-//              "legal style numbering" does ("Section 1.01" under "Article I");
+//       legal  the same path, with every plain letter or roman ancestor
+//              (a, A, i, I) as digits, as Word's "legal style numbering"
+//              does: "Section 1.01" under "Article I". Every other ancestor
+//              keeps its own style, so 01, (a) and a) parts stay as they are:
+//              "1.01(a)(i)" under "Article I", "Section 1.01";
 //       own    only its own counter ("(a)");
 //       auto   `own` for a parenthesized style, `full` otherwise.
 //   - A path leaves out every level whose counter is 0 (a skipped level: H2
@@ -90,7 +93,7 @@ const six = <T>(value: T): T[] => Array.from({ length: 6 }, () => value);
 
 // --- Presets --------------------------------------------------------------------
 
-export type HeadingNumberPreset = "outline" | "decimal" | "legal" | "legal-article";
+export type HeadingNumberPreset = "outline" | "decimal" | "legal" | "legal-full" | "legal-article" | "legal-article-full";
 
 export const HEADING_NUMBER_PRESETS: Readonly<Record<HeadingNumberPreset, Readonly<NumberingLevels>>> = {
   /** 1, 1.a, 1.a.i, 1.a.i.1… (the default). */
@@ -101,6 +104,13 @@ export const HEADING_NUMBER_PRESETS: Readonly<Record<HeadingNumberPreset, Readon
   legal: {
     styles: ["decimal", "decimal", "decimal", "parenthesized-lower-alpha", "parenthesized-lower-roman", "parenthesized-upper-alpha"],
     parents: six("auto"),
+    prefixes: six(""),
+    separator: ".",
+  },
+  /** 1, 1.1, 1.1.1, then 1.1.1(a), 1.1.1(a)(i), 1.1.1(a)(i)(A): contracts citing the full path. */
+  "legal-full": {
+    styles: ["decimal", "decimal", "decimal", "parenthesized-lower-alpha", "parenthesized-lower-roman", "parenthesized-upper-alpha"],
+    parents: ["auto", "auto", "auto", "full", "full", "full"],
     prefixes: six(""),
     separator: ".",
   },
@@ -115,6 +125,20 @@ export const HEADING_NUMBER_PRESETS: Readonly<Record<HeadingNumberPreset, Readon
       "parenthesized-decimal",
     ],
     parents: ["auto", "legal", "auto", "auto", "auto", "auto"],
+    prefixes: ["Article ", "Section ", "", "", "", ""],
+    separator: ".",
+  },
+  /** Article I, Section 1.01, then 1.01(a), 1.01(a)(i), 1.01(a)(i)(A), 1.01(a)(i)(A)(1). */
+  "legal-article-full": {
+    styles: [
+      "upper-roman",
+      "decimal-leading-zero",
+      "parenthesized-lower-alpha",
+      "parenthesized-lower-roman",
+      "parenthesized-upper-alpha",
+      "parenthesized-decimal",
+    ],
+    parents: ["auto", "legal", "legal", "legal", "legal", "legal"],
     prefixes: ["Article ", "Section ", "", "", "", ""],
     separator: ".",
   },
@@ -239,6 +263,10 @@ function base(n: number, style: BaseStyle): string {
 
 const isParenthesized = (style: HeadingNumberStyle) => style.startsWith("parenthesized-");
 
+/** A plain letter or roman style (a A i I): the ancestors `legal` writes as digits. */
+const isLetterOrRoman = (style: HeadingNumberStyle) =>
+  style === "lower-alpha" || style === "upper-alpha" || style === "lower-roman" || style === "upper-roman";
+
 /** One counter (1 or more) in a style. */
 export function formatCounter(n: number, style: HeadingNumberStyle): string {
   if (style === "none") return "";
@@ -281,7 +309,7 @@ export function headingNumberLabels(levels: readonly number[], config: HeadingNu
       for (let i = 0; i < index; i++) {
         const s = styleAt(i);
         if (s === "none" || counters[i]! === 0) continue;
-        parts.push(mode === "legal" ? String(counters[i]) : formatCounter(counters[i]!, s));
+        parts.push(mode === "legal" && isLetterOrRoman(s) ? String(counters[i]) : formatCounter(counters[i]!, s));
       }
     }
     parts.push(own);
@@ -297,7 +325,8 @@ export function headingNumberLabels(levels: readonly number[], config: HeadingNu
 //   ken-heading-numbering: off            numbering off, whatever the settings say
 //   ken-heading-numbering: on             on, with the settings' levels
 //   ken-heading-numbering: legal          on, with a preset: outline, decimal,
-//                                         legal or legal-article
+//                                         legal, legal-full, legal-article or
+//                                         legal-article-full
 //   ken-heading-numbering: "1.a.i"        on, with a format string
 //
 // `true`/`false` work as `on`/`off`. A format string is one token per level,
@@ -310,13 +339,16 @@ export function headingNumberLabels(levels: readonly number[], config: HeadingNu
 //            | "(" base ")"               parenthesized: (1) (a) (A) (i) (I)
 //            | base ")"                   right paren: 1) a) A) i) I)
 //            | _                          none
-//   mode    := + (full) | # (legal) | ! (own); none given is auto
+//   mode    := + (full) | # (legal: plain letter/roman parents as digits)
+//            | ! (own); none given is auto
 //   prefix  := any text but "]"; shown before this level's own label only
 //
 // The separator is the text between the first two levels and can't contain
 // 0 1 a A i I _ ( ) [ ] + # !. Levels a string leaves out come from the
 // settings (and, for a one-level string, so does the separator). Examples:
-// "1.a.i", "I-1-a", "1.1.1.(a).(i).(A)", "[Article ]I.[Section ]01#.(a).(i)".
+// "1.a.i", "I-1-a", "1.1.1.(a).(i).(A)" (legal),
+// "[Article ]I.[Section ]01#.(a).(i).(A).(1)" (legal-article) and
+// "[Article ]I.[Section ]01#.(a)#.(i)#.(A)#.(1)#" (legal-article-full).
 // Anything else is ignored (the settings apply) and the Properties panel
 // flags it.
 

@@ -264,7 +264,7 @@ function request<T extends HostMessage>(build: (id: number) => WebviewMessage): 
 // linked with a relative path, so the .md stays portable.
 
 const attachments: AttachmentAdapter = {
-  async save(file) {
+  async save(file, sourceName) {
     const data = new Uint8Array(await file.arrayBuffer());
     const reply = await request<Extract<HostMessage, { type: "attachmentSaved" }>>((id) => ({
       type: "saveAttachment",
@@ -272,6 +272,7 @@ const attachments: AttachmentAdapter = {
       name: file.name,
       data,
       image: isImageFile(file),
+      sourceName,
     }));
     if (!reply.path) throw new Error(reply.error ?? "save failed");
     return reply.path;
@@ -290,7 +291,8 @@ const attachments: AttachmentAdapter = {
 async function saveBeside(file: File) {
   const name = attachmentName(file, docPath, new Date());
   const named = name === file.name ? file : new File([file], name, { type: file.type });
-  const saved = await attachments.save(named);
+  // A real file (not clipboard image bytes) may already be in the workspace: the host links it then.
+  const saved = await attachments.save(named, name === file.name ? file.name : undefined);
   return { saved, href: encodeHref(relativeTo(docDir(docPath), saved)) };
 }
 

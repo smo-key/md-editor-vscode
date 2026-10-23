@@ -703,6 +703,19 @@
           "default": "_Images",
           "markdownDescription": "Folder, next to the document, that pasted and dropped images are copied into (created when first needed). Leave empty to save images beside the document. Other files are always saved beside the document."
         },
+        "kenMarkdown.workspaceFiles": {
+          "type": "string",
+          "enum": [
+            "link",
+            "copy"
+          ],
+          "enumDescriptions": [
+            "Link to files that are already in the workspace, where they are.",
+            "Copy them into the image folder (or beside the document), as for files from outside the workspace."
+          ],
+          "default": "link",
+          "markdownDescription": "What happens when you paste or drop a file that is already in the document's workspace folder (dragged from the Explorer, or from your file manager). `link` inserts a relative link to the file; `copy` saves a copy as for files from outside the workspace. Screenshots and other image data are always saved."
+        },
         "kenMarkdown.alwaysShowProperties": {
           "type": "boolean",
           "default": false,

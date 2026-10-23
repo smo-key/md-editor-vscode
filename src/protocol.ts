@@ -16,7 +16,10 @@ export interface EditorConfig {
   commentAuthor: string;
 }
 
-/** A file dropped from VS Code's Explorer, as the document should reference it. */
+/**
+ * A file dropped from VS Code's Explorer, as the document should reference it:
+ * linked where it is when in the document's workspace folder, else a copy.
+ */
 export interface LinkedUri {
   /** Path relative to the document (unencoded), or the URI when not relative. */
   path: string;
@@ -88,7 +91,12 @@ export type WebviewMessage =
   | { type: "setPrefs"; prefs: EditorPrefs }
   | { type: "openKeybindings" }
   | { type: "edit"; text: string }
-  | { type: "saveAttachment"; id: number; name: string; data: Uint8Array; image: boolean }
+  /**
+   * Save a pasted or dropped file as `name`. `sourceName` is the file's own name
+   * when it came from a file (not raw image bytes): an identical file of that
+   * name already in the workspace is linked instead (`kenMarkdown.workspaceFiles`).
+   */
+  | { type: "saveAttachment"; id: number; name: string; data: Uint8Array; image: boolean; sourceName?: string }
   | { type: "resolve"; id: number; path: string }
   | { type: "linkUris"; id: number; uris: string[] }
   /** Root-relative paths, as in `resolve`. */

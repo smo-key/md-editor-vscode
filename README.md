@@ -78,7 +78,7 @@ YAML frontmatter shows as an editable **Properties** panel above your text. Coll
 
 - Paste a screenshot or drop an image and it's saved to an `_Images` folder next to the document and linked with a relative path. Change the folder with `kenMarkdown.imageFolder`.
 - Other files are copied next to the document and linked inline.
-- Files dragged from VS Code's Explorer are linked where they are.
+- Files already in the workspace (dragged from VS Code's Explorer, or pasted or dropped from your file manager) are linked where they are instead of copied. Set `kenMarkdown.workspaceFiles` to `copy` to copy them too.
 - To drop files into the editor, hold <kbd>Shift</kbd> while dropping (a VS Code rule for all editors).
 
 ### Live collaboration (preview)
@@ -132,6 +132,7 @@ Every editing action is a VS Code command, so you can change, remove or add keys
 | `kenMarkdown.alwaysShowProperties` | `false` | Show the Properties panel on every document. |
 | `kenMarkdown.commentAuthor` | *(git's `user.name`)* | Your name on comments you add. |
 | `kenMarkdown.imageFolder` | `_Images` | Where pasted and dropped images are saved; empty for beside the document. |
+| `kenMarkdown.workspaceFiles` | `link` | Files already in the workspace: `link` to them where they are, or `copy` them like outside files. |
 | `kenMarkdown.collaboration.port` | `0` | Port for collaboration sessions you start; `0` picks a free one. |
 | `kenMarkdown.collaboration.allowNetwork` | `false` | Let people on your network join sessions you start (invites still need their secret token). |
 

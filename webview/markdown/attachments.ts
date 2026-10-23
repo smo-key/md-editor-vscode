@@ -10,8 +10,12 @@
  * stock behaviour.
  */
 export interface AttachmentAdapter {
-  /** Save `file` beside the document; resolves to its project-relative path. */
-  save(file: File): Promise<string>;
+  /**
+   * Save `file` beside the document; resolves to its project-relative path.
+   * With `sourceName` (the name of a real file), an identical workspace file
+   * of that name may be returned instead of a new copy.
+   */
+  save(file: File, sourceName?: string): Promise<string>;
   /** A URL the webview can load for a project-relative path. */
   resolve(relPath: string): Promise<string> | string;
 }

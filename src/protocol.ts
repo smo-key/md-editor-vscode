@@ -1,5 +1,9 @@
 /** Messages between the extension host and the editor webview. */
 
+import type { LucidPreviewMode } from "./lucidUrl";
+
+export type { LucidPreviewMode };
+
 export type ToolbarPosition = "top" | "bottom" | "hidden";
 
 export interface EditorConfig {
@@ -16,6 +20,16 @@ export interface EditorConfig {
   alwaysShowProperties: boolean;
   /** Name shown on new comments. */
   commentAuthor: string;
+  /**
+   * Lucidchart/Lucidspark link previews (`kenMarkdown.lucidchart.*`). The host
+   * always sends it; the webview treats a missing value (old harness configs)
+   * as `{ preview: "auto" }`.
+   */
+  lucidchart: LucidchartConfig;
+}
+
+export interface LucidchartConfig {
+  preview: LucidPreviewMode;
 }
 
 /**
@@ -108,6 +122,12 @@ export type WebviewMessage =
   | { type: "openFile"; path: string }
   | { type: "openLink"; href: string }
   | { type: "openWikiLink"; target: string }
+  /**
+   * Open a Lucid link in the browser: `edit` opens the document's edit URL,
+   * `open` the link as written. The host re-parses `url` (src/lucidUrl.ts)
+   * and ignores anything that isn't an allowlisted Lucid URL.
+   */
+  | { type: "openLucid"; url: string; action: "edit" | "open" }
   | { type: "flushed"; id: number; text: string | null }
   | { type: "collabUpdate"; data: Uint8Array }
   | { type: "collabAwareness"; data: Uint8Array }

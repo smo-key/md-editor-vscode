@@ -10,6 +10,7 @@ import type {
   ToolbarPosition,
   WebviewMessage,
 } from "./protocol";
+import { editUrl, lucidPreviewMode, openUrl, parseLucidUrl } from "./lucidUrl";
 import { classifyHref, imageFolder, minimalChange, toEOL, toLF, uniqueName } from "./sync";
 import {
   byCloseness,
@@ -79,6 +80,7 @@ export function readConfig(scope?: vscode.Uri): EditorConfig {
     toolbar: toolbarPosition(c.get<unknown>("toolbar", "top")),
     alwaysShowProperties: c.get<boolean>("alwaysShowProperties", false),
     commentAuthor: c.get<string>("commentAuthor", "").trim() || defaultAuthor(),
+    lucidchart: { preview: lucidPreviewMode(c.get<unknown>("lucidchart.preview", "auto")) },
   };
 }
 
@@ -296,6 +298,9 @@ class EditorSession {
         return;
       case "openWikiLink":
         await this.openWikiLink(m.target);
+        return;
+      case "openLucid":
+        await this.openLucid(m.url, m.action);
         return;
       case "flushed":
         this.pendingFlushes.get(m.id)?.(m.text);
@@ -561,6 +566,18 @@ class EditorSession {
     await openFile(target);
   }
 
+  /**
+   * Edit or open a Lucid link in the browser. The URL comes from the webview,
+   * which renders untrusted documents, so it is re-parsed here: anything that
+   * isn't an allowlisted Lucid document or published image is ignored, and only
+   * a URL rebuilt from the parsed link is opened.
+   */
+  private async openLucid(url: unknown, action: unknown): Promise<void> {
+    const ref = typeof url === "string" ? parseLucidUrl(url) : null;
+    if (!ref) return;
+    await this.host.openExternal(action === "edit" && ref.kind === "document" ? editUrl(ref) : openUrl(ref));
+  }
+
   private async openWikiLink(target: string): Promise<void> {
     const name = target.split("|")[0].split("#")[0].trim();
     if (!name) return;
@@ -643,8 +660,10 @@ class EditorSession {
       `font-src ${webview.cspSource} data:`,
       `script-src 'nonce-${nonce}' ${webview.cspSource}`,
       `connect-src ${webview.cspSource}`,
-      // The draw.io (diagrams.net) editor, for editing .drawio.svg/.png diagrams.
-      "frame-src https://embed.diagrams.net",
+      // The draw.io (diagrams.net) editor, for editing .drawio.svg/.png diagrams,
+      // and Lucid's embedded viewer for Lucidchart/Lucidspark link previews. Only
+      // lucid.app is needed: src/lucidUrl.ts normalizes every Lucid link to it.
+      "frame-src https://embed.diagrams.net https://lucid.app",
     ].join("; ");
     return `<!doctype html>
 <html lang="en">
@@ -696,6 +715,8 @@ interface SessionHost {
   prefs(): EditorPrefs;
   setPrefs(prefs: EditorPrefs): void;
   focusChanged(): void;
+  /** Open an http(s) URL outside VS Code (recorded instead in integration tests). */
+  openExternal(url: string): Thenable<boolean>;
 }
 
 export class KenMarkdownEditorProvider implements vscode.CustomTextEditorProvider, SessionHost {
@@ -703,6 +724,8 @@ export class KenMarkdownEditorProvider implements vscode.CustomTextEditorProvide
   readonly sessions = new Map<string, EditorSession>();
   private readonly all = new Set<EditorSession>();
   private labels: ShortcutLabels = {};
+  /** URLs `openExternal` would have opened, in test mode only (no browser is launched). */
+  readonly externalOpened: string[] = [];
 
   constructor(
     private readonly context: vscode.ExtensionContext,
@@ -728,6 +751,14 @@ export class KenMarkdownEditorProvider implements vscode.CustomTextEditorProvide
 
   shortcutLabels(): ShortcutLabels {
     return this.labels;
+  }
+
+  openExternal(url: string): Thenable<boolean> {
+    if (this.context.extensionMode === vscode.ExtensionMode.Test) {
+      this.externalOpened.push(url);
+      return Promise.resolve(true);
+    }
+    return vscode.env.openExternal(vscode.Uri.parse(url, true));
   }
 
   prefs(): EditorPrefs {

@@ -10,6 +10,7 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 
 ### Changed
 
+- Properties: values are colored by YAML type, long keys and values wrap instead of being cut off, the YAML view grows to fit, and frontmatter with nested or multi-line values opens as YAML only (with a tooltip saying why).
 - The toolbar now sits at the top of the editor by default (`kenMarkdown.toolbar`: `"bottom"` puts it back).
 
 ## [0.4.0] - 2026-10-22

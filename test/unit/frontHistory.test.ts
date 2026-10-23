@@ -116,12 +116,57 @@ describe("frontmatter in the undo history", () => {
     const outside = "---\ntitle: Other\n---\n";
     app.front = outside;
     resetFront(view, { front: outside, gap: "\n" });
-    undo(view.state, view.dispatch);
+    // One press goes past the stale frontmatter step to the typing before it.
+    expect(undo(view.state, view.dispatch)).toBe(true);
+    expect(text()).toBe("Hello");
     expect(app.front).toBe(outside);
     expect(historyFront(view.state)?.front).toBe(outside);
+    // Redo skips it the same way.
+    expect(redo(view.state, view.dispatch)).toBe(true);
+    expect(text()).toBe("Hello!");
+    expect(app.front).toBe(outside);
+    expect(app.restored).toEqual([]);
+    await editor.destroy();
+  });
+
+  it("skips several stale frontmatter undos in one press, and stops when nothing else is left", async () => {
+    const { editor, view, app, type, editFront, text } = await setup();
+    type("!");
+    editFront(setProperty(FRONT, "a", "1"));
+    editFront(setProperty(setProperty(FRONT, "a", "1"), "b", "2"));
+    const outside = "---\ntitle: Other\n---\n";
+    app.front = outside;
+    resetFront(view, { front: outside, gap: "\n" });
     undo(view.state, view.dispatch);
     expect(text()).toBe("Hello");
     expect(app.front).toBe(outside);
+    // Nothing visible is left to undo.
+    const doc = view.state.doc;
+    undo(view.state, view.dispatch);
+    expect(view.state.doc).toBe(doc);
+    expect(app.front).toBe(outside);
+    await editor.destroy();
+  });
+
+  it("still undoes a frontmatter edit made after the change from outside", async () => {
+    const { editor, view, app, type, editFront, text } = await setup();
+    type("!");
+    editFront(setProperty(FRONT, "a", "1"));
+    const outside = "---\ntitle: Other\n---\n";
+    app.front = outside;
+    resetFront(view, { front: outside, gap: "\n" });
+    const edited = setProperty(outside, "b", "2");
+    editFront(edited);
+    undo(view.state, view.dispatch);
+    expect(app.front).toBe(outside);
+    expect(text()).toBe("Hello!");
+    undo(view.state, view.dispatch);
+    expect(text()).toBe("Hello");
+    expect(app.front).toBe(outside);
+    redo(view.state, view.dispatch);
+    expect(text()).toBe("Hello!");
+    redo(view.state, view.dispatch);
+    expect(app.front).toBe(edited);
     await editor.destroy();
   });
 

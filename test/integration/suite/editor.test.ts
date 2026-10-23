@@ -241,6 +241,21 @@ describe("Ken Markdown Editor", function () {
     assert.ok(doc.getText().includes("Undo me. first second\n"), "redo restores exactly one step");
   });
 
+  it("writes the file's own bytes back once every edit is undone", async () => {
+    // Syntax the serializer would normalize: `=====`, `| --- |`, `*` bullets.
+    const uri = fixture("undo-bytes.md");
+    const doc = await openEditor(uri);
+    const original = doc.getText();
+    assert.ok(await webview(uri, { kind: "caretAfter", text: "Type here." }));
+    await webview(uri, { kind: "insertText", text: " Typed.", at: "caret" });
+    await until("edit", () => doc.getText(), (t) => t.includes("Type here. Typed."));
+    assert.notStrictEqual(doc.getText(), original);
+    await vscode.commands.executeCommand("kenMarkdown.undo");
+    await until("undone", () => doc.getText(), (t) => !t.includes("Typed."));
+    await sleep(700);
+    assert.strictEqual(doc.getText(), original, "the original bytes, not a normalized rewrite");
+  });
+
   it("opens the slash menu on / and runs the chosen command", async () => {
     const uri = fixture("sample.md");
     const doc = await openEditor(uri);

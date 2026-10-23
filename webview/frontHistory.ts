@@ -10,6 +10,10 @@
 // the order they were made. This plugin keeps the frontmatter the history
 // says; when an undo or redo changes it, `onRestore` hands it to main.ts.
 //
+// A change from outside (`resetFront`) makes older frontmatter steps stale:
+// undoing them would overwrite it, so they are skipped, and an undo or redo
+// that would only have skipped them goes on to the next event.
+//
 // In a collaboration session the shared history (y-prosemirror's undo
 // manager) is used instead and tracks the shared frontmatter itself
 // (collab.ts); the steps recorded here are then simply not undone.
@@ -17,6 +21,7 @@ import { Plugin, PluginKey, type EditorState, type Transaction } from "@milkdown
 import { Step, StepMap, StepResult, type Mappable } from "@milkdown/kit/prose/transform";
 import type { Node, Schema } from "@milkdown/kit/prose/model";
 import type { EditorView } from "@milkdown/kit/prose/view";
+import { redo, undo } from "@milkdown/kit/prose/history";
 
 /** The frontmatter block and the blank lines that follow it, kept exactly. */
 export interface FrontState {
@@ -65,12 +70,18 @@ export class FrontStep extends Step {
 }
 Step.jsonID("ken-front", FrontStep);
 
-/** The history's frontmatter; `restored` when an undo or redo (not an edit here) set it. */
+/**
+ * The history's frontmatter; `restored` when an undo or redo (not an edit
+ * here) set it; `skip` when an undo or redo only had stale steps to take.
+ */
 interface HistoryFront extends FrontState {
   restored: boolean;
+  skip: "undo" | "redo" | null;
 }
 
 const key = new PluginKey<HistoryFront>("ken-front-history");
+/** prosemirror-history's plugin key name: its undo and redo transactions carry this meta. */
+const HISTORY = "history$";
 
 /** Frontmatter edits closer together than this undo as one. */
 export const FRONT_GROUP_MS = 500;
@@ -83,23 +94,39 @@ export function frontHistory(onRestore: (state: FrontState) => void): Plugin<His
   return new Plugin<HistoryFront>({
     key,
     state: {
-      init: () => ({ front: "", gap: "", restored: false }),
+      init: () => ({ front: "", gap: "", restored: false, skip: null }),
       apply(tr, value) {
         const meta = tr.getMeta(key) as { reset?: FrontState; own?: boolean } | undefined;
-        if (meta?.reset) return { ...meta.reset, restored: false };
+        if (meta?.reset) return { ...meta.reset, restored: false, skip: null };
         let next: FrontState = value;
         for (const step of tr.steps) {
           // A step written against other frontmatter (it changed outside the
           // editor since) is stale: undoing it would throw that change away.
           if (step instanceof FrontStep && same(step.from, next)) next = step.to;
         }
-        return next === value ? value : { front: next.front, gap: next.gap, restored: !meta?.own };
+        if (next !== value) return { front: next.front, gap: next.gap, restored: !meta?.own, skip: null };
+        // An undo or redo (prosemirror-history's own transactions) that only
+        // had stale frontmatter steps changed nothing you can see.
+        const popped = tr.getMeta(HISTORY) as { redo: boolean } | undefined;
+        const skip =
+          popped && tr.steps.length > 0 && tr.steps.every((step) => step instanceof FrontStep)
+            ? popped.redo
+              ? "redo"
+              : "undo"
+            : null;
+        return skip || value.skip ? { ...value, restored: false, skip } : value;
       },
     },
     view: () => ({
       update(view, prev) {
         const now = key.getState(view.state)!;
-        if (now !== key.getState(prev) && now.restored) onRestore({ front: now.front, gap: now.gap });
+        if (now === key.getState(prev)) return;
+        if (now.restored) onRestore({ front: now.front, gap: now.gap });
+        // Go on to the next event, so one press always does something. The
+        // shared history of a collaboration session (y-prosemirror) never
+        // sets the meta, so it is left alone.
+        if (now.skip === "undo") undo(view.state, view.dispatch);
+        else if (now.skip === "redo") redo(view.state, view.dispatch);
       },
     }),
   });

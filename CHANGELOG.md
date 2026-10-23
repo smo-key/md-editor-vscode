@@ -15,6 +15,9 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 ### Fixed
 
 - Slash menu: Enter runs the item you highlighted with the arrow keys or the mouse. Before, after typing a shortcut word such as `/table` or `/code`, Enter ran that word's block whichever item was highlighted. Divider on an empty line now leaves a new empty line after the rule to type on.
+- Undoing every edit puts the file back exactly as it was, instead of rewriting it with normalized syntax (`*` bullets as `-`, underlined headings as `#`, `| --- |` table rules).
+- Replying to or resolving a comment changes only the comments block at the end of the file; the rest of the file is no longer rewritten.
+- After the properties change outside the editor, one Undo (or Redo) press always undoes something you can see, instead of first skipping a properties edit it can no longer apply.
 
 ## [0.5.0] - 2026-10-23
 

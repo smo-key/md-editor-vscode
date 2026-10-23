@@ -37,6 +37,21 @@ export function splitThreads(text: string): { body: string; block: string } {
   return { body: body ? body + (text.includes("\r\n") ? "\r\n" : "\n") : "", block: m[0].replace(/^\r?\n/, "") };
 }
 
+/**
+ * `text` with its trailing threads block replaced by `block` ("" removes it),
+ * the text before it kept byte for byte. A block added to text without one
+ * follows a blank line, as the editor writes it.
+ */
+export function replaceThreads(text: string, block: string): string {
+  const m = BLOCK.exec(text);
+  // The match takes the line break before the block: the text keeps it.
+  const before = m ? text.slice(0, m.index) + (m.index > 0 ? "\n" : "") : text;
+  if (!block) return m && before.endsWith("\n\n") ? before.slice(0, -1) : before;
+  if (!before) return block;
+  if (m) return before + block;
+  return before.replace(/\n*$/, "\n") + "\n" + block;
+}
+
 /** Threads from the block's text (tolerant: a bad line loses only itself). */
 export function parseThreads(block: string): Map<string, CommentThread> {
   const threads = new Map<string, CommentThread>();

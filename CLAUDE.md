@@ -28,7 +28,7 @@ When a piece of work is complete:
 
 1. **Test it.** Run `npm run typecheck` and `npm test` (what CI runs, in `.github/workflows/ci.yml`), plus `npm run build` if you touched the bundles or `esbuild.mjs`. Add or update unit tests for behavior you changed. Run `npm run test:integration` when you changed the host↔webview protocol, `provider.ts`, or anything that only shows up in real VS Code.
 2. **Fix failures before committing.** Never commit with failing typecheck or tests. If a failure is unrelated to your change, stop and report it with the output instead of committing around it.
-3. **Commit.** Stage only the files you changed (no stray fixture edits, `dist/`, `out/` or `.vsix`), with a message matching the history: `Area: what changed` (e.g. `Properties: no default title when adding frontmatter`). User-facing changes also get a line under `## [Unreleased]` in `CHANGELOG.md`, in the same commit.
+3. **Commit.** Stage only the files you changed (no stray fixture edits, `dist/`, `out/` or `.vsix`), with a [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) message: `type(scope): description` (e.g. `feat(properties): color values by YAML type`, `fix(toc): …`, `docs: …`; `!` or a `BREAKING CHANGE:` footer for breaking changes). Release commits made by `/release` keep `Release v<version>`. User-facing changes also get a line under `## [Unreleased]` in `CHANGELOG.md`, in the same commit.
 4. **Don't push.** Pushing is left to the user. The only exception is the `/release` skill, which pushes when the user explicitly invokes it.
 
 ## Architecture

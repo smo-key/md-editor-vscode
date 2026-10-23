@@ -6,6 +6,7 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 
 ### Added
 
+- Heading numbers: turn on `kenMarkdown.headingNumbers.enabled` to show a small, muted number such as 1.a beside each heading and in the table of contents, with a style per level (1, a, A, i, I or none) and a separator. Display only: nothing is written to the file.
 - Lucidchart and Lucidspark links on a line of their own show a live preview, with Edit and Open in Lucidchart buttons (they open your browser) and Reload; linked published Lucid images get the same buttons. Set `kenMarkdown.lucidchart.preview` to `onClick` or `off` to load nothing from Lucid until you ask.
 - New setting `kenMarkdown.paragraphSpacing` (in em, default 0.65) sets the space between paragraphs, separately from line height and list item spacing. The default is a little roomier than before.
 - A **What's New** page after updating to a new minor or major version, showing the release notes since your previous version. Open it any time with **Ken Markdown: Show What's New**.

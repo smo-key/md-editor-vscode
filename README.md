@@ -127,6 +127,7 @@ Every editing action is a VS Code command, so you can change, remove or add keys
 | `kenMarkdown.quoteFontFamily` | *(heading font)* | Block quote font stack (set in italics). |
 | `kenMarkdown.codeFontFamily` | JetBrains Mono | Inline code and code block font stack. |
 | `kenMarkdown.lineHeight` | `1.85` | Body line height. |
+| `kenMarkdown.paragraphSpacing` | `0.65` | Space between paragraphs, in em (multiples of the font size). Doesn't change list item spacing. |
 | `kenMarkdown.maxWidth` | `720` | Width of the text column in px. |
 | `kenMarkdown.toolbar` | `bottom` | `bottom`, `top` or `hidden`. |
 | `kenMarkdown.alwaysShowProperties` | `false` | Show the Properties panel on every document. |

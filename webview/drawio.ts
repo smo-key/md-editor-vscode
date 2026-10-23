@@ -17,6 +17,7 @@ import { Plugin, PluginKey } from "@milkdown/kit/prose/state";
 import type { EditorView } from "@milkdown/kit/prose/view";
 import { $prose } from "@milkdown/kit/utils";
 import { Pencil, createElement } from "lucide";
+import { DRAWIO_ORIGIN, isFrameMessage } from "./hostMessage";
 
 export interface DrawioHost {
   /** Root-relative path for an image src in the document, or null. */
@@ -62,7 +63,7 @@ const fromDataUri = (uri: string) => {
   return Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
 };
 
-const EDITOR = "https://embed.diagrams.net/";
+const EDITOR = `${DRAWIO_ORIGIN}/`;
 
 let open: { close: () => void } | null = null;
 
@@ -125,7 +126,7 @@ export async function editDiagram(src: string, onSaved?: () => void): Promise<vo
     if (e.key === "Escape" && !ready) close();
   };
   const onMessage = async (e: MessageEvent) => {
-    if (e.source !== frame.contentWindow || typeof e.data !== "string") return;
+    if (!isFrameMessage(e, frame.contentWindow, DRAWIO_ORIGIN) || typeof e.data !== "string") return;
     let msg: { event?: string; xml?: string; exit?: boolean; data?: string; modified?: boolean };
     try {
       msg = JSON.parse(e.data);

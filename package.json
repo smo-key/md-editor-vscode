@@ -683,6 +683,20 @@
           "maximum": 3,
           "markdownDescription": "Space between paragraphs, as a multiple of the font size. List items are spaced by `#kenMarkdown.lineHeight#` instead."
         },
+        "kenMarkdown.headingSpacingBefore": {
+          "type": "number",
+          "default": 2.25,
+          "minimum": 0,
+          "maximum": 6,
+          "markdownDescription": "Space above headings, as a multiple of the font size. This is the space above a body-size heading (H6); larger headings get proportionally more, up to 1.35× for an H1. After a paragraph it replaces `#kenMarkdown.paragraphSpacing#` rather than adding to it. The first heading of the document is not moved."
+        },
+        "kenMarkdown.headingSpacingAfter": {
+          "type": "number",
+          "default": 0.55,
+          "minimum": 0,
+          "maximum": 3,
+          "markdownDescription": "Space below headings, as a multiple of the font size. This is the space below a body-size heading (H6); it grows with the heading's size, so an H1 gets 2.25× as much."
+        },
         "kenMarkdown.maxWidth": {
           "type": "number",
           "default": 720,

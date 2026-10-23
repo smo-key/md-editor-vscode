@@ -8,6 +8,16 @@ set -euo pipefail
 cd "$(dirname "$0")"
 CODE="${CODE:-code}"
 
+# Without `code` on the PATH, fall back to the CLI inside the macOS app bundle.
+if [ "$CODE" = code ] && ! command -v code >/dev/null 2>&1; then
+  for app in "/Applications/Visual Studio Code.app" "$HOME/Applications/Visual Studio Code.app"; do
+    if [ -x "$app/Contents/Resources/app/bin/code" ]; then
+      CODE="$app/Contents/Resources/app/bin/code"
+      break
+    fi
+  done
+fi
+
 if ! command -v "$CODE" >/dev/null 2>&1; then
   echo "error: '$CODE' not found. In VS Code run 'Shell Command: Install 'code' command in PATH', or set CODE=…" >&2
   exit 1

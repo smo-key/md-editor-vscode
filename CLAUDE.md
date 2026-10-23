@@ -20,7 +20,7 @@ npm run package             # .vsix;  ./install.sh builds + installs into local 
 
 Releases are automated: `.github/workflows/release.yml` publishes to the Marketplace when a push to `main` changes the `package.json` version to one without a `v<version>` tag. Start one with the `/release` skill (`.claude/skills/release/SKILL.md`), which bumps the version and moves `## [Unreleased]` in `CHANGELOG.md` to a dated version section (the workflow fails without it). Never tag or `vsce publish` manually. Add user-facing changes to `## [Unreleased]` as you make them.
 
-No linter is configured. `harness/` (Playwright/Chromium against `dist/webview` with a captured VS Code theme) is for visual/real-keystroke checks (`check-editing`, `check-comments`, `check-collab`, `check-drawio`, `check-lucid`, `real-keys`, `screenshot`): `KEN_DUMP_THEMES=/tmp/themes npm run test:integration`, then `node harness/check-editing.mjs <theme.json>` or `node harness/screenshot.mjs <theme.json> <md> <out.png>`.
+No linter is configured. `harness/` (Playwright/Chromium against `dist/webview` with a captured VS Code theme) is for visual/real-keystroke checks (`check-editing`, `check-list-tab`, `check-comments`, `check-collab`, `check-drawio`, `check-lucid`, `real-keys`, `screenshot`): `KEN_DUMP_THEMES=/tmp/themes npm run test:integration`, then `node harness/check-editing.mjs <theme.json>` or `node harness/screenshot.mjs <theme.json> <md> <out.png>`.
 
 ## Workflow: test, then commit; never push
 

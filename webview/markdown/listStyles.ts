@@ -31,7 +31,6 @@ import {
   orderedListSchema,
 } from "@milkdown/kit/preset/commonmark";
 import { InputRule } from "@milkdown/kit/prose/inputrules";
-import { keymap } from "@milkdown/kit/prose/keymap";
 import {
   Fragment,
   Slice,
@@ -52,7 +51,7 @@ import type {
   ParserState,
   SerializerState,
 } from "@milkdown/kit/transformer";
-import { $inputRule, $prose, $remark } from "@milkdown/kit/utils";
+import { $inputRule, $prose, $remark, $useKeymap } from "@milkdown/kit/utils";
 import { isRemoteChange } from "../remoteChange";
 
 export type ListDelimiter = "." | ")";
@@ -429,12 +428,57 @@ export function liftListItemCommand(ctx: Ctx): Command {
   };
 }
 
-export const listKeymap = $prose((ctx) =>
-  keymap({
-    Tab: sinkListItemCommand(ctx),
-    "Shift-Tab": liftListItemCommand(ctx),
-  }),
-);
+/**
+ * Whether Tab / Shift+Tab at the selection belong to a list: the selection
+ * starts in a list item, and not in a code block or in a table inside that
+ * item (those keep their own Tab).
+ */
+function tabBelongsToList(state: EditorState, types: ReturnType<typeof listTypes>): boolean {
+  const { $from } = state.selection;
+  if ($from.parent.type.spec.code) return false;
+  for (let d = $from.depth; d > 0; d--) {
+    const node = $from.node(d);
+    if (node.type.name === "table") return false;
+    if (node.type === types.item) return true;
+  }
+  return false;
+}
+
+/** Whether the selected items sit in a nested list, so they can be outdented. */
+function canOutdent(state: EditorState, types: ReturnType<typeof listTypes>): boolean {
+  const { $from, $to } = state.selection;
+  const range = $from.blockRange($to, (node) => node.childCount > 0 && node.firstChild!.type === types.item);
+  return !!range && range.depth >= 2 && $from.node(range.depth - 1).type === types.item;
+}
+
+/**
+ * Tab / Shift+Tab in a list item indent / outdent it, or do nothing when it
+ * can't move (the first item of a level; a top-level item). They always claim
+ * the key there, so it never falls through to Crepe's indent plugin, which
+ * would insert four spaces into the item. Runs ahead of the preset's list
+ * keymap but after the table (200) and heading (150) keys.
+ */
+export const listTabKeymap = $useKeymap("kenListTab", {
+  Indent: {
+    priority: 120,
+    shortcuts: "Tab",
+    command: (ctx: Ctx) => (state, dispatch) => {
+      if (!tabBelongsToList(state, listTypes(ctx))) return false;
+      sinkListItemCommand(ctx)(state, dispatch);
+      return true;
+    },
+  },
+  Outdent: {
+    priority: 120,
+    shortcuts: "Shift-Tab",
+    command: (ctx: Ctx) => (state, dispatch) => {
+      const types = listTypes(ctx);
+      if (!tabBelongsToList(state, types)) return false;
+      if (canOutdent(state, types)) liftListItemCommand(ctx)(state, dispatch);
+      return true;
+    },
+  },
+});
 
 // ---------------------------------------------------------------------------
 // Typing `a. `, `a) ` and `1) `.
@@ -543,7 +587,7 @@ export const listStylePlugins = [
   remarkListDelimiterPlugin,
   delimitedOrderedListSchema,
   listLabelPlugin,
-  listKeymap,
+  listTabKeymap,
   letteredListInputRule,
   parenListInputRule,
 ].flat();

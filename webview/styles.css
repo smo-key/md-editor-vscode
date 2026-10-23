@@ -1546,7 +1546,7 @@ body.ken-col-resizing * {
   flex: 1;
   min-width: 0;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
   margin-left: -24px;
   padding: 4px 6px 4px 4px;
@@ -1575,33 +1575,34 @@ body.ken-col-resizing * {
   gap: 5px;
   font-weight: 600;
 }
+/* The preview wraps rather than clips: every key is shown whole. */
 .ken-fm-preview {
   min-width: 0;
   display: flex;
-  gap: 6px;
-  overflow: hidden;
-  white-space: nowrap;
+  flex-wrap: wrap;
+  gap: 3px 6px;
 }
-/* Tags: monochrome, an outline in the text's own colour. */
+/* Tags: an outline in the text's own colour; the value coloured by YAML type. */
 .ken-fm-chip {
   display: inline-flex;
   gap: 4px;
-  max-width: 220px;
+  min-width: 0;
+  max-width: 100%;
   padding: 0 7px;
   border: 1px solid color-mix(in srgb, currentColor 35%, transparent);
   border-radius: 10px;
   background: transparent;
   color: inherit;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 .ken-fm-chip-key {
-  opacity: 0.7;
+  flex: none;
+  color: var(--vscode-symbolIcon-variableForeground, inherit);
+  opacity: 0.85;
 }
 .ken-fm-chip-value {
+  min-width: 0;
   color: var(--vscode-foreground, var(--vscode-editor-foreground));
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
 }
 .ken-fm-more {
   opacity: 0.7;
@@ -1630,58 +1631,137 @@ body.ken-col-resizing * {
   color: var(--vscode-foreground, var(--vscode-editor-foreground));
   background: var(--vscode-toolbar-activeBackground, var(--vscode-toolbar-hoverBackground));
 }
+/* Only YAML can show this frontmatter: the switch stays, greyed, to say why. */
+.ken-fm-button[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: default;
+}
+.ken-fm-button[aria-disabled="true"]:hover {
+  color: inherit;
+  background: transparent;
+}
 .ken-fm-button.danger:hover {
   color: var(--vscode-errorForeground);
 }
+/* One grid for all rows (subgrid), so values line up while the key column is
+   as wide as the longest key, up to a share of the width past which keys wrap. */
 .ken-fm-rows {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
+  display: grid;
+  grid-template-columns: fit-content(45%) minmax(0, 1fr) 24px;
+  column-gap: 6px;
+  row-gap: 1px;
   padding: 2px 0 8px;
 }
 .ken-fm-row {
+  grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: minmax(80px, 160px) 1fr 24px;
-  gap: 6px;
+  grid-template-columns: subgrid;
   align-items: start;
 }
-/* Fields read as text until hovered or focused. */
+/* A field is a textarea laid over a coloured mirror of its text. The mirror
+   sizes the field: values wrap and the YAML view grows instead of scrolling.
+   Both share every text metric so the caret sits on the coloured glyphs.
+   Fields read as text until hovered or focused. */
+.ken-fm-field {
+  position: relative;
+  box-sizing: border-box;
+  min-width: 0;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+}
+.ken-fm-key-field {
+  min-width: 80px;
+}
+.ken-fm-field:hover {
+  background: var(--vscode-input-background);
+}
+.ken-fm-field:focus-within {
+  border-color: var(--vscode-focusBorder);
+  background: var(--vscode-input-background);
+}
+.ken-fm-mirror,
 .ken-fm-key,
 .ken-fm-value,
 .ken-fm-raw {
   box-sizing: border-box;
-  width: 100%;
+  margin: 0;
   padding: 2px 6px;
-  border: 1px solid transparent;
-  border-radius: 3px;
-  background: transparent;
-  color: var(--vscode-foreground, var(--vscode-editor-foreground));
+  border: none;
   font-family: var(--vscode-editor-font-family, var(--font-mono));
   font-size: 12px;
   line-height: 1.5;
+  letter-spacing: normal;
+  tab-size: 2;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+.ken-fm-mirror {
+  pointer-events: none;
+  color: var(--vscode-foreground, var(--vscode-editor-foreground));
+}
+.ken-fm-mirror-placeholder {
+  visibility: hidden;
+}
+.ken-fm-key,
+.ken-fm-value,
+.ken-fm-raw {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  resize: none;
+  background: transparent;
+  /* The mirror shows the text; the textarea gives caret and selection. */
+  color: transparent;
+  caret-color: var(--vscode-editorCursor-foreground, var(--vscode-foreground));
   outline: none;
 }
-.ken-fm-key {
+.ken-fm-key::placeholder,
+.ken-fm-value::placeholder,
+.ken-fm-raw::placeholder {
+  color: var(--vscode-input-placeholderForeground, var(--vscode-descriptionForeground));
+}
+.ken-fm-raw-field {
+  margin: 2px 0 8px;
+}
+.ken-fm-raw-field .ken-fm-mirror {
+  min-height: calc(3 * 1.5em + 4px);
+}
+
+/* YAML colours, borrowed like the code blocks' (codeTheme.ts): VS Code does
+   not expose syntax token colours to webviews, so the closest theme colours. */
+.ken-yaml-key {
+  color: var(--vscode-symbolIcon-variableForeground, inherit);
+}
+.ken-yaml-string {
+  color: var(--vscode-debugTokenExpression-string, inherit);
+}
+.ken-yaml-number {
+  color: var(--vscode-debugTokenExpression-number, inherit);
+}
+.ken-yaml-bool {
+  color: var(--vscode-debugTokenExpression-boolean, inherit);
+}
+.ken-yaml-null {
+  color: var(--vscode-debugTokenExpression-boolean, inherit);
+  font-style: italic;
+}
+.ken-yaml-date {
+  color: var(--vscode-symbolIcon-constantForeground, var(--vscode-debugTokenExpression-number, inherit));
+}
+.ken-yaml-punct {
   color: var(--vscode-descriptionForeground);
 }
-.ken-fm-key:hover,
-.ken-fm-value:hover,
-.ken-fm-raw:hover {
-  background: var(--vscode-input-background);
+.ken-yaml-comment {
+  color: var(--vscode-descriptionForeground);
+  font-style: italic;
 }
-.ken-fm-key:focus,
-.ken-fm-value:focus,
-.ken-fm-raw:focus {
-  border-color: var(--vscode-focusBorder);
-  background: var(--vscode-input-background);
-}
-textarea.ken-fm-value,
-.ken-fm-raw {
-  resize: vertical;
-}
-.ken-fm-raw {
-  display: block;
-  margin: 2px 0 8px;
+.ken-yaml-anchor,
+.ken-yaml-tag {
+  color: var(--vscode-symbolIcon-classForeground, inherit);
 }
 .ken-fm-remove {
   opacity: 0;
@@ -1691,7 +1771,8 @@ textarea.ken-fm-value,
   opacity: 1;
 }
 .ken-fm-add {
-  align-self: flex-start;
+  grid-column: 1 / -1;
+  justify-self: start;
   padding: 0 8px 0 4px;
 }
 

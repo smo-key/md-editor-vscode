@@ -93,6 +93,56 @@ describe("Tab in a plain paragraph", () => {
       expect((await reopen(md)).md).toBe(md);
     }
   });
+
+  // An edge tab must not skip the other text escapes, above all the `$` that
+  // keeps a literal dollar pair from reopening as math. (Only the opening `$`
+  // needs its escape; mathSyntax.ts writes `\$x$`.)
+  it("a literal \\$ next to an edge tab keeps its escape", async () => {
+    const mathCount = async (md: string) => {
+      let math = 0;
+      await withEditor(md, (view) => {
+        view.state.doc.descendants((n) => {
+          if (n.type.name === "math_inline") math++;
+        });
+      });
+      return math;
+    };
+    for (const [md, saved] of [
+      ["&#x9;cost \\$x\\$ here\n", "&#x9;cost \\$x$ here\n"],
+      ["cost \\$x\\$ here&#x9;\n", "cost \\$x$ here&#x9;\n"],
+      ["&#x9;cost \\$x$ here&#x9;\n", "&#x9;cost \\$x$ here&#x9;\n"],
+      ["&#x9;\tcost \\$x$\n", "&#x9;\tcost \\$x$\n"],
+      ["cost\t\\$x$ here\n", "cost\t\\$x$ here\n"],
+      ["\\$x$&#x9;\n", "\\$x$&#x9;\n"],
+    ]) {
+      expect(await mathCount(md)).toBe(0);
+      const out = await reopen(md);
+      expect(out).toMatchObject({ type: "paragraph", md: saved });
+      expect(out.text).toContain("$x$");
+      expect(await mathCount(saved)).toBe(0);
+    }
+  });
+
+  it("math next to an edge tab stays math", async () => {
+    for (const md of ["&#x9;cost $x$ here\n", "cost $x$ here&#x9;\n", "a\t$x$\n"]) {
+      let math = 0;
+      let saved = "";
+      await withEditor(md, (view, out) => {
+        view.state.doc.descendants((n) => {
+          if (n.type.name === "math_inline") math++;
+        });
+        saved = out();
+      });
+      expect(math).toBe(1);
+      expect(saved).toBe(md);
+    }
+  });
+
+  it("other escapes survive next to an edge tab", async () => {
+    for (const md of ["&#x9;a \\*b\\* c&#x9;\n", "&#x9;1\\. x\n", "x \\_y\\_&#x9;\n"]) {
+      expect((await reopen(md)).md).toBe(md);
+    }
+  });
 });
 
 describe("tabSizeValue (editor.tabSize to the webview)", () => {

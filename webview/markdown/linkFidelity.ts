@@ -16,6 +16,8 @@
  * Links made in the editor have no form (`null`) and serialize as before.
  */
 import type { Mark, MarkType } from "@milkdown/kit/prose/model";
+import type { Ctx } from "@milkdown/kit/ctx";
+import { remarkStringifyOptionsCtx } from "@milkdown/kit/core";
 import { linkSchema } from "@milkdown/kit/preset/commonmark";
 import type { MarkdownNode, ParserState, SerializerState } from "@milkdown/kit/transformer";
 import { $remark } from "@milkdown/kit/utils";
@@ -86,6 +88,58 @@ function safeAround(text: string, before: string, after: string, state: ToMarkdo
   return (beforeOk.test(b) || (cell && b === "|")) && (SAFE_AFTER.test(a) || (cell && a === "|"));
 }
 
+// The text after a literal often starts with an escaped `_`, `*` or `~`
+// (`https://a.com/a_b\_ c`), which mdast-util-to-markdown escapes
+// everywhere. An email literal ends before a backslash, so it stays bare. A
+// `http(s)://` or `www.` literal would take the backslash into its URL, so
+// the escape is dropped instead (the text after is written `_ c`), which GFM
+// reads back the same way: the mark is trailing punctuation, so it ends the
+// literal, and before whitespace or the end of the line it can't open
+// emphasis. It could close one, so this is never done inside emphasis,
+// strong or strikethrough.
+const UNESCAPE_AFTER = /^[_*~](?=[ \t\r\n]|$)/;
+const ATTENTION = ["emphasis", "strong", "delete"];
+
+/** Text nodes whose leading escape a bare literal before them dropped. */
+const unescaped = new WeakSet<MdNode>();
+
+/** The text node after `node` whose leading escape can be dropped, if any. */
+function unescapableNext(node: MdNode, parent: unknown, state: ToMarkdownState): MdNode | null {
+  const p = parent as MdNode | undefined;
+  if (!p?.children || ATTENTION.includes(p.type) || state.stack.some((c) => ATTENTION.includes(c))) return null;
+  const i = p.children.indexOf(node);
+  const next = i >= 0 ? p.children[i + 1] : undefined;
+  if (next?.type !== "text" || !next.value || !UNESCAPE_AFTER.test(next.value)) return null;
+  // A lone mark must end the line: only the last text of a paragraph or heading.
+  const last = i + 2 === p.children.length && (p.type === "paragraph" || p.type === "heading");
+  return next.value.length > 1 || last ? next : null;
+}
+
+type TextHandle = (node: MdNode, parent: unknown, state: unknown, info: Info) => string;
+
+/**
+ * Wraps the stringifier's `text` handler so a text node after a bare literal
+ * loses the escape on its first character (see `unescapableNext`).
+ */
+export function withLiteralEnds(text: TextHandle): TextHandle {
+  return (node, parent, state, info) => {
+    const out = text(node, parent, state, info);
+    if (!unescaped.has(node)) return out;
+    unescaped.delete(node);
+    return out.startsWith(`\\${node.value!.charAt(0)}`) ? out.slice(1) : out;
+  };
+}
+
+/** Pass to `editor.config(...)`: lets a literal stay bare before an escaped mark. */
+export function configureLinkText(ctx: Ctx): void {
+  ctx.update(remarkStringifyOptionsCtx, (opts) => {
+    const handlers = (opts.handlers ?? {}) as Record<string, unknown>;
+    const text = handlers.text as TextHandle | undefined;
+    if (!text) return opts;
+    return { ...opts, handlers: { ...handlers, text: withLiteralEnds(text) } as typeof opts.handlers };
+  });
+}
+
 interface Info {
   before: string;
   after: string;
@@ -108,7 +162,16 @@ export const linkHandler: Handle & { peek: Handle } = Object.assign(
     const form = formOf(node);
     if (form === "literal") {
       const text = literalText(node);
-      if (text !== null && safeAround(text, info.before, info.after, state)) return text;
+      if (text !== null && info.after.startsWith("\\")) {
+        const email = /^mailto:/i.test(node.url ?? "");
+        const next = email ? null : unescapableNext(node, parent, state);
+        if (email || next) {
+          if (safeAround(text, info.before, "", state)) {
+            if (next) unescaped.add(next);
+            return text;
+          }
+        }
+      } else if (text !== null && safeAround(text, info.before, info.after, state)) return text;
     }
     if (form === "inline") {
       const prev = state.options.resourceLink;

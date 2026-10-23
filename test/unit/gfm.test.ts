@@ -216,6 +216,77 @@ describe("link form fidelity", () => {
     expect(await roundTrip(md)).toBe(md);
   });
 
+  /** What a reader sees: each link's URL and text, the text, and the emphasis. */
+  async function shown(markdown: string) {
+    const ed = await load(markdown);
+    const pm = ed.root.querySelector(".ProseMirror")!;
+    const links = [...pm.querySelectorAll("a")].map((a) => [a.getAttribute("href"), a.textContent]);
+    // Per non-space character: which of emphasis, strong and strikethrough
+    // it is in. (Spaces are skipped: emphasis around a link is written
+    // `*a* *https://…*`, which shows the same.)
+    let em = "";
+    const walker = document.createTreeWalker(pm, NodeFilter.SHOW_TEXT);
+    for (let t = walker.nextNode(); t; t = walker.nextNode()) {
+      const tag = ["EM", "STRONG", "DEL"].map((n) => (t!.parentElement!.closest(n) ? n[0] : "-")).join("");
+      em += `${tag} `.repeat(t.textContent!.replace(/\s/g, "").length);
+    }
+    const out = { links, text: pm.textContent, em };
+    await ed.destroy();
+    return out;
+  }
+
+  // The text after a literal often starts with a mark the serializer escapes;
+  // a `\` right after a URL literal would join its URL.
+  it.each([
+    ["_ after a literal", "a https://a.com/a_b_ c\n", "https://a.com/a_b"],
+    ["* after a literal", "x https://a.com/*x* y\n", "https://a.com/*x"],
+    ["~ after a www literal", "a www.a.com/x~ c\n", "http://www.a.com/x"],
+    ["_ ending the line", "Ends https://a.com/x_\n", "https://a.com/x"],
+    ["escaped * after an email literal", "Mail m@a.com\\* now\n", "mailto:m@a.com"],
+  ])("a literal before an escaped %s stays bare", async (_name, md, url) => {
+    const out = await roundTrip(md);
+    expect(out).toBe(md);
+    const before = await shown(md);
+    expect(before.links.map(([href]) => href)).toEqual([url]);
+    expect(await shown(out)).toEqual(before);
+  });
+
+  it.each([
+    // These URLs end in a backslash (a literal keeps it in its URL).
+    "*a https://a.com/x\\* b*\n",
+    "**a https://a.com/x\\* b**\n",
+    "_a https://a.com/x\\_ b_\n",
+    "a https://a.com/x\\ b\n",
+    "(https://a.com/x\\)\n",
+    "a https://a.com/x\\_c\n",
+    "a https://a.com/x_\\_ c\n",
+  ])("a literal before an escape keeps its meaning in %j", async (md) => {
+    const before = await shown(md);
+    const out = await roundTrip(md);
+    expect(await shown(out)).toEqual(before);
+    expect(await roundTrip(out)).toBe(out);
+  });
+
+  it.each([
+    ["*a https://a.com/x b*\n", "emphasis"],
+    ["**a https://a.com/x b**\n", "strong"],
+    ["~~a https://a.com/x b~~\n", "strike_through"],
+  ])("a mark typed after a literal in %j can't close the emphasis", async (md, mark) => {
+    for (const ch of ["*", "_", "~"]) {
+      const { ed, view } = await withView(md);
+      const { schema } = view.state;
+      const pos = after(view, "https://a.com/x");
+      view.dispatch(view.state.tr.insert(pos, schema.text(ch, [schema.marks[mark]!.create()])));
+      const out = normalizeTrailingNewlines(ed.markdown());
+      await ed.destroy();
+      const back = await shown(out);
+      expect(back.links).toEqual([["https://a.com/x", "https://a.com/x"]]);
+      expect(back.text).toBe(`a https://a.com/x${ch} b`);
+      const tag = { emphasis: "E--", strong: "-S-", strike_through: "--D" }[mark]!;
+      expect(back.em).toBe(`${tag} `.repeat(back.text!.replace(/\s/g, "").length));
+    }
+  });
+
   async function withView(markdown: string) {
     const ed = await load(markdown);
     const { editorViewCtx } = await import("@milkdown/kit/core");

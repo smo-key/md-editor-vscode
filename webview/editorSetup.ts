@@ -23,7 +23,7 @@ import { tocPlugins } from "./markdown/toc";
 import { tableLayoutPlugin } from "./markdown/tableLayout";
 import { configureListDelimiter, listStylePlugins } from "./markdown/listStyles";
 import { emptyTableCellSchemas, imageBlockAltSchema, tightListJoin } from "./markdown/gfmFidelity";
-import { linkFidelityPlugins } from "./markdown/linkFidelity";
+import { configureLinkText, linkFidelityPlugins } from "./markdown/linkFidelity";
 import { htmlViewPlugin, inlineHtmlPlugin } from "./markdown/htmlView";
 import { vscodeCodeTheme } from "./codeTheme";
 import { fileDropPlugin, type FileDropOptions } from "./fileDrop";
@@ -153,6 +153,7 @@ export function buildEditor(options: EditorOptions): Crepe {
   crepe.editor.use(imageBlockAltSchema);
   crepe.editor.use(emptyTableCellSchemas);
   crepe.editor.use(linkFidelityPlugins);
+  crepe.editor.config(configureLinkText);
   // Raw HTML renders as GitHub shows it, and is editable as source.
   crepe.editor.use(htmlViewPlugin(options.proxyDomURL));
   crepe.editor.use(inlineHtmlPlugin);

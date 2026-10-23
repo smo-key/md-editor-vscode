@@ -4,6 +4,8 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-23
+
 ### Added
 
 - Heading numbering: `legal-article-full` (Article I, Section 1.01, 1.01(a), 1.01(a)(i)…) and `legal-full` (1.1.1, 1.1.1(a), 1.1.1(a)(i)…) presets. The legal parents mode writes only plain letter and roman parents as digits, so zero-padded and parenthesized parts keep their style.

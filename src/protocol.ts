@@ -1,5 +1,9 @@
 /** Messages between the extension host and the editor webview. */
 
+import type { LucidPreviewMode } from "./lucidUrl";
+
+export type { LucidPreviewMode };
+
 export type ToolbarPosition = "top" | "bottom" | "hidden";
 
 export interface EditorConfig {
@@ -21,9 +25,6 @@ export interface EditorConfig {
    */
   lucidchart: LucidchartConfig;
 }
-
-/** When a Lucid link alone in its paragraph loads its preview. */
-export type LucidPreviewMode = "auto" | "onClick" | "off";
 
 export interface LucidchartConfig {
   preview: LucidPreviewMode;

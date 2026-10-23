@@ -877,6 +877,7 @@ describe("Ken Markdown Editor", function () {
       const dumpDir = process.env.KEN_DUMP_THEMES;
       if (dumpDir) {
         const fs = await import("fs");
+        fs.mkdirSync(dumpDir, { recursive: true });
         for (const theme of ["Default Light Modern", "Default Dark Modern"]) {
           await workbench.update("colorTheme", theme, vscode.ConfigurationTarget.Global);
           await sleep(800);

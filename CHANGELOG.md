@@ -6,6 +6,7 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 
 ### Added
 
+- New setting `kenMarkdown.paragraphSpacing` (in em, default 0.65) sets the space between paragraphs, separately from line height and list item spacing. The default is a little roomier than before.
 - A **What's New** page after updating to a new minor or major version, showing the release notes since your previous version. Open it any time with **Ken Markdown: Show What's New**.
 
 ### Changed

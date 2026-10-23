@@ -191,15 +191,60 @@ describe("Ken Markdown Editor", function () {
     const edit = new vscode.WorkspaceEdit();
     edit.insert(uri, doc.positionAt(doc.getText().length), "\nAdded from outside.\n");
     assert.ok(await vscode.workspace.applyEdit(edit));
+    // The rendered document, not just the text the webview was sent.
     await until(
       "webview shows external edit",
-      () => webview(uri, { kind: "getMarkdown" }),
+      () => webview(uri, { kind: "getText", selector: ".milkdown .ProseMirror" }),
       (t) => String(t).includes("Added from outside."),
     );
     // Applying the host's text is not an edit: nothing is echoed back.
     const before = doc.getText();
     await sleep(500);
     assert.strictEqual(doc.getText(), before);
+  });
+
+  it("shows a change written to the file on disk", async function () {
+    // The file watcher (FSEvents on macOS) can lag by many seconds on a busy machine.
+    this.timeout(180000);
+    const fs = await import("fs");
+    // Without a working watcher VS Code itself never reloads the document
+    // (plain text editors included), so there is nothing to test.
+    const probe = fixture("watch-probe.md");
+    const watcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(vscode.workspace.workspaceFolders![0], "watch-probe.md"));
+    const seen = new Promise<boolean>((resolve) => {
+      watcher.onDidCreate(() => resolve(true));
+      watcher.onDidChange(() => resolve(true));
+      setTimeout(() => resolve(false), 30000);
+    });
+    await sleep(500);
+    fs.writeFileSync(probe.fsPath, "probe\n");
+    const watching = await seen;
+    watcher.dispose();
+    fs.rmSync(probe.fsPath, { force: true });
+    if (!watching) {
+      console.warn("skipped: VS Code's file watcher reported no change within 30s");
+      this.skip();
+    }
+    const uri = fixture("sample.md");
+    const doc = await openEditor(uri);
+    await webview(uri, { kind: "insertText", text: "Saved first. ", at: "end" });
+    await until("edit applied", () => doc.getText(), (t) => t.includes("Saved first."));
+    assert.ok(await doc.save());
+    // Another program rewrites the file: VS Code reloads the clean document,
+    // and the editor follows it.
+    const text = doc.getText().replace("# Sample document", "# Sample document\n\nWritten on disk.");
+    fs.writeFileSync(uri.fsPath, text);
+    await until(
+      "webview shows the file's new text",
+      () => webview(uri, { kind: "getText", selector: ".milkdown .ProseMirror" }),
+      (t) => String(t).includes("Written on disk."),
+      150000,
+    );
+    assert.strictEqual(doc.getText(), text);
+    // Nothing is echoed back: the document stays as the disk has it.
+    await sleep(500);
+    assert.strictEqual(doc.getText(), text);
+    assert.strictEqual(doc.isDirty, false);
   });
 
   it("undoes one step per Cmd/Ctrl+Z", async () => {

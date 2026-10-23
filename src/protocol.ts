@@ -88,6 +88,8 @@ export type TestAction =
   | { kind: "insertText"; text: string; at: "start" | "end" | "caret" }
   | { kind: "getStyle"; selector: string; property: string }
   | { kind: "count"; selector: string }
+  /** The text content of the first element matching `selector`, or null. */
+  | { kind: "getText"; selector: string }
   | { kind: "getAttr"; selector: string; name: string }
   | { kind: "click"; selector: string }
   | { kind: "fill"; selector: string; value: string }

@@ -383,6 +383,8 @@ scroll.addEventListener("pointerdown", (e) => {
 });
 scroll.addEventListener("click", (event) => {
   if (event.defaultPrevented || event.button !== 0) return;
+  // Shift+click extends the selection (markdown/blockSelection.ts).
+  if (event.shiftKey) return;
   if (pointerStart && (Math.abs(event.clientX - pointerStart.x) > 4 || Math.abs(event.clientY - pointerStart.y) > 4)) {
     return;
   }

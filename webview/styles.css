@@ -2081,3 +2081,35 @@ body[data-toolbar="top"] .ken-presence {
 .ken-avatar + .ken-avatar {
   margin-left: -6px;
 }
+
+/* --- Block selection (markdown/blockSelection.ts) ---------------------------
+   An image, table, diagram, code or math block, rule or raw HTML block that a
+   selection reaches is drawn selected as a whole: a tint over it in the
+   theme's selection colour and a focus outline, since the native highlight
+   only covers text. Inside it, the text highlight is hidden so the block reads
+   as one unit. */
+.measure .milkdown .ProseMirror .ken-block-selected {
+  position: relative;
+  outline: 2px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.measure .milkdown .ProseMirror .ken-block-selected::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  background: var(--vscode-editor-selectionBackground);
+  opacity: 0.45;
+  pointer-events: none;
+}
+.measure .milkdown .ProseMirror .ken-block-selected ::selection,
+.measure .milkdown .ProseMirror .ken-block-selected::selection {
+  background: transparent;
+}
+/* Inline images and formulas: an outline only (an <img> takes no overlay). */
+.measure .milkdown .ProseMirror img.ken-block-selected,
+.measure .milkdown .ProseMirror .ken-math.ken-block-selected {
+  outline-offset: 1px;
+}

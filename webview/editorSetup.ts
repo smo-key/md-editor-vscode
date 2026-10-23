@@ -34,6 +34,7 @@ import { configureMathText, isMathLanguage, mathPlugins, renderMathPreview } fro
 import { commentPlugins, commentSchemas } from "./comments/anchors";
 import { threadStore } from "./comments/store";
 import { toolbarPlugin } from "./toolbar";
+import { blockSelectionKeys, blockSelectionPlugin } from "./markdown/blockSelection";
 
 export interface EditorOptions {
   root: HTMLElement;
@@ -137,6 +138,9 @@ export function buildEditor(options: EditorOptions): Crepe {
   crepe.editor.use(tableKeys);
   crepe.editor.use(headingLevelKeys);
   crepe.editor.use(tableCellClickFix);
+  // Selections reaching images, tables, diagrams and code take them whole.
+  crepe.editor.use(blockSelectionPlugin);
+  crepe.editor.config(blockSelectionKeys);
   useTaskHandle(crepe.editor);
   if (options.toolbarHost) crepe.editor.use(toolbarPlugin(options.toolbarHost));
   crepe.editor.config(disableHeadingDowngrade);

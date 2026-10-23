@@ -13,8 +13,10 @@ import { mermaidPreviewToggleText, renderMermaidPreview } from "./markdown/merma
 import { slashShortcutInputRule, slashShortcutKeys } from "./markdown/slashShortcuts";
 import { anchorLinkPlugin } from "./markdown/anchors";
 import { headingLinkPlugin } from "./markdown/headingLink";
+import { headingNumbersPlugin } from "./markdown/headingNumbers";
 import { wikiLinkPlugin, type LinkClick } from "./markdown/wikiLinks";
 import { lucidPlugin, type LucidOptions } from "./markdown/lucid";
+import type { HeadingNumbersConfig } from "../src/headingNumbers";
 import { tableContextMenu } from "./markdown/tableMenu";
 import { tableFullWidthPlugins } from "./markdown/tableFullWidth";
 import { tocPlugins } from "./markdown/toc";
@@ -57,6 +59,8 @@ export interface EditorOptions {
   onCommentActivate?: (id: string | null) => void;
   /** Lucidchart previews (markdown/lucid.ts): the setting and the Edit/Open actions. */
   lucid?: LucidOptions;
+  /** Heading numbers (markdown/headingNumbers.ts): the current setting, read at each rebuild. */
+  headingNumbers?: () => HeadingNumbersConfig | undefined;
 }
 
 /** A configured, not yet created, editor: call `create()` on it. */
@@ -126,6 +130,7 @@ export function buildEditor(options: EditorOptions): Crepe {
   crepe.editor.use(slashShortcutKeys);
   crepe.editor.use(anchorLinkPlugin);
   crepe.editor.use(headingLinkPlugin);
+  crepe.editor.use(headingNumbersPlugin(options.headingNumbers));
   crepe.editor.use(wikiLinkPlugin(onLink, () => false));
   // A Lucid link alone in its paragraph shows a preview under it (decorations only).
   crepe.editor.use(lucidPlugin(options.lucid));

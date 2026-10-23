@@ -145,6 +145,9 @@ Every editing action is a VS Code command, so you can change, remove or add keys
 | `kenMarkdown.lineHeight` | `1.85` | Body line height. |
 | `kenMarkdown.paragraphSpacing` | `0.65` | Space between paragraphs, in em (multiples of the font size). Doesn't change list item spacing. |
 | `kenMarkdown.maxWidth` | `720` | Width of the text column in px. |
+| `kenMarkdown.headingNumbers.enabled` | `false` | Show a small number left of each heading (`1`, `1.a`, `1.a.i`…) and before each table of contents entry. Display only: never written to the file. Headings inside quotes, alerts, lists and tables aren't numbered; a skipped level (H2 then H4) is left out, not shown as 0. |
+| `kenMarkdown.headingNumbers.h1` … `h6` | `decimal`, `lower-alpha`, `lower-roman`, `decimal`, `lower-alpha`, `lower-roman` | Style per level: `decimal` (1), `lower-alpha` (a), `upper-alpha` (A), `lower-roman` (i), `upper-roman` (I) or `none` (not numbered, and left out of deeper headings' numbers). |
+| `kenMarkdown.headingNumbers.separator` | `.` | Text between the levels of a number. |
 | `kenMarkdown.toolbar` | `bottom` | `bottom`, `top` or `hidden`. |
 | `kenMarkdown.alwaysShowProperties` | `false` | Show the Properties panel on every document. |
 | `kenMarkdown.commentAuthor` | *(git's `user.name`)* | Your name on comments you add. |

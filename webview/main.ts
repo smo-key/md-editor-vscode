@@ -22,6 +22,8 @@ import "@fontsource/jetbrains-mono/500.css";
 import type { LinkClick } from "./markdown/wikiLinks";
 import { buildEditor } from "./editorSetup";
 import { lucidRefreshKey } from "./markdown/lucid";
+import { refreshHeadingNumbers } from "./markdown/headingNumbers";
+import { headingNumbersConfig, type HeadingNumbersConfig } from "../src/headingNumbers";
 import { lucidPreviewMode, type LucidPreviewMode } from "../src/lucidUrl";
 import { carriesFiles, handleFileDrop, type FileDropOptions } from "./fileDrop";
 import { normalizeTrailingNewlines } from "./markdown/gfmFidelity";
@@ -239,6 +241,7 @@ const unescapeWikiLinks = (md: string) => md.replace(/\\\[\\\[([^\n]+?)\\?\]\\?\
 // --- Settings ----------------------------------------------------------------
 
 let lucidPreview: LucidPreviewMode = "auto";
+let headingNumbers: HeadingNumbersConfig = headingNumbersConfig(undefined);
 
 function applyConfig(config: EditorConfig) {
   const root = document.documentElement.style;
@@ -262,6 +265,13 @@ function applyConfig(config: EditorConfig) {
   if (preview !== lucidPreview) {
     lucidPreview = preview;
     view?.dispatch(view.state.tr.setMeta(lucidRefreshKey, true));
+  }
+  // Heading numbers (markdown/headingNumbers.ts) read this at each rebuild; a
+  // missing setting (an older harness) is off.
+  const numbers = headingNumbersConfig(config.headingNumbers);
+  if (JSON.stringify(numbers) !== JSON.stringify(headingNumbers)) {
+    headingNumbers = numbers;
+    if (view) refreshHeadingNumbers(view);
   }
 }
 
@@ -513,6 +523,7 @@ async function createEditor(text: string) {
       open: (url, action) => post({ type: "openLucid", url, action }),
       openLink: (href) => post({ type: "openLink", href }),
     },
+    headingNumbers: () => headingNumbers,
   });
   crepe.editor.use(changePlugin);
   await crepe.create();

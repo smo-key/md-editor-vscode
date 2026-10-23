@@ -10,6 +10,7 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 
 ### Changed
 
+- Pasting or dropping a file that is already in the workspace (from the Explorer or your file manager) now links to it where it is instead of copying it. Files from outside the workspace and screenshots are still saved. Set `kenMarkdown.workspaceFiles` to `copy` to keep copying.
 - Selections that cross images, tables, diagrams and code blocks now highlight those blocks whole, and Backspace, Delete or typing removes them cleanly. Shift+Arrow steps over a whole table or code block instead of getting stuck in its cells, and Shift+click extends the selection by whole blocks.
 - Properties: values are colored by YAML type, long keys and values wrap instead of being cut off, the YAML view grows to fit, and frontmatter with nested or multi-line values opens as YAML only (with a tooltip saying why).
 - The toolbar now sits at the top of the editor by default (`kenMarkdown.toolbar`: `"bottom"` puts it back).

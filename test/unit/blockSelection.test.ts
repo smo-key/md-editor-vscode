@@ -6,7 +6,7 @@ import { AllSelection, TextSelection } from "@milkdown/kit/prose/state";
 import { CellSelection } from "@milkdown/kit/prose/tables";
 import type { EditorView } from "@milkdown/kit/prose/view";
 
-import { BLOCK_SELECTED_CLASS, blockRangeSelection, expandRange } from "../../webview/markdown/blockSelection";
+import { BLOCK_SELECTED_CLASS, DRAG_SELECTING_CLASS, blockRangeSelection, expandRange, trackDragSelect } from "../../webview/markdown/blockSelection";
 import { normalizeTrailingNewlines } from "../../webview/markdown/gfmFidelity";
 import { mountEditor, stubLayout } from "./editorEnv";
 
@@ -119,6 +119,62 @@ describe("block selection highlight", () => {
     await withEditor(DOC, (view) => {
       view.dispatch(view.state.tr.setSelection(new AllSelection(view.state.doc)));
       expect(highlighted(view).sort()).toEqual(["code", "hr", "image", "table"]);
+    });
+  });
+});
+
+describe("stable rendering while selecting", () => {
+  it("keeps the table's DOM when its highlight comes and goes", async () => {
+    await withEditor(DOC, (view) => {
+      const table = view.dom.querySelector(".milkdown-table-block");
+      expect(table).toBeTruthy();
+      const start = posOf(view, "Intro", { start: true });
+      for (const head of [posOf(view, "1"), posOf(view, "Middle"), posOf(view, "Intro"), posOf(view, "End")]) {
+        select(view, start, head);
+        expect(view.dom.querySelector(".milkdown-table-block")).toBe(table);
+      }
+      expect(table!.classList.contains(BLOCK_SELECTED_CLASS)).toBe(true);
+    });
+  });
+
+  it("a drag reaching the very start of a cell keeps covering the table", async () => {
+    await withEditor(DOC, (view) => {
+      // A mouse drag puts the head at offset 0 of a cell when it enters one;
+      // the table plugin used to collapse that to the anchor's paragraph,
+      // and the highlight blinked off and on as the pointer moved.
+      const start = posOf(view, "Intro", { start: true });
+      select(view, start, posOf(view, "a", { start: true }));
+      const sel = view.state.selection;
+      expect(sel.anchor).toBe(start);
+      expect(sel.head).toBeGreaterThan(posOf(view, "Intro text"));
+      expect(highlighted(view)).toEqual(["table"]);
+    });
+  });
+
+  it("a selection the user moves out of the table stays where it was put", async () => {
+    await withEditor(DOC, (view) => {
+      const start = posOf(view, "Intro", { start: true });
+      select(view, start, posOf(view, "a", { start: true }));
+      select(view, start, posOf(view, "Intro"));
+      expect(view.state.selection.head).toBe(posOf(view, "Intro"));
+      expect(highlighted(view)).toEqual([]);
+    });
+  });
+
+  it("leaves the DOM untouched when the selection moves but the highlighted blocks don't", async () => {
+    await withEditor(DOC, (view) => {
+      const start = posOf(view, "Intro", { start: true });
+      select(view, start, posOf(view, "Mid"));
+      const observer = new MutationObserver(() => {});
+      observer.observe(view.dom, { attributes: true, attributeFilter: ["class"], childList: true, subtree: true });
+      select(view, start, posOf(view, "Middle"));
+      select(view, start, posOf(view, "Mid"));
+      const changes = observer
+        .takeRecords()
+        .filter((m) => m.type === "childList" ? [...m.removedNodes].some((n) => n instanceof Element) : (m.target as Element).closest?.(".milkdown-table-block, .milkdown-code-block, .milkdown-image-block"))
+        .map((m) => `${m.type} ${(m.target as Element).className}`);
+      observer.disconnect();
+      expect(changes).toEqual([]);
     });
   });
 });
@@ -263,5 +319,72 @@ describe("blockRangeSelection", () => {
       const sel = blockRangeSelection(view.state.doc, posOf(view, "a"), view.state.doc.content.size);
       expect(sel).toBeInstanceOf(AllSelection);
     });
+  });
+});
+
+describe("drag-select tracking", () => {
+  const mouse = (target: EventTarget, type: string, x: number, y: number, buttons = 1) => {
+    const e = new MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0, buttons });
+    target.dispatchEvent(e);
+    return e;
+  };
+  const tick = () => new Promise((r) => setTimeout(r, 5));
+
+  it("marks a drag, swallows the click on release, then clears", async () => {
+    const dom = document.createElement("div");
+    const img = document.createElement("img");
+    dom.append(img);
+    document.body.append(dom);
+    const stop = trackDragSelect(dom);
+    try {
+      mouse(dom, "mousedown", 10, 10);
+      mouse(dom, "mousemove", 12, 11);
+      expect(document.body.classList.contains(DRAG_SELECTING_CLASS)).toBe(false);
+      mouse(dom, "mousemove", 10, 60);
+      expect(document.body.classList.contains(DRAG_SELECTING_CLASS)).toBe(true);
+      mouse(img, "mouseup", 10, 60, 0);
+      let reached = false;
+      img.addEventListener("click", () => (reached = true));
+      const click = mouse(img, "click", 10, 60, 0);
+      expect(click.defaultPrevented).toBe(true);
+      expect(reached).toBe(false);
+      await tick();
+      expect(document.body.classList.contains(DRAG_SELECTING_CLASS)).toBe(false);
+    } finally {
+      stop();
+      dom.remove();
+    }
+  });
+
+  it("leaves a plain click alone", async () => {
+    const dom = document.createElement("div");
+    document.body.append(dom);
+    const stop = trackDragSelect(dom);
+    try {
+      mouse(dom, "mousedown", 10, 10);
+      mouse(dom, "mouseup", 10, 10, 0);
+      const click = mouse(dom, "click", 10, 10, 0);
+      expect(click.defaultPrevented).toBe(false);
+      expect(document.body.classList.contains(DRAG_SELECTING_CLASS)).toBe(false);
+    } finally {
+      stop();
+      dom.remove();
+    }
+  });
+
+  it("clears when the button was released outside the window", () => {
+    const dom = document.createElement("div");
+    document.body.append(dom);
+    const stop = trackDragSelect(dom);
+    try {
+      mouse(dom, "mousedown", 10, 10);
+      mouse(dom, "mousemove", 10, 80);
+      expect(document.body.classList.contains(DRAG_SELECTING_CLASS)).toBe(true);
+      mouse(dom, "mousemove", 20, 90, 0);
+      expect(document.body.classList.contains(DRAG_SELECTING_CLASS)).toBe(false);
+    } finally {
+      stop();
+      dom.remove();
+    }
   });
 });

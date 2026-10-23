@@ -15,7 +15,8 @@
  *   code block's own editor). From a cell selection at the table's edge it
  *   carries on past the table.
  * - Shift+click extends the selection by whole blocks when the click, or the
- *   selection's start, is in an opaque block.
+ *   selection's start, is in an image, diagram, code or math block, rule or
+ *   raw HTML. A click in a table cell ends the range in that cell.
  *
  * Only selections change here, plus the edits the user asks for; remote
  * collaboration transactions are never touched.
@@ -26,6 +27,7 @@ import {
   AllSelection,
   type Command,
   type EditorState,
+  type Transaction,
   Plugin,
   PluginKey,
   Selection,
@@ -35,7 +37,10 @@ import { CellSelection, nextCell } from "@milkdown/kit/prose/tables";
 import { Decoration, DecorationSet, type EditorView } from "@milkdown/kit/prose/view";
 import { editorViewOptionsCtx } from "@milkdown/kit/core";
 import type { Ctx } from "@milkdown/kit/ctx";
-import { $prose } from "@milkdown/kit/utils";
+import { $prose, $view } from "@milkdown/kit/utils";
+import { isRemoteChange } from "../remoteChange";
+import { TableNodeView } from "@milkdown/kit/component/table-block";
+import { tableSchema } from "@milkdown/kit/preset/gfm";
 
 export const BLOCK_SELECTED_CLASS = "ken-block-selected";
 
@@ -58,10 +63,15 @@ interface Span {
   to: number;
 }
 
-/** The outermost opaque block that `$pos` lies inside, if any. */
-function opaqueAround($pos: ResolvedPos): Span | null {
+function isTable(node: ProseNode): boolean {
+  return node.type.name === "table";
+}
+
+/** The outermost opaque block (or, without tables, atom or code block) that `$pos` lies inside, if any. */
+function opaqueAround($pos: ResolvedPos, { tables = true } = {}): Span | null {
   for (let d = 1; d <= $pos.depth; d++) {
-    if (isOpaqueBlock($pos.node(d))) return { from: $pos.before(d), to: $pos.after(d) };
+    const node = $pos.node(d);
+    if (isOpaqueBlock(node) && (tables || !isTable(node))) return { from: $pos.before(d), to: $pos.after(d) };
   }
   return null;
 }
@@ -279,9 +289,14 @@ function shiftClick(view: EditorView, event: MouseEvent): boolean {
   const anchor = selection instanceof CellSelection ? selection.$anchorCell.pos : selection.anchor;
   let head = hit.pos;
   const inside = hit.inside >= 0 ? doc.nodeAt(hit.inside) : null;
+  // Tables are text here: a click in a cell ends the range in that cell
+  // (where a comment on it ends, say). The highlight and deleting still take
+  // the table whole.
   const clicked =
-    inside && isOpaqueBlock(inside) ? { from: hit.inside, to: hit.inside + inside.nodeSize } : opaqueAround(doc.resolve(head));
-  const started = opaqueAround(doc.resolve(anchor));
+    inside && isOpaqueBlock(inside) && !isTable(inside)
+      ? { from: hit.inside, to: hit.inside + inside.nodeSize }
+      : opaqueAround(doc.resolve(head), { tables: false });
+  const started = opaqueAround(doc.resolve(anchor), { tables: false });
   if (clicked) {
     if (anchor > clicked.from && anchor < clicked.to) return false;
     head = anchor <= clicked.from ? clicked.to : clicked.from;
@@ -294,7 +309,110 @@ function shiftClick(view: EditorView, event: MouseEvent): boolean {
   return true;
 }
 
+/** On `<body>` while the mouse is selecting by dragging (see `trackDragSelect`). */
+export const DRAG_SELECTING_CLASS = "ken-drag-selecting";
+
+/** Pixels the pointer moves, button held, before a press counts as a drag. */
+const DRAG_THRESHOLD = 4;
+
+/**
+ * Marks a mouse drag-select in progress: from a press in the editor until
+ * the button is released, once the pointer has moved. While it is on, the
+ * styles keep a text cursor everywhere and hide hover affordances (zoom-in
+ * on images, "Edit diagram", table and code tools), and the click the
+ * browser fires on release is swallowed, so letting go over an image
+ * doesn't open the lightbox or press a button. A press without a drag is an
+ * ordinary click. Returns the cleanup.
+ */
+export function trackDragSelect(dom: HTMLElement): () => void {
+  const doc = dom.ownerDocument;
+  const win = doc.defaultView ?? window;
+  let start: { x: number; y: number } | null = null;
+  let dragging = false;
+  let clearTimer: ReturnType<typeof setTimeout> | undefined;
+  const set = (on: boolean) => {
+    dragging = on;
+    doc.body.classList.toggle(DRAG_SELECTING_CLASS, on);
+  };
+  const onDown = (e: MouseEvent) => {
+    if (e.button !== 0) return;
+    clearTimeout(clearTimer);
+    set(false);
+    start = { x: e.clientX, y: e.clientY };
+  };
+  const onMove = (e: MouseEvent) => {
+    if ((e.buttons & 1) === 0) {
+      // Released outside the window: no mouseup came.
+      start = null;
+      if (dragging) set(false);
+      return;
+    }
+    if (!start || dragging) return;
+    if (Math.abs(e.clientX - start.x) > DRAG_THRESHOLD || Math.abs(e.clientY - start.y) > DRAG_THRESHOLD) set(true);
+  };
+  const onUp = (e: MouseEvent) => {
+    if (e.button !== 0) return;
+    start = null;
+    // The click that follows this mouseup (same task) still sees the drag.
+    if (dragging) clearTimer = setTimeout(() => set(false), 0);
+  };
+  const onClick = (e: MouseEvent) => {
+    if (!dragging) return;
+    e.preventDefault();
+    e.stopPropagation();
+  };
+  dom.addEventListener("mousedown", onDown, true);
+  win.addEventListener("mousemove", onMove, true);
+  win.addEventListener("mouseup", onUp, true);
+  win.addEventListener("click", onClick, true);
+  return () => {
+    clearTimeout(clearTimer);
+    set(false);
+    dom.removeEventListener("mousedown", onDown, true);
+    win.removeEventListener("mousemove", onMove, true);
+    win.removeEventListener("mouseup", onUp, true);
+    win.removeEventListener("click", onClick, true);
+  };
+}
+
 const key = new PluginKey("ken-block-selection");
+
+/** The table cell around `$pos`, if any. */
+function cellAround($pos: ResolvedPos): ProseNode | null {
+  for (let d = $pos.depth; d > 0; d--) {
+    const role = $pos.node(d).type.spec.tableRole as string | undefined;
+    if (role === "cell" || role === "header_cell") return $pos.node(d);
+  }
+  return null;
+}
+
+/**
+ * A text selection from outside a table to the very start of a cell, which
+ * a mouse drag produces whenever the pointer enters a cell. The table plugin
+ * "normalizes" exactly these by collapsing them to the anchor's paragraph
+ * (prosemirror-tables' isTextSelectionAcrossCells), so mid-drag the
+ * selection and its highlight dropped off the table and came back on the
+ * next pointer move: the flicker.
+ */
+function collapsedByTables(wanted: Selection, final: Selection): boolean {
+  if (!(wanted instanceof TextSelection) || !(final instanceof TextSelection) || wanted.eq(final)) return false;
+  const { $from, $to } = wanted;
+  if ($to.parentOffset !== 0 || cellAround($from) === cellAround($to)) return false;
+  return final.from === $from.start() && final.to === $from.end();
+}
+
+/** Undo that collapse: the selection takes the table whole instead (selection only). */
+function keepTableSelection(trs: readonly Transaction[], oldState: EditorState, state: EditorState): Transaction | null {
+  if (isRemoteChange(trs) || trs.some((tr) => tr.docChanged || tr.getMeta(key))) return null;
+  const candidates = [oldState.selection, ...trs.map((tr) => tr.selection)];
+  const wanted = candidates.find((s) => collapsedByTables(s, state.selection));
+  if (!wanted) return null;
+  const table = opaqueAround(wanted.$head) ?? opaqueAround(wanted.$anchor);
+  if (!table) return null;
+  const sel = blockRangeSelection(state.doc, wanted.anchor, wanted.head);
+  if (collapsedByTables(sel, sel) || sel.eq(state.selection)) return null;
+  return state.tr.setSelection(sel).setMeta(key, true).setMeta("addToHistory", false);
+}
 
 export const blockSelectionPlugin = $prose(
   () =>
@@ -307,8 +425,15 @@ export const blockSelectionPlugin = $prose(
           if (shiftClick(view, event)) event.stopPropagation();
         };
         view.dom.addEventListener("mousedown", onDown, true);
-        return { destroy: () => view.dom.removeEventListener("mousedown", onDown, true) };
+        const stopTracking = trackDragSelect(view.dom);
+        return {
+          destroy: () => {
+            view.dom.removeEventListener("mousedown", onDown, true);
+            stopTracking();
+          },
+        };
       },
+      appendTransaction: keepTableSelection,
       props: {
         decorations,
         // Typing over such a selection replaces what Backspace would remove.
@@ -336,3 +461,24 @@ export function blockSelectionKeys(ctx: Ctx): void {
     };
   });
 }
+
+/**
+ * Crepe's table view, kept on screen when only its decorations change.
+ *
+ * ProseMirror asks a node view to `update` when the node or the decorations
+ * around it change. Crepe's table view refuses an update for an unchanged
+ * node, so ProseMirror destroyed and rebuilt the whole table (its Vue app,
+ * handles and cells) each time a selection began or stopped reaching it:
+ * the table flashed, and the browser's selection inside it was thrown away
+ * mid-drag, so the selection jumped. Here an unchanged node is a no-op.
+ */
+class StableTableView extends TableNodeView {
+  override update(node: ProseNode): boolean {
+    if (node.type !== this.node.type) return false;
+    if (node.sameMarkup(this.node) && node.content.eq(this.node.content)) return true;
+    return super.update(node);
+  }
+}
+
+/** Registered after Crepe's table feature, so it replaces Crepe's view. */
+export const stableTableView = $view(tableSchema.node, (ctx) => (node, view, getPos) => new StableTableView(ctx, node, view, getPos));

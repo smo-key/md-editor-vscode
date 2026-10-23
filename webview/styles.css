@@ -745,52 +745,32 @@ body {
   }
 
   /* --- Heading numbers (markdown/headingNumbers.ts) ---------------------- */
-  /* A muted label hanging in the gutter, its right edge a fixed gap left of
-     the heading text, on the first line's baseline. It is `::before` content
-     from a decoration's data attribute: never in the document, never
-     selectable, and the caret can't land in it. The zero-width inline-flex
-     box with `justify-content: flex-end` makes the label overflow leftwards
-     from where the text starts, so the text doesn't move, whatever the
-     label's length. */
+  /* A muted label inline before the heading text, a space's width from it,
+     pushing the text right. It is `::before` content from a decoration's data
+     attribute: never in the document, never selectable or copied, and the
+     caret can't land in it. On a heading it takes the heading's own font, size
+     and weight (already a light 500), so it shares the baseline and reads as
+     part of the title; the grey alone sets it apart. `nowrap` keeps a label
+     like "Section 1.01(a)(i)" whole; the heading text after it wraps as usual.
+     The grey is the editor's line-number colour, muted in every theme, where
+     descriptionForeground can equal the text colour (Light Modern). */
   .measure .milkdown {
-    --ken-heading-number-gap: 14px;
-    --ken-heading-number-size: calc(var(--md-font-size) * 0.8);
+    --ken-heading-number-color: var(--vscode-editorLineNumber-foreground, var(--vscode-descriptionForeground));
   }
   .measure .milkdown .ProseMirror > .ken-heading-numbered:not(.crepe-placeholder)::before,
   .measure .milkdown ul.ken-toc p.ken-heading-numbered::before {
     content: attr(data-heading-number);
-    font-family: var(--font-sans);
-    font-size: var(--ken-heading-number-size);
-    font-weight: 400;
-    font-style: normal;
-    letter-spacing: 0;
     font-variant-numeric: tabular-nums lining-nums;
-    color: var(--vscode-descriptionForeground);
+    color: var(--ken-heading-number-color);
     white-space: nowrap;
     user-select: none;
+    -webkit-user-select: none;
     pointer-events: none;
   }
   .measure .milkdown .ProseMirror > .ken-heading-numbered:not(.crepe-placeholder)::before {
-    display: inline-flex;
-    justify-content: flex-end;
-    width: 0;
-    margin-left: calc(-1 * var(--ken-heading-number-gap));
-    margin-right: var(--ken-heading-number-gap);
+    margin-right: 0.3em;
   }
-  /* The copy-link button moves out past the label (its width estimated from
-     its length: tabular figures run about 0.62em). */
-  .measure .milkdown .ProseMirror > .ken-heading-numbered > .ken-heading-link {
-    left: calc(
-      -1 * (22px + var(--ken-heading-number-gap) + 8px + var(--ken-heading-number-chars, 0) * 0.62 * var(--ken-heading-number-size))
-    );
-  }
-  /* Too narrow a pane for the gutter: the whole column (never just the
-     headings) pads its left side by just what the widest label lacks, so
-     labels still hang outside it. The plugin measures and sets the amount. */
-  .measure.ken-heading-numbers-reserve {
-    padding-left: calc(clamp(20px, 5%, 48px) + var(--ken-heading-number-reserve, 0px));
-  }
-  /* In the table of contents the label leads the entry, inline. */
+  /* In the table of contents the label leads the entry, in its own type. */
   .measure .milkdown ul.ken-toc p.ken-heading-numbered::before {
     display: inline-block;
     margin-right: 0.5em;

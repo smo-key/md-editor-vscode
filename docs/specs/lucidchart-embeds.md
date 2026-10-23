@@ -101,6 +101,15 @@ A throwaway vitest file was placed in the session scratchpad, mounting the real 
 
 Opening alone never writes (main.ts takes the serialized form as the baseline). But the first unrelated edit sends the whole document, and `minimalChange` then includes the rewritten link in its span. GitHub renders `<url>` and `url` the same, but the user sees a diff on a line they didn't touch. WP1 fixes this for every link, not only Lucid ones.
 
+## 0. User decisions (2026-10-23) — these override the rest of this spec
+
+1. Default preview mode: **`auto`**.
+2. **Edit always opens the browser.** Drop `kenMarkdown.lucidchart.editWith`, the Lucid for VS Code hand-off (`lucidExtensionUri`) and every `editWith` field in the protocol and config; the host just calls `openExternal(editUrl(ref))` after re-validating it.
+3. **Lucidspark boards preview too**, the same way as Lucidchart.
+4. **Signed-in or token previews of private documents: later.** Not in v1.
+5. Keep the written form of **all** links (WP1), not only Lucid links.
+6. Keep the source link visible as a muted caption above the preview.
+
 ## 4. Decisions
 
 1. **Decoration, not a new node.** The preview is a `Decoration.widget` placed after the paragraph, and the paragraph keeps its ordinary link. *Why:* no schema change, no serializer, no doc mutation. Collab peers and older versions see a plain link. Deleting or editing the link removes or updates the preview naturally. An atom node would need a custom serializer to keep the raw text, an editing UI for the URL, and a schema migration for Y.js peers.

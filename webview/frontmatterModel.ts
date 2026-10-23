@@ -31,6 +31,22 @@ export function splitFrontmatter(text: string): string {
   return text.match(/^---\r?\n[\s\S]*?\r?\n---[ \t]*(\r?\n|$)|^---\r?\n---[ \t]*(\r?\n|$)/)?.[0] ?? "";
 }
 
+/**
+ * A document as the editor takes it: the frontmatter block, the blank lines
+ * after it (the Markdown parser drops leading blank lines, so they would be
+ * lost on the first save), and the body. `joinDocument` puts them back.
+ */
+export function splitDocument(text: string): { front: string; gap: string; body: string } {
+  const front = splitFrontmatter(text);
+  const rest = text.slice(front.length);
+  const gap = /^(?:[ \t]*\r?\n)*/.exec(rest)![0];
+  return { front, gap, body: rest.slice(gap.length) };
+}
+
+export function joinDocument(front: string, gap: string, body: string): string {
+  return front + gap + body;
+}
+
 /** Parse a frontmatter block (with its `---` lines). */
 export function parseFrontmatter(front: string): Frontmatter {
   const eol = front.includes("\r\n") ? "\r\n" : "\n";

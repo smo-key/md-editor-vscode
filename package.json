@@ -109,6 +109,11 @@
         "category": "Ken Markdown"
       },
       {
+        "command": "kenMarkdown.showWhatsNew",
+        "title": "Show What's New",
+        "category": "Ken Markdown"
+      },
+      {
         "command": "kenMarkdown.bold",
         "title": "Bold",
         "category": "Ken Markdown"

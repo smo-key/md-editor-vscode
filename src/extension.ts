@@ -5,6 +5,7 @@ import { SHORTCUTS, editorShortcutLabels, parseJsonc } from "./keybindings";
 import type { TestAction } from "./protocol";
 import { KenMarkdownEditorProvider, VIEW_TYPE } from "./provider";
 import { CollabManager } from "./collab/manager";
+import { checkWhatsNew, showWhatsNew } from "./whatsNewPanel";
 
 export function activate(context: vscode.ExtensionContext) {
   const collab = new CollabManager();
@@ -30,6 +31,7 @@ export function activate(context: vscode.ExtensionContext) {
       const target = uri ?? activeUri();
       if (target) await vscode.commands.executeCommand("vscode.openWith", target, VIEW_TYPE);
     }),
+    vscode.commands.registerCommand("kenMarkdown.showWhatsNew", () => void showWhatsNew(context)),
     vscode.commands.registerCommand("kenMarkdown.openSource", async (uri?: vscode.Uri) => {
       const target = uri ?? activeUri();
       if (target) await vscode.commands.executeCommand("vscode.openWith", target, "default");
@@ -64,6 +66,8 @@ export function activate(context: vscode.ExtensionContext) {
   refreshLabels();
   fs.watchFile(keybindingsFile, { interval: 1000 }, refreshLabels);
   context.subscriptions.push({ dispose: () => fs.unwatchFile(keybindingsFile, refreshLabels) });
+
+  checkWhatsNew(context);
 
   // Integration tests drive the webview through this hidden command.
   if (context.extensionMode === vscode.ExtensionMode.Test) {

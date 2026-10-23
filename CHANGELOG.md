@@ -4,6 +4,10 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 
 ## [Unreleased]
 
+### Added
+
+- A **What's New** page after updating to a new minor or major version, showing the release notes since your previous version. Open it any time with **Ken Markdown: Show What's New**.
+
 ### Changed
 
 - The toolbar now sits at the top of the editor by default (`kenMarkdown.toolbar`: `"bottom"` puts it back).

@@ -5,6 +5,7 @@ import type {
   EditorPrefs,
   HostMessage,
   LinkedUri,
+  LucidPreviewMode,
   ShortcutLabels,
   TestAction,
   ToolbarPosition,
@@ -56,6 +57,11 @@ export function toolbarPosition(value: unknown): ToolbarPosition {
   return "top";
 }
 
+/** The `lucidchart.preview` setting; anything unknown falls back to `auto`. */
+export function lucidPreviewMode(value: unknown): LucidPreviewMode {
+  return value === "onClick" || value === "off" ? value : "auto";
+}
+
 function readImageFolder(scope: vscode.Uri): string {
   return vscode.workspace.getConfiguration("kenMarkdown", scope).get<string>("imageFolder", "_Images");
 }
@@ -78,6 +84,7 @@ export function readConfig(scope?: vscode.Uri): EditorConfig {
     toolbar: toolbarPosition(c.get<unknown>("toolbar", "top")),
     alwaysShowProperties: c.get<boolean>("alwaysShowProperties", false),
     commentAuthor: c.get<string>("commentAuthor", "").trim() || defaultAuthor(),
+    lucidchart: { preview: lucidPreviewMode(c.get<unknown>("lucidchart.preview", "auto")) },
   };
 }
 

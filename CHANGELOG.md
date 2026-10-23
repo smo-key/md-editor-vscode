@@ -8,6 +8,10 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 
 - Right-click a table of contents for **Delete table of contents**, which removes the whole table of contents (one undo brings it back).
 
+### Changed
+
+- Heading numbers now sit inline, in grey, just before the heading text instead of hanging in the left margin. They still can't be selected, edited or copied, and they are never written to the file. The heading text starts after the number.
+
 ### Fixed
 
 - Slash menu: Enter runs the item you highlighted with the arrow keys or the mouse. Before, after typing a shortcut word such as `/table` or `/code`, Enter ran that word's block whichever item was highlighted. Divider on an empty line now leaves a new empty line after the rule to type on.

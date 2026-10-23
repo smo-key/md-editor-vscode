@@ -707,7 +707,7 @@
         "kenMarkdown.headingNumbers.enabled": {
           "type": "boolean",
           "default": false,
-          "markdownDescription": "Show a small number to the left of each heading (`1`, `1.a`, `Section 1.01`…) and before each table of contents entry. Display only: numbers are never written to the file. Headings inside quotes, alerts, lists and tables aren't numbered, and a skipped level (an H2 followed by an H4) is left out rather than shown as 0. Pick a style with `#kenMarkdown.headingNumbers.preset#`, or set each level with `#kenMarkdown.headingNumbers.h1#`…`#kenMarkdown.headingNumbers.h6#`. A document's own `ken-heading-numbering` property (`on`, `off`, a preset such as `legal`, or a format such as `\"1.a.i\"`) overrides these."
+          "markdownDescription": "Show a grey number inline before each heading's text (`1`, `1.a`, `Section 1.01`…) and before each table of contents entry. Display only: numbers can't be selected, edited or copied, and are never written to the file. Headings inside quotes, alerts, lists and tables aren't numbered, and a skipped level (an H2 followed by an H4) is left out rather than shown as 0. Pick a style with `#kenMarkdown.headingNumbers.preset#`, or set each level with `#kenMarkdown.headingNumbers.h1#`…`#kenMarkdown.headingNumbers.h6#`. A document's own `ken-heading-numbering` property (`on`, `off`, a preset such as `legal`, or a format such as `\"1.a.i\"`) overrides these."
         },
         "kenMarkdown.headingNumbers.preset": {
           "type": "string",

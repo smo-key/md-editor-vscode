@@ -41,7 +41,7 @@ import { Collab, sharedHistory } from "./collab";
 import { Presence } from "./presence";
 import { commentIds, refreshComments } from "./comments/anchors";
 import { CommentsPanel } from "./comments/panel";
-import { splitFrontmatter } from "./frontmatterModel";
+import { joinDocument, splitDocument } from "./frontmatterModel";
 import { installKeyRouting } from "./keys";
 import { onLastHeadingLevel, setLastHeadingLevel } from "./headingControl";
 import { command, execute, setShortcutLabels } from "./commands";
@@ -106,6 +106,8 @@ const frontmatterPanel = new FrontmatterPanel(
   host,
   (next) => {
     front = next;
+    // Removing the properties takes the blank lines that followed them too.
+    if (!next) gap = "";
     collab?.setFront(next);
     dirty = true;
     sync();
@@ -122,8 +124,8 @@ let lastText = "";
 let lastSerialized = "";
 /** Frontmatter is set aside and put back on every save (the editor would mangle it). */
 let front = "";
-
-const splitFront = splitFrontmatter;
+/** The blank lines between the frontmatter and the body, kept exactly (the editor drops them). */
+let gap = "";
 /** The frontmatter as last written, so a properties-only edit is still saved. */
 let lastFront = "";
 
@@ -155,6 +157,7 @@ function startCollab(m: Extract<HostMessage, { type: "collabStart" }>) {
       onFront: (next) => {
         if (next === front) return;
         front = next;
+        if (!next) gap = "";
         frontmatterPanel.set(next);
         dirty = true;
         scheduleSync();
@@ -459,7 +462,7 @@ function sync(silent = false): string | null {
   lastSerialized = markdown;
   lastFront = front;
   lastBack = back;
-  const text = front + unescapeWikiLinks(markdown) + (back ? `${markdown ? "\n" : ""}${back}` : "");
+  const text = joinDocument(front, gap, unescapeWikiLinks(markdown)) + (back ? `${markdown ? "\n" : ""}${back}` : "");
   if (text === lastText) return null;
   lastText = text;
   if (!silent && writer) post({ type: "edit", text });
@@ -471,9 +474,10 @@ function serialize(ctx: Ctx): string {
 }
 
 async function createEditor(text: string) {
-  front = splitFront(text);
+  let body: string;
+  ({ front, gap, body } = splitDocument(text));
   lastFront = front;
-  const { body, block } = splitThreads(text.slice(front.length));
+  const { body: markdown, block } = splitThreads(body);
   loadingThreads = true;
   threadStore.load(block);
   loadingThreads = false;
@@ -481,7 +485,7 @@ async function createEditor(text: string) {
   lastText = text;
   crepe = buildEditor({
     root: host,
-    markdown: body,
+    markdown,
     onLink: openLink,
     fileDrop,
     onUpload: uploadFromImageBlock,
@@ -514,16 +518,17 @@ function applyExternal(text: string) {
   sync();
   if (!crepe || text === lastText) return;
   lastText = text;
-  front = splitFront(text);
+  let body: string;
+  ({ front, gap, body } = splitDocument(text));
   lastFront = front;
   frontmatterPanel.set(front);
   collab?.setFront(front);
-  const { body, block } = splitThreads(text.slice(front.length));
+  const { body: markdown, block } = splitThreads(body);
   loadThreads(block);
   collab?.setThreads(sharedThreads());
   crepe.editor.action((ctx) => {
     const v = ctx.get(editorViewCtx);
-    const next = ctx.get(parserCtx)(body);
+    const next = ctx.get(parserCtx)(markdown);
     if (!next) return;
     const doc = v.state.doc;
     const start = doc.content.findDiffStart(next.content);

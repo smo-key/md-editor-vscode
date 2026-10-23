@@ -726,6 +726,21 @@
           "default": "",
           "markdownDescription": "Your name on comments you add. Empty uses git's `user.name`, else your OS account name."
         },
+        "kenMarkdown.lucidchart.preview": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "onClick",
+            "off"
+          ],
+          "enumDescriptions": [
+            "Load each preview from lucid.app when it scrolls into view.",
+            "Show a card with a Load preview button; nothing loads from lucid.app until you click it.",
+            "No previews: Lucid links stay plain links."
+          ],
+          "default": "auto",
+          "markdownDescription": "Live previews of Lucidchart and Lucidspark links that are alone in their paragraph, loaded from `lucid.app`. Each preview has Edit and Open in Lucidchart buttons, which open your browser. Nothing is added to the file."
+        },
         "kenMarkdown.collaboration.port": {
           "type": "number",
           "default": 0,

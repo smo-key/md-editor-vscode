@@ -690,7 +690,7 @@
             "Toolbar at the top of the editor.",
             "No toolbar (use the slash menu and keyboard shortcuts)."
           ],
-          "default": "bottom",
+          "default": "top",
           "markdownDescription": "Where the formatting toolbar sits."
         },
         "kenMarkdown.imageFolder": {

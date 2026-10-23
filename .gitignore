@@ -7,3 +7,6 @@ out/
 # Local tool configuration
 .mcp.json
 scratch/
+
+# Agent worktrees
+.worktrees/

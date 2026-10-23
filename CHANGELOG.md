@@ -4,6 +4,10 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 
 ## [Unreleased]
 
+### Changed
+
+- The toolbar now sits at the top of the editor by default (`kenMarkdown.toolbar`: `"bottom"` puts it back).
+
 ## [0.4.0] - 2026-10-22
 
 ### Added

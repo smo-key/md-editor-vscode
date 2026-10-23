@@ -1,5 +1,5 @@
 /**
- * The bottom toolbar: quick access to the essential commands, with their
+ * The toolbar: quick access to the essential commands, with their
  * state (active, disabled) following the caret. Headings are one segmented
  * control (headingControl.ts). Inside a table it swaps the
  * list and insert groups (which do not apply there) for every table action.

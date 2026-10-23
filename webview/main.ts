@@ -242,7 +242,7 @@ function applyConfig(config: EditorConfig) {
   root.setProperty("--md-font-size", `${config.fontSize}px`);
   root.setProperty("--md-line-height", String(config.lineHeight));
   root.setProperty("--md-max-width", `${config.maxWidth}px`);
-  const position = config.toolbar === "top" || config.toolbar === "hidden" ? config.toolbar : "bottom";
+  const position = config.toolbar === "bottom" || config.toolbar === "hidden" ? config.toolbar : "top";
   document.body.dataset.toolbar = position;
   frontmatterPanel.setAlwaysShow(config.alwaysShowProperties === true);
 }

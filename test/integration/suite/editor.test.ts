@@ -237,7 +237,7 @@ describe("Ken Markdown Editor", function () {
     assert.ok(!doc.getText().includes("/div"), "the slash text is removed");
   });
 
-  it("has a bottom toolbar whose edits reach the document", async () => {
+  it("has a toolbar whose edits reach the document", async () => {
     const uri = fixture("sample.md");
     const doc = await openEditor(uri);
     assert.ok((await webview(uri, { kind: "count", selector: ".ken-toolbar .ken-toolbar-button" })) as number >= 15);
@@ -578,10 +578,10 @@ describe("Ken Markdown Editor", function () {
     const config = vscode.workspace.getConfiguration("kenMarkdown");
     const position = () => webview(uri, { kind: "getAttr", selector: "body", name: "data-toolbar" });
     try {
-      assert.strictEqual(await position(), "bottom");
-      await config.update("toolbar", "top", vscode.ConfigurationTarget.Global);
-      await until("top", position, (v) => v === "top");
+      assert.strictEqual(await position(), "top");
       assert.strictEqual(await webview(uri, { kind: "getStyle", selector: ".ken-toolbar-host", property: "order" }), "-1");
+      await config.update("toolbar", "bottom", vscode.ConfigurationTarget.Global);
+      await until("bottom", position, (v) => v === "bottom");
       await config.update("toolbar", "hidden", vscode.ConfigurationTarget.Global);
       await until("hidden", position, (v) => v === "hidden");
       assert.strictEqual(await webview(uri, { kind: "getStyle", selector: ".ken-toolbar-host", property: "display" }), "none");

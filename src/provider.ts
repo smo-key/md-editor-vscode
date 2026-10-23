@@ -41,8 +41,8 @@ function defaultAuthor(): string {
 /** The toolbar setting; `true`/`false` from versions before it had positions. */
 export function toolbarPosition(value: unknown): ToolbarPosition {
   if (value === false || value === "hidden") return "hidden";
-  if (value === "top") return "top";
-  return "bottom";
+  if (value === "bottom" || value === true) return "bottom";
+  return "top";
 }
 
 function readImageFolder(scope: vscode.Uri): string {
@@ -59,7 +59,7 @@ export function readConfig(scope?: vscode.Uri): EditorConfig {
     quoteFontFamily: c.get<string>("quoteFontFamily", ""),
     lineHeight: c.get<number>("lineHeight", 1.85),
     maxWidth: c.get<number>("maxWidth", 720),
-    toolbar: toolbarPosition(c.get<unknown>("toolbar", "bottom")),
+    toolbar: toolbarPosition(c.get<unknown>("toolbar", "top")),
     alwaysShowProperties: c.get<boolean>("alwaysShowProperties", false),
     commentAuthor: c.get<string>("commentAuthor", "").trim() || defaultAuthor(),
   };

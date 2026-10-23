@@ -2,6 +2,10 @@
 import { describe, expect, it } from "vitest";
 import {
   byCloseness,
+  COPY_LIMIT,
+  excludeGlob,
+  expandBraces,
+  mayCopyScheme,
   insideFolder,
   isImageName,
   nameGlob,
@@ -60,6 +64,58 @@ describe("byCloseness", () => {
       "/ws/a.png",
       "/ws/z/deep/a.png",
     ]);
+  });
+});
+
+describe("byCloseness ties", () => {
+  it("breaks ties by path, so the order never depends on search order", () => {
+    expect(byCloseness("/ws", ["/ws/public/logo.png", "/ws/dist/logo.png"])).toEqual(["/ws/dist/logo.png", "/ws/public/logo.png"]);
+    expect(byCloseness("/ws", ["/ws/dist/logo.png", "/ws/public/logo.png"])).toEqual(["/ws/dist/logo.png", "/ws/public/logo.png"]);
+  });
+
+  it("puts files below the document before closer-looking ones above it", () => {
+    expect(byCloseness("/ws/docs", ["/ws/logo.png", "/ws/docs/a/b/c/logo.png"])).toEqual(["/ws/docs/a/b/c/logo.png", "/ws/logo.png"]);
+  });
+});
+
+describe("expandBraces", () => {
+  it("expands brace alternatives, nested ones too", () => {
+    expect(expandBraces("**/*.js")).toEqual(["**/*.js"]);
+    expect(expandBraces("**/*.{js,map}")).toEqual(["**/*.js", "**/*.map"]);
+    expect(expandBraces("{a,b{c,d}}/x")).toEqual(["a/x", "bc/x", "bd/x"]);
+  });
+});
+
+describe("excludeGlob", () => {
+  it("always excludes node_modules, and joins the enabled patterns of each setting", () => {
+    expect(excludeGlob()).toBe("{**/node_modules,**/node_modules/**}");
+    const glob = excludeGlob(
+      { "**/.git": true, "**/off": false, "**/*.{js,map}": true, "**/when": { when: "$(basename).ts" } },
+      { "**/node_modules": true, "out/": true },
+    );
+    expect(glob).toBe(
+      "{**/node_modules,**/node_modules/**,**/.git,**/.git/**,**/*.js,**/*.js/**,**/*.map,**/*.map/**,out,out/**}",
+    );
+  });
+
+  it("skips patterns a brace list cannot hold", () => {
+    expect(excludeGlob({ "a,b": true, "": true })).toBe("{**/node_modules,**/node_modules/**}");
+  });
+});
+
+describe("mayCopyScheme", () => {
+  it("copies local files and files on the document's own (remote) file system only", () => {
+    expect(mayCopyScheme({ scheme: "file", authority: "" }, { scheme: "file", authority: "" })).toBe(true);
+    expect(mayCopyScheme({ scheme: "file", authority: "" }, { scheme: "vscode-remote", authority: "ssh+box" })).toBe(true);
+    expect(mayCopyScheme({ scheme: "vscode-remote", authority: "ssh+box" }, { scheme: "vscode-remote", authority: "ssh+box" })).toBe(true);
+    expect(mayCopyScheme({ scheme: "vscode-remote", authority: "other" }, { scheme: "vscode-remote", authority: "ssh+box" })).toBe(false);
+    expect(mayCopyScheme({ scheme: "vscode-userdata", authority: "" }, { scheme: "file", authority: "" })).toBe(false);
+    expect(mayCopyScheme({ scheme: "vscode-userdata", authority: "" }, { scheme: "vscode-userdata", authority: "" })).toBe(false);
+    expect(mayCopyScheme({ scheme: "untitled", authority: "" }, { scheme: "untitled", authority: "" })).toBe(false);
+  });
+
+  it("has a copy limit of 50 MB", () => {
+    expect(COPY_LIMIT).toBe(50 * 1024 * 1024);
   });
 });
 

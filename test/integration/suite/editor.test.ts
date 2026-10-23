@@ -553,18 +553,34 @@ describe("Ken Markdown Editor", function () {
       }
     });
 
-    it("copies files dropped from outside the workspace", async () => {
+    it("copies files dropped from outside the workspace that VS Code has open", async () => {
       const os = await import("os");
       const fs = await import("fs");
       const pathMod = await import("path");
-      const outside = pathMod.join(fs.mkdtempSync(pathMod.join(os.tmpdir(), "ken-outside-")), "outside shot.png");
-      fs.writeFileSync(outside, Buffer.from(PNG, "base64"));
+      const outside = pathMod.join(fs.mkdtempSync(pathMod.join(os.tmpdir(), "ken-outside-")), "outside notes.txt");
+      fs.writeFileSync(outside, "outside\n");
+      // As when its editor tab is dragged in.
+      await vscode.workspace.openTextDocument(vscode.Uri.file(outside));
       const uri = fixture("docs/nested.md");
       const doc = await openEditor(uri);
       assert.ok(await webview(uri, { kind: "caretAfter", text: "A nested page." }));
-      await webview(uri, { kind: "transfer", event: "drop", margin: true, uris: [vscode.Uri.file(outside).toString()] });
-      await until("outside copied", () => doc.getText(), (t) => t.includes("![](_Images/outside%20shot.png)"));
-      assert.ok(await exists(vscode.Uri.joinPath(uri, "..", "_Images", "outside shot.png")));
+      await webview(uri, { kind: "transfer", event: "drop", uris: [vscode.Uri.file(outside).toString()] });
+      await until("outside copied", () => doc.getText(), (t) => t.includes("[outside notes.txt](outside%20notes.txt)"));
+      assert.ok(await exists(vscode.Uri.joinPath(uri, "..", "outside notes.txt")));
+    });
+
+    it("never copies an outside file VS Code does not have open (only links it)", async () => {
+      const os = await import("os");
+      const fs = await import("fs");
+      const pathMod = await import("path");
+      const secret = pathMod.join(fs.mkdtempSync(pathMod.join(os.tmpdir(), "ken-secret-")), "id_test");
+      fs.writeFileSync(secret, "secret\n");
+      const uri = fixture("docs/nested.md");
+      const doc = await openEditor(uri);
+      assert.ok(await webview(uri, { kind: "caretAfter", text: "A nested page." }));
+      await webview(uri, { kind: "transfer", event: "drop", uris: [vscode.Uri.file(secret).toString()] });
+      await until("linked as is", () => doc.getText(), (t) => t.includes("[id_test]("));
+      assert.ok(!(await exists(vscode.Uri.joinPath(uri, "..", "id_test"))), "not copied");
     });
 
     it("copies workspace files too with kenMarkdown.workspaceFiles = copy", async () => {

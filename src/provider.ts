@@ -11,7 +11,17 @@ import type {
   WebviewMessage,
 } from "./protocol";
 import { classifyHref, imageFolder, minimalChange, toEOL, toLF, uniqueName } from "./sync";
-import { byCloseness, insideFolder, isImageName, nameGlob, sameBytes, workspaceFilesMode } from "./workspaceFiles";
+import {
+  byCloseness,
+  COPY_LIMIT,
+  excludeGlob,
+  insideFolder,
+  isImageName,
+  mayCopyScheme,
+  nameGlob,
+  sameBytes,
+  workspaceFilesMode,
+} from "./workspaceFiles";
 import type { CollabManager, Endpoint } from "./collab/manager";
 import { fromBase64, toBase64 } from "./collab/wire";
 
@@ -69,6 +79,35 @@ export function readConfig(scope?: vscode.Uri): EditorConfig {
     alwaysShowProperties: c.get<boolean>("alwaysShowProperties", false),
     commentAuthor: c.get<string>("commentAuthor", "").trim() || defaultAuthor(),
   };
+}
+
+/** The bits of the built-in Git extension's API (`vscode.git`, version 1) used here. */
+interface GitApi {
+  getRepository(uri: vscode.Uri): { checkIgnore(paths: string[]): Promise<Set<string>> } | null;
+}
+
+/**
+ * Which of these files git ignores, as normalized file system paths. Empty when
+ * the Git extension is off or the files are not in a repository.
+ */
+async function gitIgnored(uris: vscode.Uri[]): Promise<Set<string>> {
+  if (uris.length === 0) return new Set();
+  try {
+    const ext = vscode.extensions.getExtension<{ getAPI(version: 1): GitApi }>("vscode.git");
+    if (!ext) return new Set();
+    const api = (ext.isActive ? ext.exports : await ext.activate()).getAPI(1);
+    // Grouped by repository: a workspace folder may hold several (submodules).
+    const byRepo = new Map<NonNullable<ReturnType<GitApi["getRepository"]>>, string[]>();
+    for (const u of uris) {
+      const repo = api.getRepository(u);
+      if (repo) byRepo.set(repo, [...(byRepo.get(repo) ?? []), u.fsPath]);
+    }
+    const out = new Set<string>();
+    for (const [repo, paths] of byRepo) for (const p of await repo.checkIgnore(paths)) out.add(path.normalize(p));
+    return out;
+  } catch {
+    return new Set();
+  }
 }
 
 /** One open editor: a webview bound to a TextDocument. */
@@ -413,17 +452,34 @@ class EditorSession {
    * bytes, as a root-relative path: what a file pasted or dropped from the OS
    * (whose path the webview never learns) most likely is. Undefined when
    * `kenMarkdown.workspaceFiles` is "copy" or there is none.
+   *
+   * Searched like VS Code's search: `files.exclude`, `search.exclude` and
+   * `node_modules` are skipped, and git-ignored files (build output such as
+   * `dist/`, which a clean build deletes) are never linked. The document's own
+   * folder is searched first so the result cap can't hide the nearest copy.
    */
   private async findInWorkspace(name: string, data: Uint8Array): Promise<string | undefined> {
     const folder = this.workspaceFolder;
     if (!folder || readWorkspaceFiles(this.document.uri) !== "link" || !name || name.includes("/")) return undefined;
     try {
-      const found = await vscode.workspace.findFiles(new vscode.RelativePattern(folder, `**/${nameGlob(name)}`), undefined, 50);
-      const byPath = new Map(found.filter((u) => path.posix.basename(u.path) === name).map((u) => [u.path, u]));
-      for (const p of byCloseness(path.posix.dirname(this.document.uri.path), [...byPath.keys()])) {
-        const uri = byPath.get(p)!;
-        if ((await vscode.workspace.fs.stat(uri)).size !== data.length) continue;
-        if (sameBytes(await vscode.workspace.fs.readFile(uri), data)) return this.rootRelative(uri);
+      const exclude = excludeGlob(
+        vscode.workspace.getConfiguration("files", folder.uri).get<Record<string, unknown>>("exclude", {}),
+        vscode.workspace.getConfiguration("search", folder.uri).get<Record<string, unknown>>("exclude", {}),
+      );
+      const docDir = vscode.Uri.joinPath(this.document.uri, "..");
+      const bases = docDir.toString() === folder.uri.toString() ? [folder.uri] : [docDir, folder.uri];
+      const tried = new Set<string>();
+      for (const base of bases) {
+        const found = await vscode.workspace.findFiles(new vscode.RelativePattern(base, `**/${nameGlob(name)}`), exclude, 500);
+        const fresh = found.filter((u) => path.posix.basename(u.path) === name && !tried.has(u.path));
+        fresh.forEach((u) => tried.add(u.path));
+        const ignored = await gitIgnored(fresh);
+        const byPath = new Map(fresh.filter((u) => !ignored.has(path.normalize(u.fsPath))).map((u) => [u.path, u]));
+        for (const p of byCloseness(docDir.path, [...byPath.keys()])) {
+          const uri = byPath.get(p)!;
+          if ((await vscode.workspace.fs.stat(uri)).size !== data.length) continue;
+          if (sameBytes(await vscode.workspace.fs.readFile(uri), data)) return this.rootRelative(uri);
+        }
       }
     } catch {
       // Not found is fine: the file is copied as before.
@@ -432,10 +488,30 @@ class EditorSession {
   }
 
   /**
+   * Whether the webview may have `uri` read and copied: the URI could come from
+   * a compromised webview rather than a real drop, so only files a drop could
+   * have carried qualify. Those are local files or files on the document's own
+   * file system, that are in an open workspace folder (the Explorer, search,
+   * SCM) or open in an editor (a dragged tab).
+   */
+  private mayCopy(uri: vscode.Uri): boolean {
+    if (!mayCopyScheme(uri, this.document.uri)) return false;
+    if (vscode.workspace.getWorkspaceFolder(uri)) return true;
+    const key = uri.toString();
+    if (vscode.workspace.textDocuments.some((d) => d.uri.toString() === key)) return true;
+    const tabUri = (input: unknown) => {
+      const u = (input as { uri?: unknown } | undefined)?.uri;
+      return u instanceof vscode.Uri ? u.toString() : undefined;
+    };
+    return vscode.window.tabGroups.all.some((g) => g.tabs.some((t) => tabUri(t.input) === key));
+  }
+
+  /**
    * How the document should reference a file dropped from the Explorer (or
    * any URI drop): linked where it is when it is in the document's workspace
    * folder and `kenMarkdown.workspaceFiles` is "link", else copied like a
-   * pasted file. Folders and unreadable URIs are linked as they are.
+   * pasted file. Folders, files over 50 MB, URIs that may not be copied (see
+   * `mayCopy`) and unreadable ones are linked as they are.
    */
   private async linkFor(raw: string): Promise<LinkedUri> {
     let uri: vscode.Uri;
@@ -452,8 +528,16 @@ class EditorSession {
       return { path: rel || name, relative: true, name };
     };
     if (this.inWorkspace(uri) && readWorkspaceFiles(doc) === "link") return asIs();
+    if (!this.mayCopy(uri)) return asIs();
     try {
-      if ((await vscode.workspace.fs.stat(uri)).type & vscode.FileType.Directory) return asIs();
+      const stat = await vscode.workspace.fs.stat(uri);
+      if (stat.type & vscode.FileType.Directory) return asIs();
+      if (stat.size > COPY_LIMIT) {
+        void vscode.window.showWarningMessage(
+          `${name} is larger than ${COPY_LIMIT / 1024 / 1024} MB, so it was linked where it is instead of copied.`,
+        );
+        return asIs();
+      }
       const data = await vscode.workspace.fs.readFile(uri);
       const saved = await this.saveAttachment(name, data, isImageName(name));
       const docDir = path.posix.dirname(this.docPath);

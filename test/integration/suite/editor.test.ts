@@ -870,6 +870,25 @@ describe("Ken Markdown Editor", function () {
     }
   });
 
+  it("applies paragraph spacing live, leaving list items alone", async () => {
+    const uri = fixture("sample.md");
+    await openEditor(uri);
+    const config = vscode.workspace.getConfiguration("kenMarkdown");
+    const style = (selector: string, property: string) => webview(uri, { kind: "getStyle", selector, property });
+    // Default 0.65em at 16px: 5.2px above and below each paragraph.
+    assert.strictEqual(await style(".milkdown .ProseMirror > p", "padding-top"), "5.2px");
+    const listLineHeight = await style(".milkdown li p", "line-height");
+    try {
+      await config.update("paragraphSpacing", 2, vscode.ConfigurationTarget.Global);
+      await until("paragraph spacing", () => style(".milkdown .ProseMirror > p", "padding-top"), (v) => v === "16px");
+      assert.strictEqual(await style(".milkdown li p", "padding-top"), "1px");
+      assert.strictEqual(await style(".milkdown li p", "line-height"), listLineHeight);
+      assert.strictEqual(await style(".milkdown .ProseMirror > p", "line-height"), "29.6px");
+    } finally {
+      await config.update("paragraphSpacing", undefined, vscode.ConfigurationTarget.Global);
+    }
+  });
+
   it("follows the active VS Code color theme", async () => {
     const uri = fixture("sample.md");
     await openEditor(uri);

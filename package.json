@@ -676,6 +676,13 @@
           "maximum": 3,
           "markdownDescription": "Line height of body text, as a multiple of the font size."
         },
+        "kenMarkdown.paragraphSpacing": {
+          "type": "number",
+          "default": 0.65,
+          "minimum": 0,
+          "maximum": 3,
+          "markdownDescription": "Space between paragraphs, as a multiple of the font size. List items are spaced by `#kenMarkdown.lineHeight#` instead."
+        },
         "kenMarkdown.maxWidth": {
           "type": "number",
           "default": 720,

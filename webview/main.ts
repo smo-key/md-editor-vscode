@@ -246,6 +246,8 @@ function applyConfig(config: EditorConfig) {
   font("--font-quote", config.quoteFontFamily ?? "");
   root.setProperty("--md-font-size", `${config.fontSize}px`);
   root.setProperty("--md-line-height", String(config.lineHeight));
+  if (typeof config.paragraphSpacing === "number") root.setProperty("--md-paragraph-spacing", `${config.paragraphSpacing}em`);
+  else root.removeProperty("--md-paragraph-spacing");
   root.setProperty("--md-max-width", `${config.maxWidth}px`);
   const position = config.toolbar === "bottom" || config.toolbar === "hidden" ? config.toolbar : "top";
   document.body.dataset.toolbar = position;

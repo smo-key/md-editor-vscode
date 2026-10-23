@@ -12,6 +12,8 @@
   --font-quote: var(--font-serif);
   --md-font-size: 16px;
   --md-line-height: 1.85;
+  /* Between paragraphs (kenMarkdown.paragraphSpacing); not the list spacing. */
+  --md-paragraph-spacing: 0.65em;
   --md-max-width: 720px;
   /* List items sit closer together than paragraphs. */
   --md-list-line-height: calc(var(--md-line-height) * 0.86);
@@ -128,6 +130,14 @@ body {
   .measure .milkdown .ProseMirror p {
     font-size: 1em;
     line-height: var(--md-line-height);
+    /* Half above, half below: consecutive paragraphs sit
+       --md-paragraph-spacing apart (Crepe's own is a fixed 4px each side).
+       List items, table cells and diagram labels set their own. */
+    padding: calc(var(--md-paragraph-spacing) / 2) 0;
+  }
+  .measure .milkdown .ProseMirror :is(td, th) p,
+  .measure .milkdown .mermaid-preview foreignObject p {
+    padding: 4px 0;
   }
   .measure .milkdown h1,
   .measure .milkdown h2,

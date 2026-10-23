@@ -74,6 +74,7 @@ export function readConfig(scope?: vscode.Uri): EditorConfig {
     codeFontFamily: c.get<string>("codeFontFamily", ""),
     quoteFontFamily: c.get<string>("quoteFontFamily", ""),
     lineHeight: c.get<number>("lineHeight", 1.85),
+    paragraphSpacing: c.get<number>("paragraphSpacing", 0.65),
     maxWidth: c.get<number>("maxWidth", 720),
     toolbar: toolbarPosition(c.get<unknown>("toolbar", "top")),
     alwaysShowProperties: c.get<boolean>("alwaysShowProperties", false),

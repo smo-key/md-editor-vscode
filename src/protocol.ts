@@ -9,6 +9,8 @@ export interface EditorConfig {
   codeFontFamily: string;
   quoteFontFamily: string;
   lineHeight: number;
+  /** Gap between paragraphs, in em. */
+  paragraphSpacing: number;
   maxWidth: number;
   toolbar: ToolbarPosition;
   alwaysShowProperties: boolean;

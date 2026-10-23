@@ -17,6 +17,7 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 
 ### Fixed
 
+- Selecting across tables and images no longer flickers. While you drag to select, images show a text cursor and letting go over one doesn't open it.
 - Editing a document no longer removes the blank line between its properties (frontmatter) and the body.
 
 ## [0.4.0] - 2026-10-22

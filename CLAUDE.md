@@ -20,7 +20,16 @@ npm run package             # .vsix;  ./install.sh builds + installs into local 
 
 Releases are automated: `.github/workflows/release.yml` publishes to the Marketplace when a push to `main` changes the `package.json` version to one without a `v<version>` tag. Start one with the `/release` skill (`.claude/skills/release/SKILL.md`), which bumps the version and moves `## [Unreleased]` in `CHANGELOG.md` to a dated version section (the workflow fails without it). Never tag or `vsce publish` manually. Add user-facing changes to `## [Unreleased]` as you make them.
 
-No linter is configured. `harness/` (Playwright/Chromium against `dist/webview` with a captured VS Code theme) is for visual/real-keystroke checks: `KEN_DUMP_THEMES=/tmp/themes npm run test:integration`, then `node harness/check-editing.mjs <theme.json>` or `node harness/screenshot.mjs <theme.json> <md> <out.png>`.
+No linter is configured. `harness/` (Playwright/Chromium against `dist/webview` with a captured VS Code theme) is for visual/real-keystroke checks (`check-editing`, `check-comments`, `check-collab`, `check-drawio`, `real-keys`, `screenshot`): `KEN_DUMP_THEMES=/tmp/themes npm run test:integration`, then `node harness/check-editing.mjs <theme.json>` or `node harness/screenshot.mjs <theme.json> <md> <out.png>`.
+
+## Workflow: test, then commit; never push
+
+When a piece of work is complete:
+
+1. **Test it.** Run `npm run typecheck` and `npm test` (what CI runs, in `.github/workflows/ci.yml`), plus `npm run build` if you touched the bundles or `esbuild.mjs`. Add or update unit tests for behavior you changed. Run `npm run test:integration` when you changed the host↔webview protocol, `provider.ts`, or anything that only shows up in real VS Code.
+2. **Fix failures before committing.** Never commit with failing typecheck or tests. If a failure is unrelated to your change, stop and report it with the output instead of committing around it.
+3. **Commit.** Stage only the files you changed (no stray fixture edits, `dist/`, `out/` or `.vsix`), with a message matching the history: `Area: what changed` (e.g. `Properties: no default title when adding frontmatter`). User-facing changes also get a line under `## [Unreleased]` in `CHANGELOG.md`, in the same commit.
+4. **Don't push.** Pushing is left to the user. The only exception is the `/release` skill, which pushes when the user explicitly invokes it.
 
 ## Architecture
 
@@ -31,6 +40,9 @@ Two bundles built by `esbuild.mjs`:
 - **Protocol**: all host↔webview messages are typed in `src/protocol.ts` (`HostMessage` / webview messages, plus `TestAction` used by integration tests). Change both sides together.
 - **Edit sync**: the webview serializes Markdown; `src/sync.ts` (pure, no `vscode` import so vitest covers it) computes `minimalChange` so only the changed span is applied to the `TextDocument`, keeping undo/dirty state/Git clean. Files must not be rewritten merely by opening them.
 - **Commands**: `webview/commands.ts` is the single list of editing commands; slash menu, toolbar and table context menu all draw from it.
+- **Frontmatter and comments** live outside the ProseMirror document (`webview/main.ts` splits them off and reattaches them when serializing). Frontmatter is the Properties panel (`webview/frontmatter.ts`, line-preserving edits in `frontmatterModel.ts`). Comments (`webview/comments/`) are stored in the Markdown itself: inline/block `<!-- ken:comment id -->` markers around the range, and one `<!-- ken:comments … -->` JSON block at the end of the file, one thread per line.
+- **Collaboration**: serverless real-time editing over Y.js. `src/collab/` is the hub (pure logic, `hub.ts`), the wire protocol (`wire.ts`) and VS Code transports (`manager.ts`: in-window, local WebSocket, Live Share, network). `webview/collab.ts` binds ProseMirror via y-prosemirror; `presence.ts` shows avatars. Plugins that normalize the document on change must skip remote transactions (`webview/remoteChange.ts`) or fixes get applied twice.
+- **draw.io**: `webview/drawio.ts` edits `.drawio.svg`/`.drawio.png` images in the diagrams.net embed; the file is the image and the source.
 - **Shortcuts**: `src/shortcuts.json` is the source of truth. `scripts/sync-contributes.mjs` generates `contributes.commands`, `keybindings` and command-palette `when` clauses in `package.json` from it; don't hand-edit those entries. `src/keybindings.ts` resolves effective keys (defaults + user `keybindings.json`) for tooltips and the shortcut panel.
 
 ## Conventions

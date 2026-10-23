@@ -148,6 +148,44 @@ describe("GFM round-trip", () => {
   });
 });
 
+// Milkdown writes each text node on its own and moves the spaces at a
+// mark's edges out of it, so one span around another mark used to come back
+// split: `*a https://a.com/x b*` as `*a* *https://a.com/x* *b*`.
+describe("one span around another mark", () => {
+  it.each([
+    ["emphasis around a bare literal", "*a https://a.com/x b*\n"],
+    ["underscore emphasis around a bare literal", "_a https://a.com/x b_\n"],
+    ["strong around a bare literal", "**a https://a.com/x b**\n"],
+    ["strikethrough around a bare literal", "~~a https://a.com/x b~~\n"],
+    ["emphasis around a literal with an underscore", "*a https://a.com/x_y b*\n"],
+    ["emphasis around an angle autolink", "*a <https://a.com> b*\n"],
+    ["emphasis around an inline link", "*a [t](https://a.com) b*\n"],
+    ["emphasis around two links", "*a [x](u) [y](u) b*\n"],
+    ["emphasis ending in a link", "*a [t](u)*\n"],
+    ["emphasis around inline code", "*a `c` b*\n"],
+    ["strong around inline code", "**a `c` b**\n"],
+    ["emphasis around strong", "*a **b** c*\n"],
+    ["strong around emphasis", "**a *b* c**\n"],
+    ["strikethrough around strong", "~~a **b** c~~\n"],
+    ["strong ending in emphasis", "**a *b***\n"],
+    ["emphasis ending in strong", "*a **b***\n"],
+    ["a link around emphasis", "[a *b* c](https://u.com)\n"],
+    ["emphasis around underline", "*a <ins>u</ins> b*\n"],
+    ["underline around emphasis", "<ins>a *b* c</ins>\n"],
+    ["emphasis around math", "*a $x$ b*\n"],
+    ["emphasis around code in a table cell", "| *a `c` b* | x |\n| --------- | - |\n"],
+    // Spans the user wrote apart stay apart.
+    ["two emphasis spans with a space between", "*a* *b*\n"],
+    ["two spans, different markers", "*a*_b_\n"],
+    ["emphasis, strong, emphasis", "*a* **b** *c*\n"],
+    ["strong emphasis next to emphasis", "***a*** *b*\n"],
+    ["emphasis on both sides of a literal", "*a* https://a.com *b*\n"],
+    ["emphasis on both sides of code", "*x* `c` *y*\n"],
+  ])("%s survives unchanged", async (_name, md) => {
+    expect(await roundTrip(md)).toBe(md);
+  });
+});
+
 describe("isSelfContained", () => {
   it.each([
     ['<p align="center"><img src="a.png"></p>', true],

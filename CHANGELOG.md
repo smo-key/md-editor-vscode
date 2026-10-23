@@ -20,6 +20,7 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 - After the properties change outside the editor, one Undo (or Redo) press always undoes something you can see, instead of first skipping a properties edit it can no longer apply.
 - A literal dollar pair such as `\$x\$` in a line that starts or ends with a tab no longer turns into math after saving and reopening.
 - A bare link followed by `_`, `*` or `~` and a space (as in `https://example.com/a_b_ c`) is no longer rewritten as `<https://…>` when you edit the file.
+- Emphasis, bold and strikethrough around a link, inline code, math or other formatting (as in `*see https://example.com now*`) stay one span when you edit the file, instead of being rewritten as `*see* *https://example.com* *now*`.
 
 ## [0.5.0] - 2026-10-23
 

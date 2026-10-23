@@ -287,6 +287,72 @@ await check("toolbar checklist on the last line keeps the caret in the new item"
   await m.close();
 }
 
+// Enter in the slash menu runs the highlighted item, however it was reached.
+{
+  const s = await openHarness({ themeFile, markdown: "# Intro\n\nx\n\nEnd\n", width: 900, height: 700 });
+  const p = s.page;
+  const text = () => p.evaluate(() => window.__lastText());
+  const active = () => p.evaluate(() => document.querySelector(".ken-slash-item.active")?.dataset.id);
+  // Each check starts on a new empty line at the end of the document.
+  const reset = async () => {
+    await p.click(".ProseMirror > :last-child");
+    await p.keyboard.press("End");
+    await p.keyboard.press("Enter");
+  };
+  await check("slash menu: Enter runs the item ArrowDown/ArrowUp reached", async () => {
+    await reset();
+    await p.keyboard.type("/");
+    for (let i = 0; i < 4; i++) await p.keyboard.press("ArrowDown");
+    await p.keyboard.press("ArrowUp");
+    assert.equal(await active(), "heading3");
+    await p.keyboard.press("Enter");
+    await p.keyboard.type("Three");
+    await p.waitForTimeout(250);
+    assert.match(await text(), /\n### Three\n/);
+  });
+  await check("slash menu: Enter runs the item under the mouse", async () => {
+    await reset();
+    await p.keyboard.type("/");
+    await p.hover('.ken-slash-item[data-id="quote"]');
+    assert.equal(await active(), "quote");
+    await p.keyboard.press("Enter");
+    await p.keyboard.type("Said");
+    await p.waitForTimeout(250);
+    assert.match(await text(), /\n> Said\n/);
+  });
+  await check("slash menu: a resting mouse doesn't steal the highlight as the list scrolls", async () => {
+    await reset();
+    await p.keyboard.type("/");
+    const box = await p.locator(".ken-slash-item").nth(2).boundingBox();
+    await p.mouse.move(box.x + 20, box.y + 5);
+    await p.waitForTimeout(100);
+    assert.equal(await active(), "heading2");
+    // Past the menu's visible rows, so it scrolls under the pointer.
+    for (let i = 0; i < 13; i++) {
+      await p.keyboard.press("ArrowDown");
+      await p.waitForTimeout(20);
+    }
+    await p.waitForTimeout(150);
+    // Row 2 plus 13: the keys, not the row now under the pointer.
+    assert.equal(await active(), "image");
+    await p.keyboard.press("Escape");
+  });
+  await check("slash menu: an exact shortcut keyword (/table), then ArrowDown, runs the highlighted item", async () => {
+    await reset();
+    await p.keyboard.type("/table");
+    assert.equal(await active(), "table");
+    await p.keyboard.press("ArrowDown");
+    assert.equal(await active(), "toc");
+    await p.keyboard.press("Enter");
+    await p.waitForTimeout(250);
+    const t = await text();
+    assert.match(t, /<!-- ken:toc -->/, t);
+    assert.doesNotMatch(t, /\|/, t);
+  });
+  assert.deepEqual(s.errors, []);
+  await s.close();
+}
+
 assert.deepEqual(h.errors, []);
 await h.close();
 console.log(`ok: ${checks.length} checks\n- ${checks.join("\n- ")}`);

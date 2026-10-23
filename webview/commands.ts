@@ -5,7 +5,7 @@
  */
 import { commandsCtx, editorViewCtx } from "@milkdown/kit/core";
 import type { Ctx } from "@milkdown/kit/ctx";
-import type { MarkType, Node as ProseNode } from "@milkdown/kit/prose/model";
+import { Fragment, type MarkType, type Node as ProseNode } from "@milkdown/kit/prose/model";
 import { lift, setBlockType, toggleMark, wrapIn } from "@milkdown/kit/prose/commands";
 import { redo, undo, redoDepth, undoDepth } from "@milkdown/kit/prose/history";
 import { sharedHistory } from "./collab";
@@ -681,8 +681,21 @@ export const COMMANDS: EditorCommand[] = [
     slash: true,
     toolbar: true,
     run: (ctx, view) => {
-      const parent = view.state.selection.$from.parent;
-      if (parent.isTextblock && parent.content.size === 0) call(ctx, addBlockTypeCommand.key, { nodeType: hrSchema.type(ctx) });
+      const { $from } = view.state.selection;
+      const parent = $from.parent;
+      if (parent.isTextblock && parent.content.size === 0) {
+        // An empty line becomes the rule plus a fresh line to type on, as
+        // the `/hr` shortcut does, rather than the caret jumping into the next block.
+        const hr = hrSchema.type(ctx).create();
+        const line = paragraphSchema.type(ctx).create();
+        const container = $from.node(-1);
+        const i = $from.index(-1);
+        if ($from.depth >= 1 && container.canReplace(i, i + 1, Fragment.from([hr, line]))) {
+          const from = $from.before();
+          const tr = view.state.tr.replaceWith(from, $from.after(), [hr, line]);
+          view.dispatch(tr.setSelection(TextSelection.create(tr.doc, from + hr.nodeSize + 1)).scrollIntoView());
+        } else call(ctx, addBlockTypeCommand.key, { nodeType: hrSchema.type(ctx) });
+      }
       else insertBlock(view, hrSchema.type(ctx).create());
     },
     isEnabled: (state) => !inCodeBlock(state) && !inTable(state),

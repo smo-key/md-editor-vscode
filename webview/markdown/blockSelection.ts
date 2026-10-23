@@ -167,23 +167,20 @@ export function deletionRange(state: EditorState): Span | null {
 
 /**
  * Delete `span` and put a text caret where the selection's text survives:
- * at its far end when that was in text (the rest of that paragraph), else at
- * its near end, else in the text right beside the gap. Never a node
- * selection: typing would then replace the image or rule before the gap.
- * `caret` is false when no text is beside the gap (the caller decides).
+ * at its start when that was in text that stays, else at its end (the rest
+ * of that paragraph). Never a node selection: typing would then replace the
+ * image or rule before the gap. `caret` is false when neither end survives
+ * (the caller decides: typing starts a paragraph in the gap, deleting moves
+ * to the nearest text).
  */
 function deleteSpan(state: EditorState, span: Span): { tr: Transaction; caret: boolean } {
-  const doc = state.doc;
-  const farInText = doc.resolve(span.to).parent.inlineContent;
-  const nearInText = doc.resolve(span.from).parent.inlineContent;
+  const { from, to, $from, $to } = state.selection;
+  // An end of the selection in text that the deletion leaves standing.
+  const nearSurvives = $from.parent.inlineContent && from <= span.from;
+  const farSurvives = $to.parent.inlineContent && to >= span.to;
   const tr = state.tr.delete(span.from, span.to);
   const inText = (pos: number) => (tr.doc.resolve(pos).parent.inlineContent ? pos : null);
-  const gap = tr.mapping.map(span.from, -1);
-  const at =
-    (farInText ? inText(tr.mapping.map(span.to, 1)) : null) ??
-    (nearInText ? inText(gap) : null) ??
-    textInside(tr.doc, gap, -1) ??
-    textInside(tr.doc, gap, 1);
+  const at = (nearSurvives ? inText(tr.mapping.map(from, -1)) : null) ?? (farSurvives ? inText(tr.mapping.map(to, 1)) : null);
   if (at !== null) {
     tr.setSelection(TextSelection.create(tr.doc, at));
     return { tr, caret: true };
@@ -298,8 +295,57 @@ export function shiftArrow(key: Arrow): Command {
   };
 }
 
+/** The position before the table cell around `$pos`, if any. */
+function cellStart($pos: ResolvedPos): number | null {
+  for (let d = $pos.depth; d > 0; d--) {
+    const role = $pos.node(d).type.spec.tableRole as string | undefined;
+    if (role === "cell" || role === "header_cell") return $pos.before(d);
+  }
+  return null;
+}
+
+/**
+ * A text selection running between two cells of one table, as the cell
+ * selection that covers them. Typing or deleting over such a text selection
+ * would cut the table's rows apart; over the cell selection, it clears the
+ * cells and keeps the table's shape.
+ */
+export function asCellSelection(state: EditorState): CellSelection | null {
+  const sel = state.selection;
+  if (!(sel instanceof TextSelection) || sel.empty) return null;
+  const a = cellStart(sel.$anchor);
+  const h = cellStart(sel.$head);
+  if (a === null || h === null || a === h) return null;
+  const tableA = tableAround(sel.$anchor);
+  const tableH = tableAround(sel.$head);
+  if (!tableA || !tableH || tableA.from !== tableH.from) return null;
+  return CellSelection.create(state.doc, a, h);
+}
+
+/**
+ * Typing over cells: they are cleared and the text goes into the first one
+ * (top left), the table keeping its rows, columns and alignments.
+ */
+function typeIntoCells(state: EditorState, cells: CellSelection, text: string): Transaction {
+  const first = Math.min(...cells.ranges.map((r) => r.$from.pos));
+  const tr = state.tr.setSelection(cells).deleteSelection();
+  const $cell = tr.doc.resolve(tr.mapping.map(first, -1));
+  const caret = TextSelection.findFrom($cell, 1, true);
+  if (!caret) return tr;
+  return tr.setSelection(caret).insertText(text);
+}
+
+/** Backspace/Delete on a text selection across cells clears those cells. */
+const deleteAcrossCells: Command = (state, dispatch) => {
+  const cells = asCellSelection(state);
+  if (!cells) return false;
+  if (dispatch) dispatch(state.tr.setSelection(cells).deleteSelection().scrollIntoView());
+  return true;
+};
+
 /** Backspace/Delete on a selection reaching into opaque blocks removes them whole. */
 export const deleteBlockRange: Command = (state, dispatch) => {
+  if (deleteAcrossCells(state, dispatch)) return true;
   const span = deletionRange(state);
   if (!span) return false;
   if (dispatch) dispatch(deleteSpanToCaret(state, span).scrollIntoView());
@@ -336,6 +382,17 @@ function shiftClick(view: EditorView, event: MouseEvent): boolean {
       ? { from: hit.inside, to: hit.inside + inside.nodeSize }
       : opaqueAround(doc.resolve(head), { tables: false });
   const started = opaqueAround(doc.resolve(anchor), { tables: false });
+  const $hit = doc.resolve(head);
+  if (!clicked && !started && tableAround($hit) && !tableAround(selection.$anchor) && $hit.parent.inlineContent) {
+    // Into a cell's text from outside the table: a text range ending at the
+    // click, set here rather than left to the browser. Inside the table's
+    // view the browser's extended selection was sometimes reset before
+    // ProseMirror read it, and the range was lost.
+    event.preventDefault();
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(doc, anchor, head)));
+    view.focus();
+    return true;
+  }
   if (clicked) {
     if (anchor > clicked.from && anchor < clicked.to) return false;
     head = anchor <= clicked.from ? clicked.to : clicked.from;
@@ -510,8 +567,29 @@ export const blockSelectionPlugin = $prose(
       },
       props: {
         decorations: (state) => key.getState(state) as DecorationSet | undefined,
+        // Cut and paste over text across cells work on those cells: turn the
+        // selection into the cell selection first, then let them run.
+        handleDOMEvents: {
+          cut: (view) => {
+            const cells = asCellSelection(view.state);
+            if (cells) view.dispatch(view.state.tr.setSelection(cells));
+            return false;
+          },
+        },
+        handlePaste: (view, _event, slice) => {
+          const cells = asCellSelection(view.state);
+          if (!cells) return false;
+          view.dispatch(view.state.tr.setSelection(cells).replaceSelection(slice).scrollIntoView());
+          return true;
+        },
         // Typing over such a selection replaces what Backspace would remove.
         handleTextInput(view, _from, _to, text) {
+          const sel = view.state.selection;
+          const cells = sel instanceof CellSelection ? sel : asCellSelection(view.state);
+          if (cells) {
+            view.dispatch(typeIntoCells(view.state, cells, text).scrollIntoView());
+            return true;
+          }
           const span = deletionRange(view.state);
           if (!span) return false;
           view.dispatch(replaceSpanWithText(view.state, span, text).scrollIntoView());
@@ -551,6 +629,24 @@ class StableTableView extends TableNodeView {
     if (node.type !== this.node.type) return false;
     if (node.sameMarkup(this.node) && node.content.eq(this.node.content)) return true;
     return super.update(node);
+  }
+
+  /**
+   * A press in a cell goes to ProseMirror. Crepe's view claimed it (to
+   * select the cell's paragraph a frame later, which tableCellClickFix
+   * filters out anyway) whenever the caret was in another cell or outside the
+   * table, so ProseMirror's and the table plugin's mouse handling never saw
+   * it: a drag across cells made a browser text selection instead of a cell
+   * selection, and typing over that broke the table.
+   */
+  override stopEvent(e: Event): boolean {
+    if ((e.type === "mousedown" || e.type === "pointerdown") && e.target instanceof Element) {
+      if (e.target.closest("button")) return true;
+      if (e.target.closest("th, td")) {
+        return false;
+      }
+    }
+    return super.stopEvent(e);
   }
 }
 

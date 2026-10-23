@@ -488,3 +488,104 @@ describe("drag-select tracking", () => {
     }
   });
 });
+
+describe("selections across the cells of one table", () => {
+  const TABLE_DOC = "Intro\n\n| a | b |\n| - | :- |\n| 1 | 2 |\n| 3 | 4 |\n\nTail text\n";
+  /** The saved table's rows, as arrays of trimmed cells. */
+  const rows = (md: string) =>
+    md
+      .split("\n")
+      .filter((l) => l.startsWith("|"))
+      .map((l) => l.slice(1, -1).split("|").map((c) => c.trim()));
+  const typeText = (view: EditorView, text: string) => {
+    const { from, to } = view.state.selection;
+    const handled = view.someProp("handleTextInput", (f) => f(view, from, to, text, () => view.state.tr));
+    if (!handled) view.dispatch(view.state.tr.insertText(text));
+  };
+  const backspace = (view: EditorView) => {
+    if (!press(view, "Backspace")) view.dispatch(view.state.tr.deleteSelection());
+  };
+  const cellPos = (view: EditorView, text: string) => {
+    const $p = view.state.doc.resolve(posOf(view, text, { start: true }));
+    return $p.before($p.depth - 1);
+  };
+
+  for (const [name, from, to, cleared] of [
+    ["same row", "a", "b", ["a", "b"]],
+    ["next row", "a", "1", ["a", "1"]],
+    ["diagonal", "1", "4", ["1", "2", "3", "4"]],
+    ["upward", "4", "a", ["a", "b", "1", "2", "3", "4"]],
+  ] as const) {
+    for (const kind of ["text", "cells"] as const) {
+      for (const key of ["X", "Backspace"] as const) {
+        it(`${key} over a ${kind} selection from ${from} to ${to} (${name}) keeps the table's shape`, async () => {
+          await withEditor(TABLE_DOC, (view, md) => {
+            if (kind === "cells") {
+              view.dispatch(view.state.tr.setSelection(CellSelection.create(view.state.doc, cellPos(view, from), cellPos(view, to))));
+            } else {
+              // As a mouse drag that the table plugin missed leaves it: text
+              // from inside one cell to inside another.
+              // (Not ending at the very start of a cell: the table plugin
+              // collapses those itself.)
+              const up = posOf(view, to) < posOf(view, from);
+              const a = posOf(view, from, { start: !up });
+              const b = posOf(view, to, { start: up });
+              view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, a, b)));
+            }
+            if (key === "X") typeText(view, "X");
+            else backspace(view);
+            const out = md();
+            const r = rows(out);
+            expect(r.length).toBe(4);
+            expect(r.every((row) => row.length === 2)).toBe(true);
+            expect(r[1]).toEqual(["-", ":-"]);
+            const texts = r.filter((_, i) => i !== 1).flat();
+            for (const c of ["a", "b", "1", "2", "3", "4"]) {
+              expect(texts.includes(c)).toBe(!(cleared as readonly string[]).includes(c));
+            }
+            if (key === "X") {
+              expect(texts.filter((c) => c === "X").length).toBe(1);
+              // In the first (top-left) cleared cell.
+              const order = ["a", "b", "1", "2", "3", "4"];
+              const firstCleared = order.find((c) => (cleared as readonly string[]).includes(c))!;
+              expect(texts[order.indexOf(firstCleared)]).toBe("X");
+            }
+            expect(out).toMatch(/^Intro\n/);
+            expect(out).toMatch(/Tail text\n$/);
+          });
+        });
+      }
+    }
+  }
+
+  it("a press in a cell reaches the table plugin (so dragging makes a cell selection)", async () => {
+    await withEditor(TABLE_DOC, (view) => {
+      select(view, posOf(view, "Intro"));
+      const td = [...view.dom.querySelectorAll("td")].find((e) => e.textContent?.trim() === "4")!;
+      const block = view.dom.querySelector(".milkdown-table-block") as HTMLElement & { pmViewDesc?: { stopEvent(e: Event): boolean } };
+      const event = new MouseEvent("mousedown", { bubbles: true, cancelable: true, button: 0 });
+      Object.defineProperty(event, "target", { value: td.querySelector("p") ?? td });
+      expect(block.pmViewDesc!.stopEvent(event)).toBe(false);
+    });
+  });
+});
+
+describe("typing over blocks with no surviving text at either end", () => {
+  it("starts a paragraph where two adjacent tables were", async () => {
+    await withEditor("Tail text\n\n| c | d |\n| - | - |\n| 5 | 6 |\n\n| e | f |\n| - | - |\n| 7 | 8 |\n\nEnd text\n", (view, md) => {
+      select(view, posOf(view, "5"), posOf(view, "8"));
+      const { from, to } = view.state.selection;
+      expect(view.someProp("handleTextInput", (f) => f(view, from, to, "X", () => view.state.tr))).toBe(true);
+      expect(md()).toBe("Tail text\n\nX\n\nEnd text\n");
+    });
+  });
+
+  it("Backspace there moves to the nearest text", async () => {
+    await withEditor("Tail text\n\n| c | d |\n| - | - |\n| 5 | 6 |\n\n| e | f |\n| - | - |\n| 7 | 8 |\n\nEnd text\n", (view, md) => {
+      select(view, posOf(view, "5"), posOf(view, "8"));
+      expect(press(view, "Backspace")).toBe(true);
+      expect(md()).toBe("Tail text\n\nEnd text\n");
+      expect(view.state.selection).toBeInstanceOf(TextSelection);
+    });
+  });
+});

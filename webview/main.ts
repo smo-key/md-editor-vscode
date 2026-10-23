@@ -701,6 +701,8 @@ function runTest(action: TestAction): unknown {
     }
     case "count":
       return document.querySelectorAll(action.selector).length;
+    case "getText":
+      return document.querySelector(action.selector)?.textContent ?? null;
     case "fill": {
       const el = document.querySelector<HTMLInputElement | HTMLTextAreaElement>(action.selector);
       if (!el) return false;

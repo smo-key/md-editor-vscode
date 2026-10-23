@@ -179,6 +179,23 @@ describe("stable rendering while selecting", () => {
   });
 });
 
+describe("highlight caching", () => {
+  it("reuses the highlight when neither the document nor the selection changes", async () => {
+    await withEditor(DOC, (view) => {
+      const plugin = view.state.plugins.find((p) => (p as unknown as { key: string }).key.startsWith("ken-block-selection$"))!;
+      const decos = () => plugin.getState(view.state);
+      view.dispatch(view.state.tr.setSelection(new AllSelection(view.state.doc)));
+      const first = decos();
+      expect(first.find().length).toBe(4);
+      view.dispatch(view.state.tr.setMeta("unrelated", true));
+      expect(decos()).toBe(first);
+      select(view, posOf(view, "Intro", { start: true }), posOf(view, "1"));
+      expect(decos()).not.toBe(first);
+      expect(decos().find().length).toBe(1);
+    });
+  });
+});
+
 describe("expandRange", () => {
   it("takes the whole table when a range ends inside it", async () => {
     await withEditor(DOC, (view) => {
@@ -249,6 +266,72 @@ describe("deleting a block selection", () => {
       const handled = view.someProp("handleTextInput", (f) => f(view, view.state.selection.from, view.state.selection.to, "X", () => view.state.tr));
       expect(handled).toBe(true);
       expect(md().split("\n").slice(0, 3)).toEqual(["Intro X", "", "Middle"]);
+    });
+  });
+});
+
+describe("where the caret goes after removing a block selection", () => {
+  const typeX = (view: EditorView) => {
+    const { from, to } = view.state.selection;
+    return view.someProp("handleTextInput", (f) => f(view, from, to, "X", () => view.state.tr));
+  };
+  const before = (block: string) => `Intro\n\n${block}\n\n| a | b |\n| - | - |\n| 1 | 2 |\n\nTail text\n`;
+
+  for (const [name, block, kept] of [
+    ["an image", "![pic](x.png)", /!\[pic\]\(x\.png\)/],
+    ["a rule", "---", /\n(---|\*\*\*)\n/],
+  ] as const) {
+    it(`typing over a table after ${name} keeps ${name} and types where the text survives`, async () => {
+      await withEditor(before(block), (view, md) => {
+        select(view, posOf(view, "1", { start: true }), posOf(view, "text", { start: true }));
+        expect(typeX(view)).toBe(true);
+        const out = md();
+        expect(out).toMatch(kept);
+        expect(out).toMatch(/\n\nXtext\n$/);
+        expect(out).not.toMatch(/\|/);
+        expect(view.state.selection).toBeInstanceOf(TextSelection);
+      });
+    });
+
+    it(`Backspace over a table after ${name} leaves a text caret, not ${name} selected`, async () => {
+      await withEditor(before(block), (view, md) => {
+        select(view, posOf(view, "1", { start: true }), posOf(view, "text", { start: true }));
+        expect(press(view, "Backspace")).toBe(true);
+        expect(view.state.selection).toBeInstanceOf(TextSelection);
+        expect(view.state.selection.from).toBe(posOf(view, "text", { start: true }));
+        expect(md()).toMatch(kept);
+      });
+    });
+  }
+
+  it("typing over a table after a paragraph types at the surviving end, not in that paragraph", async () => {
+    await withEditor("Intro\n\n| a | b |\n| - | - |\n| 1 | 2 |\n\nTail text\n", (view, md) => {
+      select(view, posOf(view, "1", { start: true }), posOf(view, "text", { start: true }));
+      expect(typeX(view)).toBe(true);
+      expect(md()).toBe("Intro\n\nXtext\n");
+    });
+  });
+
+  it("typing over blocks between two paragraphs types at the end of the first", async () => {
+    await withEditor("Intro\n\n---\n\n| a |\n| - |\n| 1 |\n\nEnd\n", (view, md) => {
+      select(view, posOf(view, "Intro"), posOf(view, "End", { start: true }));
+      expect(typeX(view)).toBe(true);
+      expect(md()).toBe("IntroX\n\nEnd\n");
+    });
+  });
+
+  it("typing over blocks with no text on either side starts a paragraph", async () => {
+    await withEditor("![a](a.png)\n\n| a |\n| - |\n| 1 |\n\n![b](b.png)\n", (view, md) => {
+      let table = { from: -1, to: -1 };
+      view.state.doc.forEach((n, pos) => {
+        if (n.type.name === "table") table = { from: pos, to: pos + n.nodeSize };
+      });
+      // From the boundary after the first image into the table.
+      select(view, table.from, posOf(view, "1"));
+      expect(typeX(view)).toBe(true);
+      expect(md()).toMatch(/^!\[a\]\(a\.png\)\n\nX\n\n!\[b\]\(b\.png\)/);
+      expect(view.state.selection).toBeInstanceOf(TextSelection);
+      expect(table.from).toBeGreaterThan(0);
     });
   });
 });

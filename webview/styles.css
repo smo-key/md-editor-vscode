@@ -2226,3 +2226,149 @@ body.ken-drag-selecting .milkdown .milkdown-table-block .cell-handle,
 body.ken-drag-selecting .milkdown .milkdown-table-block .line-handle {
   visibility: hidden;
 }
+
+/* --- Lucidchart previews (markdown/lucid.ts) ---------------------------------
+   A widget under a Lucid link alone in its paragraph. Our chrome only: the
+   frame's inside is Lucid's. Colours come from --vscode-* variables. */
+.measure .milkdown .ProseMirror .ken-lucid-source {
+  margin-bottom: 4px;
+  font-size: 0.85em;
+  color: var(--vscode-descriptionForeground);
+}
+.measure .milkdown .ProseMirror .ken-lucid-source a {
+  color: var(--vscode-descriptionForeground);
+  text-decoration-color: var(--vscode-descriptionForeground);
+}
+.measure .milkdown .ProseMirror .ken-lucid-source:has(img) {
+  font-size: inherit;
+}
+.ken-lucid-card {
+  margin: 0 0 1em;
+  border: 1px solid var(--vscode-widget-border, var(--vscode-editorWidget-border, transparent));
+  border-radius: 6px;
+  overflow: hidden;
+  color: var(--vscode-foreground);
+  font-family: var(--vscode-font-family);
+  font-size: 12px;
+  line-height: 1.4;
+  user-select: none;
+}
+.ken-lucid-card.ken-lucid-selected,
+.ken-lucid-toolbar.ken-lucid-selected {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 1px;
+}
+.ken-lucid-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px 5px 10px;
+  background: var(--vscode-editorWidget-background);
+  border-bottom: 1px solid var(--vscode-widget-border, var(--vscode-editorWidget-border, transparent));
+}
+.ken-lucid-icon {
+  display: inline-flex;
+  color: var(--vscode-descriptionForeground);
+}
+.ken-lucid-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.ken-lucid-actions,
+.ken-lucid-toolbar,
+.ken-lucid-state-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.ken-lucid-toolbar {
+  display: flex;
+  margin: 0 0 1em;
+  font-family: var(--vscode-font-family);
+  font-size: 12px;
+  user-select: none;
+}
+.ken-lucid-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border: 1px solid var(--vscode-button-border, transparent);
+  border-radius: 4px;
+  background: var(--vscode-button-secondaryBackground, var(--vscode-editorWidget-background));
+  color: var(--vscode-button-secondaryForeground, var(--vscode-foreground));
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.ken-lucid-button:hover {
+  background: var(--vscode-button-secondaryHoverBackground, var(--vscode-button-secondaryBackground));
+}
+.ken-lucid-button:focus-visible,
+.ken-lucid-hint a:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 1px;
+}
+.ken-lucid-body {
+  position: relative;
+  background: var(--vscode-editor-background);
+}
+.ken-lucid-frame {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  min-height: 240px;
+  max-height: 70vh;
+  border: 0;
+  background: var(--vscode-editor-background);
+}
+/* A fallback card replaces the frame; a late load brings the frame back. */
+.ken-lucid-card[data-state="click"] .ken-lucid-frame,
+.ken-lucid-card[data-state="offline"] .ken-lucid-frame,
+.ken-lucid-card[data-state="timeout"] .ken-lucid-frame {
+  display: none;
+}
+.ken-lucid-state:empty {
+  display: none;
+}
+.ken-lucid-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 160px;
+  padding: 16px;
+  text-align: center;
+  color: var(--vscode-descriptionForeground);
+}
+.ken-lucid-state-title {
+  color: var(--vscode-foreground);
+  font-weight: 600;
+}
+.ken-lucid-small {
+  font-size: 11px;
+}
+.ken-lucid-hint {
+  margin: 0;
+  padding: 6px 10px;
+  border-top: 1px solid var(--vscode-widget-border, var(--vscode-editorWidget-border, transparent));
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  user-select: text;
+}
+.ken-lucid-hint a {
+  color: var(--vscode-textLink-foreground);
+}
+.ken-lucid-hint a:hover {
+  color: var(--vscode-textLink-activeForeground, var(--vscode-textLink-foreground));
+}
+body.ken-drag-selecting .ken-lucid-actions,
+body.ken-drag-selecting .ken-lucid-toolbar {
+  visibility: hidden;
+}

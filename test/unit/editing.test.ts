@@ -91,6 +91,99 @@ describe("slash menu", () => {
     });
   });
 
+  describe("Enter runs the highlighted item, not the top one", () => {
+    const key = (view: EditorView, k: string) =>
+      view.dom.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true }));
+    const open = (view: EditorView, query: string) => {
+      // As in Chromium, where the editor has focus while typing.
+      view.hasFocus = () => true;
+      caretAfter(view, "x");
+      view.dispatch(view.state.tr.delete(view.state.selection.from - 1, view.state.selection.from));
+      view.dispatch(view.state.tr.insertText(`/${query}`));
+      const menu = document.querySelector<HTMLElement>(".ken-slash-menu")!;
+      expect(menu.hidden).toBe(false);
+      return menu;
+    };
+    const active = (menu: HTMLElement) => menu.querySelector<HTMLElement>(".ken-slash-item.active")?.dataset.id;
+
+    it("after ArrowDown in the unfiltered menu", async () => {
+      await withEditor("Intro\n\nx\n", (ed, view) => {
+        const menu = open(view, "");
+        for (let i = 0; i < 3; i++) key(view, "ArrowDown");
+        expect(active(menu)).toBe("heading3");
+        key(view, "Enter");
+        expect(menu.hidden).toBe(true);
+        view.dispatch(view.state.tr.insertText("Title"));
+        expect(ed.markdown()).toBe("Intro\n\n### Title\n");
+      });
+    });
+
+    it("after ArrowUp, wrapping to the last item", async () => {
+      await withEditor("Intro\n\nx\n", (_ed, view) => {
+        const menu = open(view, "h");
+        const items = [...menu.querySelectorAll<HTMLElement>(".ken-slash-item")].map((e) => e.dataset.id);
+        key(view, "ArrowUp");
+        expect(active(menu)).toBe(items[items.length - 1]);
+      });
+    });
+
+    it("after the mouse moves over an item", async () => {
+      await withEditor("Intro\n\nx\n", (ed, view) => {
+        const menu = open(view, "");
+        menu.querySelector<HTMLElement>('.ken-slash-item[data-id="quote"]')!.dispatchEvent(new MouseEvent("mousemove", { bubbles: true }));
+        expect(active(menu)).toBe("quote");
+        key(view, "Enter");
+        view.dispatch(view.state.tr.insertText("Said"));
+        expect(ed.markdown()).toBe("Intro\n\n> Said\n");
+      });
+    });
+
+    // "/table" is also a slash shortcut (slashShortcuts.ts): Enter used to
+    // apply it ahead of the menu, whatever was highlighted.
+    it("after filtering to an exact shortcut keyword, then ArrowDown", async () => {
+      await withEditor("# Intro\n\nx\n", (ed, view) => {
+        const menu = open(view, "table");
+        expect(active(menu)).toBe("table");
+        key(view, "ArrowDown");
+        expect(active(menu)).toBe("toc");
+        key(view, "Enter");
+        expect(menu.hidden).toBe(true);
+        expect(ed.markdown()).not.toMatch(/\|/);
+        expect(ed.markdown()).toMatch(/<!-- ken:toc -->/);
+      });
+    });
+
+    it("with the highlight left on top, an exact keyword still runs its block", async () => {
+      await withEditor("Intro\n\nx\n", (ed, view) => {
+        open(view, "h2");
+        key(view, "Enter");
+        view.dispatch(view.state.tr.insertText("Title"));
+        expect(ed.markdown()).toBe("Intro\n\n## Title\n");
+      });
+    });
+
+    it("/hr then Enter leaves a fresh line after the rule, as the shortcut did", async () => {
+      await withEditor("Intro\n\nx\n\nEnd\n", (ed, view) => {
+        const menu = open(view, "hr");
+        expect(active(menu)).toBe("divider");
+        key(view, "Enter");
+        view.dispatch(view.state.tr.insertText("Next"));
+        expect(ed.markdown()).toMatch(/^Intro\n\n(\*\*\*|---)\n\nNext\n\nEnd\n$/);
+      });
+    });
+
+    it("Tab still runs the highlighted item", async () => {
+      await withEditor("Intro\n\nx\n", (ed, view) => {
+        const menu = open(view, "");
+        key(view, "ArrowDown");
+        expect(active(menu)).toBe("heading1");
+        key(view, "Tab");
+        view.dispatch(view.state.tr.insertText("Top"));
+        expect(ed.markdown()).toBe("Intro\n\n# Top\n");
+      });
+    });
+  });
+
   it("filters by label, then keywords", () => {
     const slash = COMMANDS.filter((c) => c.slash);
     expect(filterCommands(slash, "tab")[0].id).toBe("table");

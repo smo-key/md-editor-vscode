@@ -8,6 +8,10 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 
 - Right-click a table of contents for **Delete table of contents**, which removes the whole table of contents (one undo brings it back).
 
+### Fixed
+
+- Slash menu: Enter runs the item you highlighted with the arrow keys or the mouse. Before, after typing a shortcut word such as `/table` or `/code`, Enter ran that word's block whichever item was highlighted. Divider on an empty line now leaves a new empty line after the rule to type on.
+
 ## [0.5.0] - 2026-10-23
 
 ### Added

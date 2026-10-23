@@ -130,7 +130,6 @@ export function buildEditor(options: EditorOptions): Crepe {
   );
   crepe.editor.use(headingBackspace);
   crepe.editor.use(slashShortcutInputRule);
-  crepe.editor.use(slashShortcutKeys);
   crepe.editor.use(anchorLinkPlugin);
   crepe.editor.use(headingLinkPlugin);
   crepe.editor.use(headingContextMenuPlugin(options.onHeadingNumbering));
@@ -158,6 +157,8 @@ export function buildEditor(options: EditorOptions): Crepe {
   crepe.editor.use(htmlViewPlugin(options.proxyDomURL));
   crepe.editor.use(inlineHtmlPlugin);
   crepe.editor.use(slashMenuPlugin);
+  // After the menu: while it is open, Enter runs its highlighted item.
+  crepe.editor.use(slashShortcutKeys);
   crepe.editor.use(tableKeys);
   crepe.editor.use(headingLevelKeys);
   crepe.editor.use(tableCellClickFix);

@@ -1,8 +1,8 @@
 // Typing `/h1`, `/quote`, `/note` … as the whole of an otherwise empty
 // paragraph or heading and then Space or Enter applies that block type
 // straight away. The parsing half is pure so it can be unit tested; the
-// ProseMirror half is a key handler (Space and Enter, ahead of Crepe's slash
-// menu) plus the original input rule on a typed trailing space.
+// ProseMirror half is a key handler (Space, and Enter while the slash menu is
+// closed) plus the original input rule on a typed trailing space.
 import {
   blockquoteSchema,
   bulletListSchema,
@@ -256,36 +256,32 @@ export function slashCommandTransaction(
 }
 
 /**
- * Space or Enter after a bare shortcut applies it. Crepe's slash menu opens on
- * the `/` and, while it is open, takes Enter for itself (from a capturing
- * `window` listener) to run whichever item its label filter left highlighted
- * — so `/table` would insert a table of contents, and `/hr` nothing at all.
- * This listener is registered when the editor is built, before the menu's
- * own, so it runs first; when it applies a shortcut it stops the event, the
- * block no longer starts with `/`, and the menu closes itself.
+ * Space or Enter after a bare shortcut applies it. A DOM keydown handler, so
+ * it runs ahead of every keymap (list Enter, block selection, …). It must be
+ * registered after the slash menu (slashMenu.ts), whose own keydown handler
+ * then sees the key first: while the menu is open, Enter runs the item it
+ * highlights (which for an untouched `/table` or `/hr` is that block anyway),
+ * so an item picked with the arrows or the mouse is never overridden by the
+ * typed keyword. Space, which the menu leaves alone, still applies it.
  */
 export const slashShortcutKeys = milkdown.$prose(
   (ctx) =>
     new Plugin({
       key: new PluginKey("ken-slash-shortcut-keys"),
-      view(view) {
-        const onKeydown = (event: KeyboardEvent) => {
-          if (event.key !== "Enter" && event.key !== " ") return;
-          if (event.shiftKey || event.metaKey || event.ctrlKey || event.altKey)
-            return;
-          if (event.isComposing || !view.hasFocus()) return;
-          const tr = slashCommandTransaction(ctx, view.state);
-          if (!tr) return;
-          event.preventDefault();
-          event.stopImmediatePropagation();
-          view.dispatch(tr.scrollIntoView());
-        };
-        const win = view.dom.ownerDocument.defaultView ?? window;
-        win.addEventListener("keydown", onKeydown, { capture: true });
-        return {
-          destroy: () =>
-            win.removeEventListener("keydown", onKeydown, { capture: true }),
-        };
+      props: {
+        handleDOMEvents: {
+          keydown: (view, event) => {
+            if (event.key !== "Enter" && event.key !== " ") return false;
+            if (event.shiftKey || event.metaKey || event.ctrlKey || event.altKey)
+              return false;
+            if (event.isComposing) return false;
+            const tr = slashCommandTransaction(ctx, view.state);
+            if (!tr) return false;
+            event.preventDefault();
+            view.dispatch(tr.scrollIntoView());
+            return true;
+          },
+        },
       },
     }),
 );

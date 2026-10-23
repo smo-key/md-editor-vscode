@@ -191,21 +191,30 @@ await check("a drag from one cell into a cell in another row works (it used to c
   }),
 );
 
+await check("a drag from a cell out of the table stays a cell selection of that cell", () =>
+  withDoc(`Intro\n\n${TABLE}\n\nTail text\n`, async (p) => {
+    await p.click(".ProseMirror p:has-text('Intro')");
+    await drag(p, await centre(p, ".ProseMirror td:has-text('1')"), await beforeText(p));
+    const selected = await p.evaluate(() => [...document.querySelectorAll(".selectedCell")].map((e) => e.textContent.trim()));
+    assert.deepEqual(selected, ["1"]);
+    await p.keyboard.press("X");
+    await p.waitForTimeout(250);
+    assert.equal((await saved(p)).trim(), "Intro\n\n| a | b |\n| - | - |\n| X | 2 |\n\nTail text");
+  }),
+);
+
 for (const [name, above] of [["", ""], [" (image above)", "![logo](logo.svg)\n\n"], [" (rule above)", "---\n\n"]]) {
-  for (const [how, key] of [["a drag", "X"], ["a drag", "Backspace"], ["Shift+click", "X"], ["Shift+click", "Backspace"]]) {
-    await check(`${how} from a cell to the text below, then ${key}${name}, removes just the table`, () =>
+  for (const key of ["X", "Backspace"]) {
+    await check(`Shift+click from a cell to the text below, then ${key}${name}, removes just the table`, () =>
       withDoc(`Intro\n\n${above}${TABLE}\n\nTail text\n`, async (p) => {
-        if (how === "a drag") await drag(p, await centre(p, ".ProseMirror td:has-text('1')"), await beforeText(p));
-        else {
-          const c = await centre(p, ".ProseMirror td:has-text('1')");
-          await p.mouse.click(c.x, c.y);
-          await p.waitForTimeout(250);
-          const t = await beforeText(p);
-          await p.keyboard.down("Shift");
-          await p.mouse.click(t.x, t.y);
-          await p.keyboard.up("Shift");
-          await p.waitForTimeout(250);
-        }
+        const c = await centre(p, ".ProseMirror td:has-text('1')");
+        await p.mouse.click(c.x, c.y);
+        await p.waitForTimeout(250);
+        const t = await beforeText(p);
+        await p.keyboard.down("Shift");
+        await p.mouse.click(t.x, t.y);
+        await p.keyboard.up("Shift");
+        await p.waitForTimeout(250);
         const hl = await p.evaluate(() => [...document.querySelectorAll(".ken-block-selected")].map((e) => e.className));
         assert.ok(hl.some((c) => /table/.test(c)), `the table shows as included: ${hl}`);
         await p.keyboard.press(key);
@@ -213,6 +222,48 @@ for (const [name, above] of [["", ""], [" (image above)", "![logo](logo.svg)\n\n
         const text = (await saved(p)).trim();
         const kept = above ? `Intro\n\n${above.trim().replace("---", "***")}\n\n` : "Intro\n\n";
         assert.equal(text, `${kept}${key === "X" ? "X" : ""}text`);
+      }),
+    );
+  }
+}
+
+// Drags between cells of one table make a cell selection; typing or deleting
+// over it clears those cells and keeps the table's shape.
+const GRID = "| a | b |\n| - | :- |\n| 1 | 2 |\n| 3 | 4 |";
+const tableRows = (md) =>
+  md
+    .split("\n")
+    .filter((l) => l.startsWith("|"))
+    .map((l) => l.slice(1, -1).split("|").map((c) => c.trim()));
+const cellCentre = async (p, text) => {
+  const b = await p.locator(".ProseMirror td, .ProseMirror th").filter({ hasText: new RegExp(`^\\s*${text}\\s*$`) }).first().boundingBox();
+  return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+};
+for (const [name, from, to, cleared] of [
+  ["the same row", "a", "b", ["a", "b"]],
+  ["the next row", "a", "1", ["a", "1"]],
+  ["diagonally", "1", "4", ["1", "2", "3", "4"]],
+  ["upward", "4", "a", ["a", "b", "1", "2", "3", "4"]],
+]) {
+  for (const key of ["X", "Backspace"]) {
+    await check(`a drag across cells ${name}, then ${key}, keeps the table's shape`, () =>
+      withDoc(`Intro\n\n${GRID}\n\nTail text\n`, async (p) => {
+        await p.click(".ProseMirror p:has-text('Tail')");
+        await drag(p, await cellCentre(p, from), await cellCentre(p, to), 12);
+        const selected = await p.evaluate(() => [...document.querySelectorAll(".selectedCell")].map((e) => e.textContent.trim()));
+        assert.deepEqual([...selected].sort(), [...cleared].sort(), "a cell selection of the dragged cells");
+        await p.keyboard.press(key);
+        await p.waitForTimeout(250);
+        const r = tableRows(await saved(p));
+        assert.equal(r.length, 4, "rows kept");
+        assert.ok(r.every((row) => row.length === 2), `columns kept: ${JSON.stringify(r)}`);
+        assert.deepEqual(r[1], ["-", ":-"], "alignment row kept");
+        const texts = r.filter((_, i) => i !== 1).flat();
+        const order = ["a", "b", "1", "2", "3", "4"];
+        for (const [i, c] of order.entries()) {
+          const expected = cleared.includes(c) ? (key === "X" && c === order.find((o) => cleared.includes(o)) ? "X" : "") : c;
+          assert.equal(texts[i], expected, `cell ${c}: ${JSON.stringify(r)}`);
+        }
       }),
     );
   }

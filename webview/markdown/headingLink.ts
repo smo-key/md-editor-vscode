@@ -22,6 +22,9 @@ import { Plugin, PluginKey } from "@milkdown/kit/prose/state";
 import { Decoration, DecorationSet } from "@milkdown/kit/prose/view";
 import { $prose } from "@milkdown/kit/utils";
 
+import { Link, ListOrdered } from "lucide";
+
+import { openContextMenu, type MenuEntry } from "../contextMenu";
 import { collectHeadings } from "./anchors";
 
 /** Class of the injected button, also used by the editor's CSS. */
@@ -42,6 +45,11 @@ const CHECK_ICON = icon('<path d="M20 6 9 17l-5-5"/>');
 /** The Markdown link a heading's button copies. */
 export function headingLinkMarkdown(text: string, slug: string): string {
   return `[${text}](#${slug})`;
+}
+
+/** Put a heading's Markdown link on the clipboard; whether it worked. */
+export function copyHeadingLink(text: string, slug: string): Promise<boolean> {
+  return copy(headingLinkMarkdown(text, slug));
 }
 
 async function copy(text: string): Promise<boolean> {
@@ -69,7 +77,7 @@ function makeButton(text: string, slug: string): HTMLElement {
   button.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
-    void copy(headingLinkMarkdown(text, slug)).then((ok) => {
+    void copyHeadingLink(text, slug).then((ok) => {
       if (!ok) return;
       button.classList.add("copied");
       button.innerHTML = CHECK_ICON;
@@ -129,3 +137,50 @@ export const headingLinkPlugin = $prose(
       },
     }),
 );
+
+/** The heading's context menu entries (exported for tests). */
+export function headingMenuItems(text: string, slug: string, onHeadingNumbering?: () => void): MenuEntry[] {
+  const items: MenuEntry[] = [];
+  if (onHeadingNumbering) items.push({ label: "Heading numbering…", icon: ListOrdered, onSelect: onHeadingNumbering });
+  items.push({
+    label: "Copy link to heading",
+    icon: Link,
+    disabled: !slug,
+    onSelect: () => void copyHeadingLink(text, slug),
+  });
+  return items;
+}
+
+/**
+ * Right-clicking a heading opens a small menu: "Heading numbering…" (when the
+ * host wired it) and "Copy link to heading", the same link the hover button
+ * copies. A right-click anywhere else is left alone.
+ */
+export function headingContextMenuPlugin(onHeadingNumbering?: () => void) {
+  return $prose(
+    () =>
+      new Plugin({
+        key: new PluginKey("ken-heading-menu"),
+        props: {
+          handleDOMEvents: {
+            contextmenu: (view, event) => {
+              const target = event.target instanceof Element ? event.target : null;
+              const el = target?.closest("h1, h2, h3, h4, h5, h6");
+              if (!el || !view.dom.contains(el)) return false;
+              let pos: number;
+              try {
+                pos = view.posAtDOM(el, 0) - 1;
+              } catch {
+                return false;
+              }
+              const heading = collectHeadings(view.state.doc).find((h) => h.pos === pos || (pos > h.pos && pos < h.pos + h.size));
+              if (!heading) return false;
+              event.preventDefault();
+              openContextMenu(event.clientX, event.clientY, headingMenuItems(heading.text, heading.slug, onHeadingNumbering));
+              return true;
+            },
+          },
+        },
+      }),
+  );
+}

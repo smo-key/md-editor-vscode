@@ -12,7 +12,7 @@ import { disableHeadingDowngrade, headingBackspace } from "./markdown/headingBac
 import { mermaidPreviewToggleText, renderMermaidPreview } from "./markdown/mermaid";
 import { slashShortcutInputRule, slashShortcutKeys } from "./markdown/slashShortcuts";
 import { anchorLinkPlugin } from "./markdown/anchors";
-import { headingLinkPlugin } from "./markdown/headingLink";
+import { headingContextMenuPlugin, headingLinkPlugin } from "./markdown/headingLink";
 import { headingNumbersPlugin } from "./markdown/headingNumbers";
 import { wikiLinkPlugin, type LinkClick } from "./markdown/wikiLinks";
 import { lucidPlugin, type LucidOptions } from "./markdown/lucid";
@@ -61,6 +61,8 @@ export interface EditorOptions {
   lucid?: LucidOptions;
   /** Heading numbers (markdown/headingNumbers.ts): the current setting, read at each rebuild. */
   headingNumbers?: () => HeadingNumbersConfig | undefined;
+  /** "Heading numbering…" in a heading's context menu; the item is left out without it. */
+  onHeadingNumbering?: () => void;
 }
 
 /** A configured, not yet created, editor: call `create()` on it. */
@@ -130,6 +132,7 @@ export function buildEditor(options: EditorOptions): Crepe {
   crepe.editor.use(slashShortcutKeys);
   crepe.editor.use(anchorLinkPlugin);
   crepe.editor.use(headingLinkPlugin);
+  crepe.editor.use(headingContextMenuPlugin(options.onHeadingNumbering));
   crepe.editor.use(headingNumbersPlugin(options.headingNumbers));
   crepe.editor.use(wikiLinkPlugin(onLink, () => false));
   // A Lucid link alone in its paragraph shows a preview under it (decorations only).

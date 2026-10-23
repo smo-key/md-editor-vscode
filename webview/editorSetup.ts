@@ -40,6 +40,7 @@ import { threadStore } from "./comments/store";
 import { toolbarPlugin } from "./toolbar";
 import { blockSelectionKeys, blockSelectionPlugin, stableTableView } from "./markdown/blockSelection";
 import { keySelectionSync } from "./keySelectionSync";
+import { configureTabIndent } from "./markdown/plainTab";
 import { codePasteExtension, codePastePlugin } from "./markdown/codePaste";
 
 export interface EditorOptions {
@@ -169,6 +170,7 @@ export function buildEditor(options: EditorOptions): Crepe {
   useTaskHandle(crepe.editor);
   if (options.toolbarHost) crepe.editor.use(toolbarPlugin(options.toolbarHost));
   crepe.editor.config(disableHeadingDowngrade);
+  crepe.editor.config(configureTabIndent);
   // House style is `- ` bullets; remark-stringify would otherwise write `*`.
   // Tight lists are kept tight (see gfmFidelity.ts).
   crepe.editor.config((ctx) => {

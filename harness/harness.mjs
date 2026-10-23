@@ -21,7 +21,7 @@ export async function openHarness({ themeFile, markdown, width = 1100, height = 
     window.__sent.push(m);
     if (window.__hostHook && /^collab/.test(m.type)) window.__hostHook(m.type, m.data ? (() => { let s = ""; for (const c of m.data) s += String.fromCharCode(c); return btoa(s); })() : null, m.writer ?? null);
     if (m.type === "ready") setTimeout(() => window.postMessage({ type: "init", text: ${JSON.stringify(markdown)}, docPath: "doc.md",
-      config: { fontSize: ${Number(fontSize)}, bodyFontFamily: "", headingFontFamily: "", codeFontFamily: "", lineHeight: 1.85, maxWidth: 720, toolbar: "${process.env.KEN_TOOLBAR ?? "top"}", alwaysShowProperties: ${process.env.KEN_ALWAYS_PROPS === "1"}, lucidchart: { preview: "${process.env.KEN_LUCID_PREVIEW ?? "auto"}" } } }, "*"));
+      config: { fontSize: ${Number(fontSize)}, bodyFontFamily: "", headingFontFamily: "", codeFontFamily: "", lineHeight: 1.85, maxWidth: 720, toolbar: "${process.env.KEN_TOOLBAR ?? "top"}", alwaysShowProperties: ${process.env.KEN_ALWAYS_PROPS === "1"}, lucidchart: { preview: "${process.env.KEN_LUCID_PREVIEW ?? "auto"}" }, tabSize: ${Number(process.env.KEN_TAB_SIZE ?? 4)} } }, "*"));
     // Stand-in for the host: "saved" files live in memory as blob URLs,
     // deduped like the host does (name-1.png).
     if (m.type === "saveAttachment") {

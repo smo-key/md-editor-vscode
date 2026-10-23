@@ -32,6 +32,7 @@ import {
 } from "../src/headingNumbers";
 import { openHeadingNumberingDialog } from "./headingNumberingDialog";
 import { lucidPreviewMode, type LucidPreviewMode } from "../src/lucidUrl";
+import { tabSizeValue } from "../src/tabSize";
 import { carriesFiles, handleFileDrop, type FileDropOptions } from "./fileDrop";
 import { normalizeTrailingNewlines } from "./markdown/gfmFidelity";
 import {
@@ -295,6 +296,8 @@ function applyConfig(config: EditorConfig) {
   if (typeof config.paragraphSpacing === "number") root.setProperty("--md-paragraph-spacing", `${config.paragraphSpacing}em`);
   else root.removeProperty("--md-paragraph-spacing");
   root.setProperty("--md-max-width", `${config.maxWidth}px`);
+  // Tabs typed in paragraphs (markdown/plainTab.ts) are editor.tabSize wide.
+  root.setProperty("--md-tab-size", String(tabSizeValue(config.tabSize)));
   const position = config.toolbar === "bottom" || config.toolbar === "hidden" ? config.toolbar : "top";
   document.body.dataset.toolbar = position;
   frontmatterPanel.setAlwaysShow(config.alwaysShowProperties === true);

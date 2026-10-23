@@ -1,7 +1,7 @@
 // Tab / Shift+Tab inside lists, pressed as real keydown events on the real
 // editor: they indent / outdent an item when that is possible and otherwise do
-// nothing at all. They never fall through to Crepe's indent plugin, which
-// inserts four spaces.
+// nothing at all; Shift+Tab on a top-level item turns it into a paragraph.
+// They never fall through to Crepe's indent plugin, which types a tab.
 import { describe, expect, it } from "vitest";
 import { editorViewCtx } from "@milkdown/kit/core";
 import { TextSelection } from "@milkdown/kit/prose/state";
@@ -168,35 +168,49 @@ describe("Tab in a list", () => {
 });
 
 describe("Shift+Tab in a list", () => {
-  it("does nothing on a top-level item", async () => {
-    await withEditor(NESTED, (view, md) => {
-      const before = md();
-      for (const text of ["one", "four"]) {
-        caretAfter(view, text);
-        expect(press(view, "Tab", true)).toBe(true);
-        expect(md()).toBe(before);
-      }
+  it("turns a top-level item into a plain paragraph", async () => {
+    await withEditor("- one\n- two\n- three\n", (view, md) => {
+      caretAfter(view, "two");
+      expect(press(view, "Tab", true)).toBe(true);
+      expect(view.state.selection.$from.parent.type.name).toBe("paragraph");
+      expect(view.state.selection.$from.depth).toBe(1);
+      expect(md()).toBe("- one\n\ntwo\n\n- three\n");
+      expectNoIndentText(view, md());
     });
   });
 
-  it("does nothing on a top-level task or ordered item", async () => {
+  it("turns a top-level item with children into a paragraph, the children staying a list", async () => {
+    await withEditor(NESTED, (view, md) => {
+      caretAfter(view, "one");
+      expect(press(view, "Tab", true)).toBe(true);
+      expect(view.state.selection.$from.depth).toBe(1);
+      expect(md()).toMatch(/^one\n\n/);
+      expect(md()).toContain("four");
+      expectNoIndentText(view, md());
+    });
+  });
+
+  it("turns a top-level task or ordered item into a paragraph", async () => {
     for (const doc of ["- [ ] a\n- [ ] b\n", "1. a\n2. b\n"]) {
       await withEditor(doc, (view, md) => {
-        const before = md();
         caretAfter(view, "b");
         expect(press(view, "Tab", true)).toBe(true);
-        expect(md()).toBe(before);
+        expect(view.state.selection.$from.depth).toBe(1);
+        expect(md()).toMatch(/\n\nb\n$/);
+        expect(md()).not.toMatch(/\[ \] b|2\. b/);
       });
     }
   });
 
-  it("outdents a nested item", async () => {
+  it("outdents a nested item one level, then out of the list", async () => {
     await withEditor(NESTED, (view, md) => {
       caretAfter(view, "three");
       expect(press(view, "Tab", true)).toBe(true);
       expect(md()).toBe("- one\n  - two\n- three\n- four\n");
       expect(press(view, "Tab", true)).toBe(true);
-      expect(md()).toBe("- one\n  - two\n- three\n- four\n");
+      expect(md()).toBe("- one\n  - two\n\nthree\n\n- four\n");
+      // A paragraph again: Shift+Tab is no longer the list's.
+      expect(view.state.selection.$from.depth).toBe(1);
     });
   });
 });
@@ -229,12 +243,3 @@ describe("Tab in blocks inside a list item keeps their own rule", () => {
   });
 });
 
-describe("Tab outside lists is unchanged", () => {
-  it("still reaches the rest of the keymap in a plain paragraph", async () => {
-    await withEditor("text\n", (view) => {
-      caretAfter(view, "text");
-      // Crepe's indent plugin answers it, as before.
-      expect(press(view, "Tab")).toBe(true);
-    });
-  });
-});

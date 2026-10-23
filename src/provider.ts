@@ -12,6 +12,7 @@ import type {
 } from "./protocol";
 import { headingNumbersConfig } from "./headingNumbers";
 import { editUrl, lucidPreviewMode, openUrl, parseLucidUrl } from "./lucidUrl";
+import { tabSizeValue } from "./tabSize";
 import { classifyHref, imageFolder, minimalChange, toEOL, toLF, uniqueName } from "./sync";
 import {
   byCloseness,
@@ -67,6 +68,12 @@ function readWorkspaceFiles(scope: vscode.Uri) {
   return workspaceFilesMode(vscode.workspace.getConfiguration("kenMarkdown", scope).get<string>("workspaceFiles", "link"));
 }
 
+/** `editor.tabSize` as it applies to a Markdown document, `[markdown]` overrides included. */
+function readTabSize(scope?: vscode.Uri): number {
+  const editor = vscode.workspace.getConfiguration("editor", { uri: scope, languageId: "markdown" });
+  return tabSizeValue(editor.get<unknown>("tabSize"));
+}
+
 export function readConfig(scope?: vscode.Uri): EditorConfig {
   const c = vscode.workspace.getConfiguration("kenMarkdown", scope);
   return {
@@ -90,6 +97,7 @@ export function readConfig(scope?: vscode.Uri): EditorConfig {
       prefixes: ["h1", "h2", "h3", "h4", "h5", "h6"].map((h) => c.get<unknown>(`headingNumbers.${h}Prefix`)),
       separator: c.get<unknown>("headingNumbers.separator", "."),
     }),
+    tabSize: readTabSize(scope),
   };
 }
 
@@ -185,7 +193,10 @@ class EditorSession {
         e.waitUntil(this.flush());
       }),
       vscode.workspace.onDidChangeConfiguration((e) => {
-        if (e.affectsConfiguration("kenMarkdown", this.document.uri)) {
+        if (
+          e.affectsConfiguration("kenMarkdown", this.document.uri) ||
+          e.affectsConfiguration("editor.tabSize", { uri: this.document.uri, languageId: "markdown" })
+        ) {
           this.post({ type: "config", config: readConfig(this.document.uri) });
         }
       }),

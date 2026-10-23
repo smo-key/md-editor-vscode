@@ -25,7 +25,8 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 ### Fixed
 
 - Undo and redo now include Properties edits (including the heading numbering dialog's Apply) in the order you made them, and work while a property field has focus. Editing a property no longer rewrites the rest of the document (e.g. `| --- |` stays as written).
-- Tab in a list item indents it, and Shift+Tab outdents it, or they do nothing when the item can't move (the first item of a level, a top-level item); they no longer insert spaces or turn a top-level item into a paragraph. Code blocks, tables and headings inside list items keep their own Tab.
+- Tab in a list item indents it, or does nothing when the item can't move (the first item of a level); it no longer inserts spaces. Shift+Tab outdents a nested item one level and turns a top-level item back into a paragraph. Code blocks, tables and headings inside list items keep their own Tab.
+- Tab in a plain paragraph now types a real tab character instead of four spaces, drawn as wide as your `editor.tabSize` setting (`[markdown]` overrides included). A tab at the start or end of a line is saved as `&#x9;`, so it doesn't turn the paragraph into a code block or get dropped when the file is reopened.
 - Pasting into a code block, math or mermaid block, or inline code now inserts plain text exactly as copied, without backslash escapes or Markdown formatting, including text copied from the editor itself.
 - Dragging across table cells makes a cell selection again, and typing, Backspace or Delete over it clear those cells without breaking the table's rows, columns or alignment.
 - Links keep the form you wrote them in: bare links (https://…), www. and email links, and [url](url) links are no longer rewritten as <https://…> when you edit elsewhere in the document.

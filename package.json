@@ -693,138 +693,421 @@
         "kenMarkdown.headingNumbers.enabled": {
           "type": "boolean",
           "default": false,
-          "markdownDescription": "Show a small number to the left of each heading (`1`, `1.a`, `1.a.i`…) and before each table of contents entry. Display only: numbers are never written to the file. Headings inside quotes, alerts, lists and tables aren't numbered, and a skipped level (an H2 followed by an H4) is left out rather than shown as 0. Set each level's style with `#kenMarkdown.headingNumbers.h1#`…`#kenMarkdown.headingNumbers.h6#`. A document's own `ken-heading-numbering` property (`on`, `off` or a format such as `\"1.a.i\"`) overrides these."
+          "markdownDescription": "Show a small number to the left of each heading (`1`, `1.a`, `Section 1.01`…) and before each table of contents entry. Display only: numbers are never written to the file. Headings inside quotes, alerts, lists and tables aren't numbered, and a skipped level (an H2 followed by an H4) is left out rather than shown as 0. Pick a style with `#kenMarkdown.headingNumbers.preset#`, or set each level with `#kenMarkdown.headingNumbers.h1#`…`#kenMarkdown.headingNumbers.h6#`. A document's own `ken-heading-numbering` property (`on`, `off`, a preset such as `legal`, or a format such as `\"1.a.i\"`) overrides these."
+        },
+        "kenMarkdown.headingNumbers.preset": {
+          "type": "string",
+          "enum": [
+            "custom",
+            "outline",
+            "decimal",
+            "legal",
+            "legal-article"
+          ],
+          "enumDescriptions": [
+            "The per-level settings below (`h1`…`h6`, their parents and prefixes, and the separator).",
+            "1, 1.a, 1.a.i, 1.a.i.1, 1.a.i.1.a, 1.a.i.1.a.i",
+            "1, 1.1, 1.1.1… (ISO and legal decimal numbering)",
+            "1, 1.1, 1.1.1, then (a), (i), (A): standard contracts",
+            "Article I, Section 1.01, (a), (i), (A), (1): US agreements"
+          ],
+          "default": "custom",
+          "markdownDescription": "A ready-made numbering scheme. Any preset but `custom` overrides the per-level settings (`#kenMarkdown.headingNumbers.h1#`…`h6`, their `Parents` and `Prefix`, and `#kenMarkdown.headingNumbers.separator#`)."
         },
         "kenMarkdown.headingNumbers.h1": {
           "type": "string",
           "enum": [
             "decimal",
+            "decimal-leading-zero",
             "lower-alpha",
             "upper-alpha",
             "lower-roman",
             "upper-roman",
+            "parenthesized-decimal",
+            "parenthesized-lower-alpha",
+            "parenthesized-upper-alpha",
+            "parenthesized-lower-roman",
+            "parenthesized-upper-roman",
+            "decimal-paren",
+            "lower-alpha-paren",
+            "upper-alpha-paren",
+            "lower-roman-paren",
+            "upper-roman-paren",
             "none"
           ],
           "enumDescriptions": [
             "1, 2, 3",
+            "01, 02, 03 (as in Section 1.01)",
             "a, b, c (then aa, ab…)",
             "A, B, C (then AA, AB…)",
             "i, ii, iii",
             "I, II, III",
+            "(1), (2), (3)",
+            "(a), (b), (c)",
+            "(A), (B), (C)",
+            "(i), (ii), (iii)",
+            "(I), (II), (III)",
+            "1), 2), 3)",
+            "a), b), c)",
+            "A), B), C)",
+            "i), ii), iii)",
+            "I), II), III)",
             "Not numbered, and left out of deeper headings' numbers."
           ],
           "default": "decimal",
-          "markdownDescription": "Number style for level 1 headings, when `#kenMarkdown.headingNumbers.enabled#` is on."
+          "markdownDescription": "Number style for level 1 headings, when `#kenMarkdown.headingNumbers.preset#` is `custom`."
+        },
+        "kenMarkdown.headingNumbers.h1Parents": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "full",
+            "legal",
+            "own"
+          ],
+          "enumDescriptions": [
+            "`own` for a parenthesized style, `full` otherwise.",
+            "Parent numbers, then this level's: 1.a.i, or 1.01(a) before a parenthesized style.",
+            "Parent numbers as plain digits, as Word's legal style numbering: Section 1.01 under Article I.",
+            "Only this level's own label: (a) rather than 1.01(a)."
+          ],
+          "default": "auto",
+          "markdownDescription": "Whether level 1 labels include the parent levels' numbers, when `#kenMarkdown.headingNumbers.preset#` is `custom`."
+        },
+        "kenMarkdown.headingNumbers.h1Prefix": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Text before each level 1 label, such as `Article ` or `Section ` (include the trailing space). Not repeated in deeper labels. Used when `#kenMarkdown.headingNumbers.preset#` is `custom`."
         },
         "kenMarkdown.headingNumbers.h2": {
           "type": "string",
           "enum": [
             "decimal",
+            "decimal-leading-zero",
             "lower-alpha",
             "upper-alpha",
             "lower-roman",
             "upper-roman",
+            "parenthesized-decimal",
+            "parenthesized-lower-alpha",
+            "parenthesized-upper-alpha",
+            "parenthesized-lower-roman",
+            "parenthesized-upper-roman",
+            "decimal-paren",
+            "lower-alpha-paren",
+            "upper-alpha-paren",
+            "lower-roman-paren",
+            "upper-roman-paren",
             "none"
           ],
           "enumDescriptions": [
             "1, 2, 3",
+            "01, 02, 03 (as in Section 1.01)",
             "a, b, c (then aa, ab…)",
             "A, B, C (then AA, AB…)",
             "i, ii, iii",
             "I, II, III",
+            "(1), (2), (3)",
+            "(a), (b), (c)",
+            "(A), (B), (C)",
+            "(i), (ii), (iii)",
+            "(I), (II), (III)",
+            "1), 2), 3)",
+            "a), b), c)",
+            "A), B), C)",
+            "i), ii), iii)",
+            "I), II), III)",
             "Not numbered, and left out of deeper headings' numbers."
           ],
           "default": "lower-alpha",
-          "markdownDescription": "Number style for level 2 headings, when `#kenMarkdown.headingNumbers.enabled#` is on."
+          "markdownDescription": "Number style for level 2 headings, when `#kenMarkdown.headingNumbers.preset#` is `custom`."
+        },
+        "kenMarkdown.headingNumbers.h2Parents": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "full",
+            "legal",
+            "own"
+          ],
+          "enumDescriptions": [
+            "`own` for a parenthesized style, `full` otherwise.",
+            "Parent numbers, then this level's: 1.a.i, or 1.01(a) before a parenthesized style.",
+            "Parent numbers as plain digits, as Word's legal style numbering: Section 1.01 under Article I.",
+            "Only this level's own label: (a) rather than 1.01(a)."
+          ],
+          "default": "auto",
+          "markdownDescription": "Whether level 2 labels include the parent levels' numbers, when `#kenMarkdown.headingNumbers.preset#` is `custom`."
+        },
+        "kenMarkdown.headingNumbers.h2Prefix": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Text before each level 2 label, such as `Article ` or `Section ` (include the trailing space). Not repeated in deeper labels. Used when `#kenMarkdown.headingNumbers.preset#` is `custom`."
         },
         "kenMarkdown.headingNumbers.h3": {
           "type": "string",
           "enum": [
             "decimal",
+            "decimal-leading-zero",
             "lower-alpha",
             "upper-alpha",
             "lower-roman",
             "upper-roman",
+            "parenthesized-decimal",
+            "parenthesized-lower-alpha",
+            "parenthesized-upper-alpha",
+            "parenthesized-lower-roman",
+            "parenthesized-upper-roman",
+            "decimal-paren",
+            "lower-alpha-paren",
+            "upper-alpha-paren",
+            "lower-roman-paren",
+            "upper-roman-paren",
             "none"
           ],
           "enumDescriptions": [
             "1, 2, 3",
+            "01, 02, 03 (as in Section 1.01)",
             "a, b, c (then aa, ab…)",
             "A, B, C (then AA, AB…)",
             "i, ii, iii",
             "I, II, III",
+            "(1), (2), (3)",
+            "(a), (b), (c)",
+            "(A), (B), (C)",
+            "(i), (ii), (iii)",
+            "(I), (II), (III)",
+            "1), 2), 3)",
+            "a), b), c)",
+            "A), B), C)",
+            "i), ii), iii)",
+            "I), II), III)",
             "Not numbered, and left out of deeper headings' numbers."
           ],
           "default": "lower-roman",
-          "markdownDescription": "Number style for level 3 headings, when `#kenMarkdown.headingNumbers.enabled#` is on."
+          "markdownDescription": "Number style for level 3 headings, when `#kenMarkdown.headingNumbers.preset#` is `custom`."
+        },
+        "kenMarkdown.headingNumbers.h3Parents": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "full",
+            "legal",
+            "own"
+          ],
+          "enumDescriptions": [
+            "`own` for a parenthesized style, `full` otherwise.",
+            "Parent numbers, then this level's: 1.a.i, or 1.01(a) before a parenthesized style.",
+            "Parent numbers as plain digits, as Word's legal style numbering: Section 1.01 under Article I.",
+            "Only this level's own label: (a) rather than 1.01(a)."
+          ],
+          "default": "auto",
+          "markdownDescription": "Whether level 3 labels include the parent levels' numbers, when `#kenMarkdown.headingNumbers.preset#` is `custom`."
+        },
+        "kenMarkdown.headingNumbers.h3Prefix": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Text before each level 3 label, such as `Article ` or `Section ` (include the trailing space). Not repeated in deeper labels. Used when `#kenMarkdown.headingNumbers.preset#` is `custom`."
         },
         "kenMarkdown.headingNumbers.h4": {
           "type": "string",
           "enum": [
             "decimal",
+            "decimal-leading-zero",
             "lower-alpha",
             "upper-alpha",
             "lower-roman",
             "upper-roman",
+            "parenthesized-decimal",
+            "parenthesized-lower-alpha",
+            "parenthesized-upper-alpha",
+            "parenthesized-lower-roman",
+            "parenthesized-upper-roman",
+            "decimal-paren",
+            "lower-alpha-paren",
+            "upper-alpha-paren",
+            "lower-roman-paren",
+            "upper-roman-paren",
             "none"
           ],
           "enumDescriptions": [
             "1, 2, 3",
+            "01, 02, 03 (as in Section 1.01)",
             "a, b, c (then aa, ab…)",
             "A, B, C (then AA, AB…)",
             "i, ii, iii",
             "I, II, III",
+            "(1), (2), (3)",
+            "(a), (b), (c)",
+            "(A), (B), (C)",
+            "(i), (ii), (iii)",
+            "(I), (II), (III)",
+            "1), 2), 3)",
+            "a), b), c)",
+            "A), B), C)",
+            "i), ii), iii)",
+            "I), II), III)",
             "Not numbered, and left out of deeper headings' numbers."
           ],
           "default": "decimal",
-          "markdownDescription": "Number style for level 4 headings, when `#kenMarkdown.headingNumbers.enabled#` is on."
+          "markdownDescription": "Number style for level 4 headings, when `#kenMarkdown.headingNumbers.preset#` is `custom`."
+        },
+        "kenMarkdown.headingNumbers.h4Parents": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "full",
+            "legal",
+            "own"
+          ],
+          "enumDescriptions": [
+            "`own` for a parenthesized style, `full` otherwise.",
+            "Parent numbers, then this level's: 1.a.i, or 1.01(a) before a parenthesized style.",
+            "Parent numbers as plain digits, as Word's legal style numbering: Section 1.01 under Article I.",
+            "Only this level's own label: (a) rather than 1.01(a)."
+          ],
+          "default": "auto",
+          "markdownDescription": "Whether level 4 labels include the parent levels' numbers, when `#kenMarkdown.headingNumbers.preset#` is `custom`."
+        },
+        "kenMarkdown.headingNumbers.h4Prefix": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Text before each level 4 label, such as `Article ` or `Section ` (include the trailing space). Not repeated in deeper labels. Used when `#kenMarkdown.headingNumbers.preset#` is `custom`."
         },
         "kenMarkdown.headingNumbers.h5": {
           "type": "string",
           "enum": [
             "decimal",
+            "decimal-leading-zero",
             "lower-alpha",
             "upper-alpha",
             "lower-roman",
             "upper-roman",
+            "parenthesized-decimal",
+            "parenthesized-lower-alpha",
+            "parenthesized-upper-alpha",
+            "parenthesized-lower-roman",
+            "parenthesized-upper-roman",
+            "decimal-paren",
+            "lower-alpha-paren",
+            "upper-alpha-paren",
+            "lower-roman-paren",
+            "upper-roman-paren",
             "none"
           ],
           "enumDescriptions": [
             "1, 2, 3",
+            "01, 02, 03 (as in Section 1.01)",
             "a, b, c (then aa, ab…)",
             "A, B, C (then AA, AB…)",
             "i, ii, iii",
             "I, II, III",
+            "(1), (2), (3)",
+            "(a), (b), (c)",
+            "(A), (B), (C)",
+            "(i), (ii), (iii)",
+            "(I), (II), (III)",
+            "1), 2), 3)",
+            "a), b), c)",
+            "A), B), C)",
+            "i), ii), iii)",
+            "I), II), III)",
             "Not numbered, and left out of deeper headings' numbers."
           ],
           "default": "lower-alpha",
-          "markdownDescription": "Number style for level 5 headings, when `#kenMarkdown.headingNumbers.enabled#` is on."
+          "markdownDescription": "Number style for level 5 headings, when `#kenMarkdown.headingNumbers.preset#` is `custom`."
+        },
+        "kenMarkdown.headingNumbers.h5Parents": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "full",
+            "legal",
+            "own"
+          ],
+          "enumDescriptions": [
+            "`own` for a parenthesized style, `full` otherwise.",
+            "Parent numbers, then this level's: 1.a.i, or 1.01(a) before a parenthesized style.",
+            "Parent numbers as plain digits, as Word's legal style numbering: Section 1.01 under Article I.",
+            "Only this level's own label: (a) rather than 1.01(a)."
+          ],
+          "default": "auto",
+          "markdownDescription": "Whether level 5 labels include the parent levels' numbers, when `#kenMarkdown.headingNumbers.preset#` is `custom`."
+        },
+        "kenMarkdown.headingNumbers.h5Prefix": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Text before each level 5 label, such as `Article ` or `Section ` (include the trailing space). Not repeated in deeper labels. Used when `#kenMarkdown.headingNumbers.preset#` is `custom`."
         },
         "kenMarkdown.headingNumbers.h6": {
           "type": "string",
           "enum": [
             "decimal",
+            "decimal-leading-zero",
             "lower-alpha",
             "upper-alpha",
             "lower-roman",
             "upper-roman",
+            "parenthesized-decimal",
+            "parenthesized-lower-alpha",
+            "parenthesized-upper-alpha",
+            "parenthesized-lower-roman",
+            "parenthesized-upper-roman",
+            "decimal-paren",
+            "lower-alpha-paren",
+            "upper-alpha-paren",
+            "lower-roman-paren",
+            "upper-roman-paren",
             "none"
           ],
           "enumDescriptions": [
             "1, 2, 3",
+            "01, 02, 03 (as in Section 1.01)",
             "a, b, c (then aa, ab…)",
             "A, B, C (then AA, AB…)",
             "i, ii, iii",
             "I, II, III",
+            "(1), (2), (3)",
+            "(a), (b), (c)",
+            "(A), (B), (C)",
+            "(i), (ii), (iii)",
+            "(I), (II), (III)",
+            "1), 2), 3)",
+            "a), b), c)",
+            "A), B), C)",
+            "i), ii), iii)",
+            "I), II), III)",
             "Not numbered, and left out of deeper headings' numbers."
           ],
           "default": "lower-roman",
-          "markdownDescription": "Number style for level 6 headings, when `#kenMarkdown.headingNumbers.enabled#` is on."
+          "markdownDescription": "Number style for level 6 headings, when `#kenMarkdown.headingNumbers.preset#` is `custom`."
+        },
+        "kenMarkdown.headingNumbers.h6Parents": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "full",
+            "legal",
+            "own"
+          ],
+          "enumDescriptions": [
+            "`own` for a parenthesized style, `full` otherwise.",
+            "Parent numbers, then this level's: 1.a.i, or 1.01(a) before a parenthesized style.",
+            "Parent numbers as plain digits, as Word's legal style numbering: Section 1.01 under Article I.",
+            "Only this level's own label: (a) rather than 1.01(a)."
+          ],
+          "default": "auto",
+          "markdownDescription": "Whether level 6 labels include the parent levels' numbers, when `#kenMarkdown.headingNumbers.preset#` is `custom`."
+        },
+        "kenMarkdown.headingNumbers.h6Prefix": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Text before each level 6 label, such as `Article ` or `Section ` (include the trailing space). Not repeated in deeper labels. Used when `#kenMarkdown.headingNumbers.preset#` is `custom`."
         },
         "kenMarkdown.headingNumbers.separator": {
           "type": "string",
           "default": ".",
-          "markdownDescription": "Text between the levels of a heading number: `.` gives `1.a.i`."
+          "markdownDescription": "Text between the parts of a heading number: `.` gives `1.a.i`. Used when `#kenMarkdown.headingNumbers.preset#` is `custom`."
         },
         "kenMarkdown.toolbar": {
           "type": "string",

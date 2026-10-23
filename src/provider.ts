@@ -84,7 +84,10 @@ export function readConfig(scope?: vscode.Uri): EditorConfig {
     lucidchart: { preview: lucidPreviewMode(c.get<unknown>("lucidchart.preview", "auto")) },
     headingNumbers: headingNumbersConfig({
       enabled: c.get<unknown>("headingNumbers.enabled", false),
+      preset: c.get<unknown>("headingNumbers.preset", "custom"),
       styles: ["h1", "h2", "h3", "h4", "h5", "h6"].map((h) => c.get<unknown>(`headingNumbers.${h}`)),
+      parents: ["h1", "h2", "h3", "h4", "h5", "h6"].map((h) => c.get<unknown>(`headingNumbers.${h}Parents`)),
+      prefixes: ["h1", "h2", "h3", "h4", "h5", "h6"].map((h) => c.get<unknown>(`headingNumbers.${h}Prefix`)),
       separator: c.get<unknown>("headingNumbers.separator", "."),
     }),
   };

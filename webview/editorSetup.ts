@@ -35,6 +35,7 @@ import { commentPlugins, commentSchemas } from "./comments/anchors";
 import { threadStore } from "./comments/store";
 import { toolbarPlugin } from "./toolbar";
 import { blockSelectionKeys, blockSelectionPlugin, stableTableView } from "./markdown/blockSelection";
+import { keySelectionSync } from "./keySelectionSync";
 
 export interface EditorOptions {
   root: HTMLElement;
@@ -142,6 +143,8 @@ export function buildEditor(options: EditorOptions): Crepe {
   crepe.editor.use(blockSelectionPlugin);
   crepe.editor.use(stableTableView);
   crepe.editor.config(blockSelectionKeys);
+  // After every other view-level key handler, so it wraps them and runs first.
+  crepe.editor.config(keySelectionSync);
   useTaskHandle(crepe.editor);
   if (options.toolbarHost) crepe.editor.use(toolbarPlugin(options.toolbarHost));
   crepe.editor.config(disableHeadingDowngrade);

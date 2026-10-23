@@ -707,6 +707,58 @@ body {
     color: var(--accent-deep);
   }
 
+  /* --- Heading numbers (markdown/headingNumbers.ts) ---------------------- */
+  /* A muted label hanging in the gutter, its right edge a fixed gap left of
+     the heading text, on the first line's baseline. It is `::before` content
+     from a decoration's data attribute: never in the document, never
+     selectable, and the caret can't land in it. The zero-width inline-flex
+     box with `justify-content: flex-end` makes the label overflow leftwards
+     from where the text starts, so the text doesn't move, whatever the
+     label's length. */
+  .measure .milkdown {
+    --ken-heading-number-gap: 14px;
+    --ken-heading-number-size: calc(var(--md-font-size) * 0.8);
+  }
+  .measure .milkdown .ProseMirror > .ken-heading-numbered:not(.crepe-placeholder)::before,
+  .measure .milkdown ul.ken-toc p.ken-heading-numbered::before {
+    content: attr(data-heading-number);
+    font-family: var(--font-sans);
+    font-size: var(--ken-heading-number-size);
+    font-weight: 400;
+    font-style: normal;
+    letter-spacing: 0;
+    font-variant-numeric: tabular-nums lining-nums;
+    color: var(--vscode-descriptionForeground);
+    white-space: nowrap;
+    user-select: none;
+    pointer-events: none;
+  }
+  .measure .milkdown .ProseMirror > .ken-heading-numbered:not(.crepe-placeholder)::before {
+    display: inline-flex;
+    justify-content: flex-end;
+    width: 0;
+    margin-left: calc(-1 * var(--ken-heading-number-gap));
+    margin-right: var(--ken-heading-number-gap);
+  }
+  /* The copy-link button moves out past the label (its width estimated from
+     its length: tabular figures run about 0.62em). */
+  .measure .milkdown .ProseMirror:not(.ken-heading-numbers-inline) > .ken-heading-numbered > .ken-heading-link {
+    left: calc(
+      -1 * (22px + var(--ken-heading-number-gap) + 8px + var(--ken-heading-number-chars, 0) * 0.62 * var(--ken-heading-number-size))
+    );
+  }
+  /* Too narrow a pane for the gutter: the label sits before the text. */
+  .measure .milkdown .ProseMirror.ken-heading-numbers-inline > .ken-heading-numbered:not(.crepe-placeholder)::before {
+    width: auto;
+    margin-left: 0;
+    margin-right: 0.5em;
+  }
+  /* In the table of contents the label leads the entry, inline. */
+  .measure .milkdown ul.ken-toc p.ken-heading-numbered::before {
+    display: inline-block;
+    margin-right: 0.5em;
+  }
+
   /* --- Lightbox affordance ------------------------------------------------ */
   .measure .milkdown .mermaid-preview,
   .measure .milkdown .milkdown-image-block img,

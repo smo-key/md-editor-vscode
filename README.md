@@ -144,6 +144,8 @@ Every editing action is a VS Code command, so you can change, remove or add keys
 | `kenMarkdown.codeFontFamily` | JetBrains Mono | Inline code and code block font stack. |
 | `kenMarkdown.lineHeight` | `1.85` | Body line height. |
 | `kenMarkdown.paragraphSpacing` | `0.65` | Space between paragraphs, in em (multiples of the font size). Doesn't change list item spacing. |
+| `kenMarkdown.headingSpacingBefore` | `2.25` | Space above headings, in em, for a body-size heading; larger headings get up to 1.35× (H1). After a paragraph it replaces the paragraph spacing rather than adding to it. The first heading doesn't move. |
+| `kenMarkdown.headingSpacingAfter` | `0.55` | Space below headings, in em of each heading's own size. |
 | `kenMarkdown.maxWidth` | `720` | Width of the text column in px. |
 | `kenMarkdown.headingNumbers.enabled` | `false` | Show a small number left of each heading (`1`, `1.a`, `Section 1.01`…) and before each table of contents entry. Display only: never written to the file. Headings inside quotes, alerts, lists and tables aren't numbered; a skipped level (H2 then H4) is left out, not shown as 0. |
 | `kenMarkdown.headingNumbers.preset` | `custom` | `outline` (1, 1.a, 1.a.i…), `decimal` (1, 1.1, 1.1.1…), `legal` (1.1.1, then (a), (i), (A)), `legal-full` (1.1.1, then 1.1.1(a), 1.1.1(a)(i), 1.1.1(a)(i)(A)), `legal-article` (Article I, Section 1.01, (a), (i), (A), (1)), `legal-article-full` (Article I, Section 1.01, then 1.01(a), 1.01(a)(i), 1.01(a)(i)(A), 1.01(a)(i)(A)(1)), or `custom` for the per-level settings below. A preset other than `custom` overrides them. |

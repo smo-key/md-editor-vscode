@@ -295,6 +295,10 @@ function applyConfig(config: EditorConfig) {
   root.setProperty("--md-line-height", String(config.lineHeight));
   if (typeof config.paragraphSpacing === "number") root.setProperty("--md-paragraph-spacing", `${config.paragraphSpacing}em`);
   else root.removeProperty("--md-paragraph-spacing");
+  if (typeof config.headingSpacingBefore === "number") root.setProperty("--md-heading-spacing-before", `${config.headingSpacingBefore}em`);
+  else root.removeProperty("--md-heading-spacing-before");
+  if (typeof config.headingSpacingAfter === "number") root.setProperty("--md-heading-spacing-after", `${config.headingSpacingAfter}em`);
+  else root.removeProperty("--md-heading-spacing-after");
   root.setProperty("--md-max-width", `${config.maxWidth}px`);
   // Tabs typed in paragraphs (markdown/plainTab.ts) are editor.tabSize wide.
   root.setProperty("--md-tab-size", String(tabSizeValue(config.tabSize)));

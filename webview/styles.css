@@ -1,3 +1,12 @@
+/* Half the paragraph spacing as a length computed where it is set (the
+   ProseMirror root, at body size), so a heading can subtract a paragraph's own
+   spacing from the space above it in its own, larger em. */
+@property --ken-paragraph-half {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 0px;
+}
+
 /* The Markdown editor layout and typography, coloured by the active VS Code
    theme. Every colour token below resolves to a `--vscode-*` variable, so the
    editor follows whatever theme the user has applied (light, dark, high
@@ -14,6 +23,10 @@
   --md-line-height: 1.85;
   /* Between paragraphs (kenMarkdown.paragraphSpacing); not the list spacing. */
   --md-paragraph-spacing: 0.65em;
+  /* Above and below headings (kenMarkdown.headingSpacingBefore/After), for a
+     body-size heading; each level scales them (see the heading scale below). */
+  --md-heading-spacing-before: 2.25em;
+  --md-heading-spacing-after: 0.55em;
   --md-max-width: 720px;
   /* Width of a tab character (editor.tabSize). */
   --md-tab-size: 4;
@@ -138,6 +151,9 @@ body {
        List items, table cells and diagram labels set their own. */
     padding: calc(var(--md-paragraph-spacing) / 2) 0;
   }
+  .measure .milkdown .ProseMirror {
+    --ken-paragraph-half: calc(var(--md-paragraph-spacing) / 2);
+  }
   .measure .milkdown .ProseMirror :is(td, th) p,
   .measure .milkdown .mermaid-preview foreignObject p {
     padding: 4px 0;
@@ -149,8 +165,11 @@ body {
     font-family: var(--font-serif);
     font-weight: 500;
     letter-spacing: -0.01em;
-    /* A touch more breathing room after headings. */
-    margin-bottom: 0.55em;
+  }
+  /* kenMarkdown.headingSpacingAfter, in each heading's own em, so it grows
+     with the heading. */
+  .measure .milkdown :is(h1, h2, h3, h4, h5, h6) {
+    margin-bottom: var(--md-heading-spacing-after);
   }
 
   /* --- Links -------------------------------------------------------------- */
@@ -548,43 +567,58 @@ body {
 
   /* A wider scale than Crepe's, so the outline of a document reads at a glance.
      Line height tightens as the type grows, and the space above each heading
-     grows with it, so nothing crowds. */
+     grows with it, so nothing crowds: kenMarkdown.headingSpacingBefore is the
+     space above a body-size H6, and `--ken-heading-before-scale` (in the
+     heading's own em) gives an H1 1.35× that, an H2 1.28× and so on. */
+  .measure .milkdown :is(h1, h2, h3, h4, h5, h6) {
+    margin-top: calc(var(--md-heading-spacing-before) * var(--ken-heading-before-scale));
+  }
   .measure .milkdown h1 {
     font-size: 2.25em;
     line-height: 1.18;
-    margin-top: 0.9em;
+    --ken-heading-before-scale: 0.6;
   }
   .measure .milkdown h2 {
     font-size: 1.75em;
     line-height: 1.24;
-    margin-top: 1.1em;
+    --ken-heading-before-scale: 0.7333;
   }
   .measure .milkdown h3 {
     font-size: 1.45em;
     line-height: 1.3;
-    margin-top: 1.2em;
+    --ken-heading-before-scale: 0.8;
   }
   .measure .milkdown h4 {
     font-size: 1.25em;
     line-height: 1.36;
-    margin-top: 1.3em;
+    --ken-heading-before-scale: 0.8667;
   }
   .measure .milkdown h5 {
     font-size: 1.1em;
     line-height: 1.42;
-    margin-top: 1.4em;
+    --ken-heading-before-scale: 0.9333;
   }
   .measure .milkdown h6 {
     font-size: 1em;
     line-height: 1.5;
-    margin-top: 1.5em;
+    --ken-heading-before-scale: 1;
     color: var(--ink-secondary);
   }
-  /* The document's own title has nothing to separate itself from. */
-  .measure .milkdown .ProseMirror > h1:first-child,
-  .measure .milkdown .ProseMirror > h2:first-child,
-  .measure .milkdown .ProseMirror > h3:first-child {
-    margin-top: 0;
+  /* After a paragraph, the space above a heading includes the paragraph's own
+     half of kenMarkdown.paragraphSpacing (its bottom padding) rather than
+     adding to it. */
+  .measure .milkdown :is(.ProseMirror, blockquote) > p + :is(h1, h2, h3, h4, h5, h6) {
+    margin-top: max(
+      0px,
+      calc(var(--md-heading-spacing-before) * var(--ken-heading-before-scale) - var(--ken-paragraph-half))
+    );
+  }
+  /* The first heading (also the one right under the Properties panel) keeps
+     the space it always had, whatever the setting, so the top of a document
+     doesn't move. Only ProseMirror's widgets and the virtual cursor, never
+     document blocks, can come before it. */
+  .measure .milkdown .ProseMirror > :is(h1, h2, h3, h4, h5, h6):not(:not(.ProseMirror-widget, .prosemirror-virtual-cursor) ~ *) {
+    margin-top: calc(1.5em * var(--ken-heading-before-scale));
   }
 
   /* --- Heading links ------------------------------------------------------ */
@@ -621,7 +655,7 @@ body {
     letter-spacing: -0.01em;
     font-size: 2.25em;
     line-height: 1.18;
-    margin-bottom: 0.55em;
+    margin-bottom: var(--md-heading-spacing-after);
     color: var(--ink);
   }
   .measure .milkdown ul.ken-toc ul {

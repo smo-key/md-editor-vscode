@@ -16,6 +16,9 @@ export interface EditorConfig {
   lineHeight: number;
   /** Gap between paragraphs, in em. */
   paragraphSpacing: number;
+  /** Space above / below a body-size heading, in em; larger headings scale it. */
+  headingSpacingBefore: number;
+  headingSpacingAfter: number;
   maxWidth: number;
   toolbar: ToolbarPosition;
   alwaysShowProperties: boolean;

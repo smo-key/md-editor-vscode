@@ -758,8 +758,8 @@ body {
   caret-color: var(--vscode-editorCursor-foreground, var(--ink));
 }
 
-/* Block quotes: no fill, just the bar, in the theme's own quote colour (as
-   VS Code's preview draws it) rather than Crepe's selection colour. */
+/* Block quotes: no fill, just the bar, in the same gray as the quote's text
+   rather than Crepe's selection colour or the theme's (often blue) quote border. */
 .measure .milkdown .ProseMirror blockquote {
   background: transparent;
   padding-left: 18px;
@@ -776,7 +776,7 @@ body {
   font-style: normal;
 }
 .measure .milkdown .ProseMirror blockquote::before {
-  background: var(--vscode-textBlockQuote-border, var(--border-strong));
+  background: currentColor;
 }
 
 /* Code blocks: the theme's code background, scaled from the base font size,

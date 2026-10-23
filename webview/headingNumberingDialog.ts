@@ -64,7 +64,7 @@ const STYLE_LABELS: Record<HeadingNumberStyle, string> = {
 const PARENTS_LABELS: Record<HeadingNumberParents, [string, string]> = {
   auto: ["Auto", "Only its own label for a parenthesized style, else with its parents"],
   full: ["With parents", "Parent numbers, then this level's: 1.a.i, or 1.01(a)"],
-  legal: ["Parents as digits", "Parent numbers as plain digits, as Word's legal style: Section 1.01 under Article I"],
+  legal: ["Letters as digits", "Parent numbers, with plain letters and roman numerals as digits, as Word's legal style: Section 1.01 under Article I"],
   own: ["Own only", "Only this level's own label: (a)"],
 };
 
@@ -72,7 +72,9 @@ const PRESET_LABELS: Record<HeadingNumberPreset | "custom", string> = {
   outline: "Outline (1, 1.a, 1.a.i)",
   decimal: "Decimal (1, 1.1, 1.1.1)",
   legal: "Legal (1.1.1, (a), (i), (A))",
+  "legal-full": "Legal, full path (1.1.1, 1.1.1(a), 1.1.1(a)(i))",
   "legal-article": "Legal: Article, Section (I, 1.01, (a))",
+  "legal-article-full": "Legal: Article, Section, full path (I, 1.01, 1.01(a))",
   custom: "Custom",
 };
 

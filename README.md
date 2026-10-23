@@ -146,9 +146,9 @@ Every editing action is a VS Code command, so you can change, remove or add keys
 | `kenMarkdown.paragraphSpacing` | `0.65` | Space between paragraphs, in em (multiples of the font size). Doesn't change list item spacing. |
 | `kenMarkdown.maxWidth` | `720` | Width of the text column in px. |
 | `kenMarkdown.headingNumbers.enabled` | `false` | Show a small number left of each heading (`1`, `1.a`, `Section 1.01`…) and before each table of contents entry. Display only: never written to the file. Headings inside quotes, alerts, lists and tables aren't numbered; a skipped level (H2 then H4) is left out, not shown as 0. |
-| `kenMarkdown.headingNumbers.preset` | `custom` | `outline` (1, 1.a, 1.a.i…), `decimal` (1, 1.1, 1.1.1…), `legal` (1.1.1, then (a), (i), (A)), `legal-article` (Article I, Section 1.01, (a), (i), (A), (1)), or `custom` for the per-level settings below. A preset other than `custom` overrides them. |
+| `kenMarkdown.headingNumbers.preset` | `custom` | `outline` (1, 1.a, 1.a.i…), `decimal` (1, 1.1, 1.1.1…), `legal` (1.1.1, then (a), (i), (A)), `legal-full` (1.1.1, then 1.1.1(a), 1.1.1(a)(i), 1.1.1(a)(i)(A)), `legal-article` (Article I, Section 1.01, (a), (i), (A), (1)), `legal-article-full` (Article I, Section 1.01, then 1.01(a), 1.01(a)(i), 1.01(a)(i)(A), 1.01(a)(i)(A)(1)), or `custom` for the per-level settings below. A preset other than `custom` overrides them. |
 | `kenMarkdown.headingNumbers.h1` … `h6` | `decimal`, `lower-alpha`, `lower-roman`, `decimal`, `lower-alpha`, `lower-roman` | Style per level: `decimal` (1), `decimal-leading-zero` (01), `lower-alpha` (a), `upper-alpha` (A), `lower-roman` (i), `upper-roman` (I), parenthesized `parenthesized-decimal` (1) … `parenthesized-upper-roman` (I), right-paren `decimal-paren` 1) … `upper-roman-paren` I), or `none` (not numbered, and left out of deeper headings' numbers). |
-| `kenMarkdown.headingNumbers.h1Parents` … `h6Parents` | `auto` | `full`: parent numbers, then this level's (`1.a.i`; no separator before a parenthesized part: `1.01(a)`). `legal`: parents as plain digits, as Word's legal style (`Section 1.01` under `Article I`). `own`: only this level's label (`(a)`). `auto`: `own` for parenthesized styles, `full` otherwise. |
+| `kenMarkdown.headingNumbers.h1Parents` … `h6Parents` | `auto` | `full`: parent numbers, then this level's (`1.a.i`; no separator before a parenthesized part: `1.01(a)`). `legal`: the same path with plain letter and roman parents (a, A, i, I) as digits, as Word's legal style (`Section 1.01` under `Article I`); other parents keep their style (`1.01(a)(i)`). `own`: only this level's label (`(a)`). `auto`: `own` for parenthesized styles, `full` otherwise. |
 | `kenMarkdown.headingNumbers.h1Prefix` … `h6Prefix` | *(empty)* | Text before that level's own label, such as `Article ` or `Section `; not repeated in deeper labels. |
 | `kenMarkdown.headingNumbers.separator` | `.` | Text between the parts of a number. |
 | `kenMarkdown.toolbar` | `bottom` | `bottom`, `top` or `hidden`. |
@@ -160,7 +160,7 @@ Every editing action is a VS Code command, so you can change, remove or add keys
 | `kenMarkdown.collaboration.port` | `0` | Port for collaboration sessions you start; `0` picks a free one. |
 | `kenMarkdown.collaboration.allowNetwork` | `false` | Let people on your network join sessions you start (invites still need their secret token). |
 
-A document can override the `kenMarkdown.headingNumbers.*` settings with a `ken-heading-numbering` property in its frontmatter: `off`; `on` (your settings); a preset name (`outline`, `decimal`, `legal`, `legal-article`); or a format string with one token per level from H1 down and the same separator between them. Set it with the gear in the expanded Properties panel, or right-click a heading and choose **Heading numbering…** (the same menu has **Copy link to heading**). The dialog writes the shortest form that fits.
+A document can override the `kenMarkdown.headingNumbers.*` settings with a `ken-heading-numbering` property in its frontmatter: `off`; `on` (your settings); a preset name (`outline`, `decimal`, `legal`, `legal-full`, `legal-article`, `legal-article-full`); or a format string with one token per level from H1 down and the same separator between them. Set it with the gear in the expanded Properties panel, or right-click a heading and choose **Heading numbering…** (the same menu has **Copy link to heading**). The dialog writes the shortest form that fits.
 
 | Format token | Meaning |
 | --- | --- |
@@ -170,9 +170,9 @@ A document can override the `kenMarkdown.headingNumbers.*` settings with a `ken-
 | `1)` `a)` `A)` `i)` `I)` | right paren |
 | `_` | not numbered |
 | `[text]` before a token | prefix for that level, e.g. `[Article ]I` |
-| `+` `#` `!` after a token | parents: `+` full, `#` legal (plain digits), `!` own; none given is auto |
+| `+` `#` `!` after a token | parents: `+` full, `#` legal (letter and roman parents as digits), `!` own; none given is auto |
 
-Examples: `"1.a.i"`, `"I-1-a"`, `"1.1.1.(a).(i).(A)"` (the `legal` preset), `"[Article ]I.[Section ]01#.(a).(i).(A).(1)"` (the `legal-article` preset). The separator can't contain `0 1 a A i I _ ( ) [ ] + # !`; a one-token format takes its separator from your settings, and levels a format leaves out use your settings.
+Examples: `"1.a.i"`, `"I-1-a"`, `"1.1.1.(a).(i).(A)"` (the `legal` preset), `"[Article ]I.[Section ]01#.(a).(i).(A).(1)"` (the `legal-article` preset), `"[Article ]I.[Section ]01#.(a)#.(i)#.(A)#.(1)#"` (the `legal-article-full` preset). The separator can't contain `0 1 a A i I _ ( ) [ ] + # !`; a one-token format takes its separator from your settings, and levels a format leaves out use your settings.
 
 ## FAQ
 

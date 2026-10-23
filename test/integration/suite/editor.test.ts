@@ -472,10 +472,16 @@ describe("Ken Markdown Editor", function () {
       assert.ok(await exists(vscode.Uri.joinPath(uri, "..", "notes.txt")));
       await imagesLoaded(uri, 1);
 
-      // A second drop of the same name is not overwritten.
-      await webview(uri, { kind: "transfer", event: "drop", margin: true, files: [{ name: "diagram.png", type: "image/png", base64: PNG }] });
+      // A second drop of the same name (different bytes) is not overwritten.
+      const OTHER = b64("not the same image");
+      await webview(uri, { kind: "transfer", event: "drop", margin: true, files: [{ name: "diagram.png", type: "image/png", base64: OTHER }] });
       await until("deduped", () => doc.getText(), (t) => t.includes("![](_Images/diagram-1.png)"));
       assert.ok(await exists(vscode.Uri.joinPath(uri, "..", "_Images", "diagram-1.png")));
+
+      // The same file again (same name and bytes) is already in the workspace: linked, not copied.
+      await webview(uri, { kind: "transfer", event: "drop", margin: true, files: [{ name: "notes.txt", type: "text/plain", base64: b64("hello") }] });
+      await until("relinked", () => doc.getText(), (t) => t.split("[notes.txt](notes.txt)").length === 3);
+      assert.ok(!(await exists(vscode.Uri.joinPath(uri, "..", "notes-1.txt"))), "not copied again");
     });
 
     it("puts _Images next to a nested document and links relative to it", async () => {
@@ -528,6 +534,35 @@ describe("Ken Markdown Editor", function () {
         await imagesLoaded(uri, 1);
       } finally {
         cp.execFileSync("pbcopy", { input: saved });
+      }
+    });
+
+    it("copies files dropped from outside the workspace", async () => {
+      const os = await import("os");
+      const fs = await import("fs");
+      const pathMod = await import("path");
+      const outside = pathMod.join(fs.mkdtempSync(pathMod.join(os.tmpdir(), "ken-outside-")), "outside shot.png");
+      fs.writeFileSync(outside, Buffer.from(PNG, "base64"));
+      const uri = fixture("docs/nested.md");
+      const doc = await openEditor(uri);
+      assert.ok(await webview(uri, { kind: "caretAfter", text: "A nested page." }));
+      await webview(uri, { kind: "transfer", event: "drop", margin: true, uris: [vscode.Uri.file(outside).toString()] });
+      await until("outside copied", () => doc.getText(), (t) => t.includes("![](_Images/outside%20shot.png)"));
+      assert.ok(await exists(vscode.Uri.joinPath(uri, "..", "_Images", "outside shot.png")));
+    });
+
+    it("copies workspace files too with kenMarkdown.workspaceFiles = copy", async () => {
+      const config = vscode.workspace.getConfiguration("kenMarkdown");
+      await config.update("workspaceFiles", "copy", vscode.ConfigurationTarget.Global);
+      try {
+        const uri = fixture("docs/nested.md");
+        const doc = await openEditor(uri);
+        assert.ok(await webview(uri, { kind: "caretAfter", text: "A nested page." }));
+        await webview(uri, { kind: "transfer", event: "drop", margin: true, uris: [fixture("flow.drawio.svg").toString()] });
+        await until("explorer copy", () => doc.getText(), (t) => t.includes("![](_Images/flow.drawio.svg)"));
+        assert.ok(await exists(vscode.Uri.joinPath(uri, "..", "_Images", "flow.drawio.svg")), "copied");
+      } finally {
+        await config.update("workspaceFiles", undefined, vscode.ConfigurationTarget.Global);
       }
     });
 

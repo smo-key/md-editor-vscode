@@ -9,6 +9,9 @@ const settings = headingNumbersConfig({ enabled: false });
 const dialog = () => document.querySelector<HTMLElement>(".ken-numbering-dialog")!;
 const radio = (mode: string) => dialog().querySelector<HTMLInputElement>(`input[type=radio][value=${mode}]`)!;
 const select = (level: number) => dialog().querySelector<HTMLSelectElement>(`select[data-level="${level}"]`)!;
+const presetSelect = () => dialog().querySelector<HTMLSelectElement>(".ken-numbering-preset")!;
+const parents = (level: number) => dialog().querySelector<HTMLSelectElement>(`select[data-parents="${level}"]`)!;
+const prefix = (level: number) => dialog().querySelector<HTMLInputElement>(`input[data-prefix="${level}"]`)!;
 const separator = () => dialog().querySelector<HTMLInputElement>(".ken-numbering-separator")!;
 const button = (name: string) => [...dialog().querySelectorAll("button")].find((b) => b.textContent === name)!;
 const preview = () => dialog().querySelector(".ken-numbering-preview")!.textContent;
@@ -39,7 +42,50 @@ describe("heading numbering dialog", () => {
     openHeadingNumberingDialog({ settings, property: undefined, onApply: () => undefined });
     expect(radio("settings").checked).toBe(true);
     expect(select(1).disabled).toBe(true);
-    expect(button("Remove from document").disabled).toBe(true);
+    expect(presetSelect().disabled).toBe(true);
+    expect(presetSelect().value).toBe("outline");
+  });
+
+  it("has no description line and no Remove button: just Cancel and Apply", () => {
+    openHeadingNumberingDialog({ settings, property: "off", onApply: () => undefined });
+    expect(dialog().textContent).not.toContain("For this document only");
+    expect(dialog().querySelector("h2")!.title).toContain("ken-heading-numbering");
+    expect([...dialog().querySelectorAll("footer button")].map((b) => b.textContent)).toEqual(["Cancel", "Apply"]);
+  });
+
+  it("fills the fields from a preset, and shows Custom once one is edited", () => {
+    const onApply = vi.fn();
+    openHeadingNumberingDialog({ settings, property: undefined, onApply });
+    change(radio("on"));
+    change(presetSelect(), "legal-article");
+    expect(select(1).value).toBe("upper-roman");
+    expect(prefix(1).value).toBe("Article ");
+    expect(select(2).value).toBe("decimal-leading-zero");
+    expect(parents(2).value).toBe("legal");
+    expect(select(3).value).toBe("parenthesized-lower-alpha");
+    expect(preview()).toBe("Article I · Section 1.01 · (a) · (i) · (A) · (1)");
+    button("Apply").click();
+    expect(onApply).toHaveBeenLastCalledWith("legal-article");
+
+    openHeadingNumberingDialog({ settings, property: "legal-article", onApply });
+    expect(presetSelect().value).toBe("legal-article");
+    change(prefix(1), "ARTICLE ");
+    expect(presetSelect().value).toBe("custom");
+    change(parents(3), "full");
+    expect(preview()).toBe("ARTICLE I · Section 1.01 · I.01(a) · (i) · (A) · (1)");
+    button("Apply").click();
+    expect(onApply).toHaveBeenLastCalledWith('"[ARTICLE ]I.[Section ]01#.(a)+.(i).(A).(1)"');
+
+    openHeadingNumberingDialog({ settings, property: '"[ARTICLE ]I.[Section ]01#.(a)+.(i).(A).(1)"', onApply });
+    expect(presetSelect().value).toBe("custom");
+    expect(prefix(1).value).toBe("ARTICLE ");
+    expect(parents(3).value).toBe("full");
+  });
+
+  it("refuses a prefix the format can't hold", () => {
+    openHeadingNumberingDialog({ settings, property: "on", onApply: () => undefined });
+    change(prefix(1), "a]");
+    expect(button("Apply").disabled).toBe(true);
   });
 
   it("flags an invalid property", () => {
@@ -60,10 +106,10 @@ describe("heading numbering dialog", () => {
     openHeadingNumberingDialog({ settings, property: undefined, onApply });
     change(radio("on"));
     change(select(2), "upper-alpha");
-    change(separator(), ")");
-    expect(preview()).toBe("1 · 1)A · 1)A)i · 1)A)i)1 · 1)A)i)1)a · 1)A)i)1)a)i");
+    change(separator(), "/");
+    expect(preview()).toBe("1 · 1/A · 1/A/i · 1/A/i/1 · 1/A/i/1/a · 1/A/i/1/a/i");
     button("Apply").click();
-    expect(onApply).toHaveBeenLastCalledWith('"1)A)i)1)a)i"');
+    expect(onApply).toHaveBeenLastCalledWith('"1/A/i/1/a/i"');
 
     openHeadingNumberingDialog({ settings, property: "on", onApply });
     change(radio("off"));
@@ -77,12 +123,6 @@ describe("heading numbering dialog", () => {
     expect(onApply).toHaveBeenLastCalledWith(null);
   });
 
-  it("removes the property", () => {
-    const onApply = vi.fn();
-    openHeadingNumberingDialog({ settings, property: "off", onApply });
-    button("Remove from document").click();
-    expect(onApply).toHaveBeenCalledWith(null);
-  });
 
   it("refuses a separator the format can't hold", () => {
     const onApply = vi.fn();
@@ -149,6 +189,20 @@ describe("Properties panel and the dialog", () => {
     const after = changes[0]!.split("\n");
     expect(after.filter((l) => !before.includes(l))).toEqual(["ken-heading-numbering: off"]);
     expect(after.filter((l) => l !== "ken-heading-numbering: off")).toEqual(before);
+  });
+
+  it("removes the property line, and a block it leaves empty, with Use editor settings", () => {
+    const { p, changes } = panel(["---", "title:    Spaced  ", "ken-heading-numbering: legal", "date: 2024-01-01", "---", ""].join("\n"));
+    openHeadingNumberingDialog({ settings, property: "legal", onApply: (v) => p.setProperty("ken-heading-numbering", v) });
+    change(radio("settings"));
+    button("Apply").click();
+    expect(changes).toEqual([["---", "title:    Spaced  ", "date: 2024-01-01", "---", ""].join("\n")]);
+
+    const only = panel("---\nken-heading-numbering: off\n---\n");
+    openHeadingNumberingDialog({ settings, property: "off", onApply: (v) => only.p.setProperty("ken-heading-numbering", v) });
+    change(radio("settings"));
+    button("Apply").click();
+    expect(only.changes).toEqual([""]);
   });
 
   it("shows the property as a flat row, flagging an invalid value", () => {

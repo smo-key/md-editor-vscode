@@ -24,6 +24,7 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 
 ### Fixed
 
+- Tab in a list item indents it, and Shift+Tab outdents it, or they do nothing when the item can't move (the first item of a level, a top-level item); they no longer insert spaces or turn a top-level item into a paragraph. Code blocks, tables and headings inside list items keep their own Tab.
 - Pasting into a code block, math or mermaid block, or inline code now inserts plain text exactly as copied, without backslash escapes or Markdown formatting, including text copied from the editor itself.
 - Dragging across table cells makes a cell selection again, and typing, Backspace or Delete over it clear those cells without breaking the table's rows, columns or alignment.
 - Links keep the form you wrote them in: bare links (https://…), www. and email links, and [url](url) links are no longer rewritten as <https://…> when you edit elsewhere in the document.

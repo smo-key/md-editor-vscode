@@ -8,6 +8,10 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 
 - Right-click a table of contents for **Delete table of contents**, which removes the whole table of contents (one undo brings it back).
 
+### Fixed
+
+- A literal dollar pair such as `\$x\$` in a line that starts or ends with a tab no longer turns into math after saving and reopening.
+
 ## [0.5.0] - 2026-10-23
 
 ### Added

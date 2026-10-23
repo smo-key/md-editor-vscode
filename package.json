@@ -693,7 +693,7 @@
         "kenMarkdown.headingNumbers.enabled": {
           "type": "boolean",
           "default": false,
-          "markdownDescription": "Show a small number to the left of each heading (`1`, `1.a`, `1.a.i`…) and before each table of contents entry. Display only: numbers are never written to the file. Headings inside quotes, alerts, lists and tables aren't numbered, and a skipped level (an H2 followed by an H4) is left out rather than shown as 0. Set each level's style with `#kenMarkdown.headingNumbers.h1#`…`#kenMarkdown.headingNumbers.h6#`."
+          "markdownDescription": "Show a small number to the left of each heading (`1`, `1.a`, `1.a.i`…) and before each table of contents entry. Display only: numbers are never written to the file. Headings inside quotes, alerts, lists and tables aren't numbered, and a skipped level (an H2 followed by an H4) is left out rather than shown as 0. Set each level's style with `#kenMarkdown.headingNumbers.h1#`…`#kenMarkdown.headingNumbers.h6#`. A document's own `ken-heading-numbering` property (`on`, `off` or a format such as `\"1.a.i\"`) overrides these."
         },
         "kenMarkdown.headingNumbers.h1": {
           "type": "string",

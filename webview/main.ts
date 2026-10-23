@@ -23,7 +23,14 @@ import type { LinkClick } from "./markdown/wikiLinks";
 import { buildEditor } from "./editorSetup";
 import { lucidRefreshKey } from "./markdown/lucid";
 import { refreshHeadingNumbers } from "./markdown/headingNumbers";
-import { headingNumbersConfig, type HeadingNumbersConfig } from "../src/headingNumbers";
+import {
+  effectiveHeadingNumbers,
+  HEADING_NUMBERING_PROPERTY,
+  headingNumbersConfig,
+  parseNumberingProperty,
+  type HeadingNumbersConfig,
+} from "../src/headingNumbers";
+import { openHeadingNumberingDialog } from "./headingNumberingDialog";
 import { lucidPreviewMode, type LucidPreviewMode } from "../src/lucidUrl";
 import { carriesFiles, handleFileDrop, type FileDropOptions } from "./fileDrop";
 import { normalizeTrailingNewlines } from "./markdown/gfmFidelity";
@@ -46,7 +53,7 @@ import { Collab, sharedHistory } from "./collab";
 import { Presence } from "./presence";
 import { commentIds, refreshComments } from "./comments/anchors";
 import { CommentsPanel } from "./comments/panel";
-import { joinDocument, splitDocument } from "./frontmatterModel";
+import { joinDocument, propertyValue, splitDocument } from "./frontmatterModel";
 import { installKeyRouting } from "./keys";
 import { onLastHeadingLevel, setLastHeadingLevel } from "./headingControl";
 import { command, execute, setShortcutLabels } from "./commands";
@@ -115,8 +122,16 @@ const frontmatterPanel = new FrontmatterPanel(
     // Removing the properties takes the blank lines that followed them too.
     if (!next) gap = "";
     collab?.setFront(next);
+    syncNumbering();
     dirty = true;
     sync();
+  },
+  {
+    onHeadingNumbering: () => openNumberingDialog(),
+    propertyWarning: (key, value) =>
+      key === HEADING_NUMBERING_PROPERTY && parseNumberingProperty(value) === null
+        ? 'Not a heading numbering value (use on, off or a format such as "1.a.i"), so the editor settings apply'
+        : null,
   },
 );
 
@@ -165,6 +180,7 @@ function startCollab(m: Extract<HostMessage, { type: "collabStart" }>) {
         front = next;
         if (!next) gap = "";
         frontmatterPanel.set(next);
+        syncNumbering();
         dirty = true;
         scheduleSync();
       },
@@ -268,11 +284,38 @@ function applyConfig(config: EditorConfig) {
   }
   // Heading numbers (markdown/headingNumbers.ts) read this at each rebuild; a
   // missing setting (an older harness) is off.
-  const numbers = headingNumbersConfig(config.headingNumbers);
-  if (JSON.stringify(numbers) !== JSON.stringify(headingNumbers)) {
-    headingNumbers = numbers;
-    if (view) refreshHeadingNumbers(view);
+  headingNumbers = headingNumbersConfig(config.headingNumbers);
+  syncNumbering();
+}
+
+// --- Heading numbering: the settings, overridden by the document's own
+// `ken-heading-numbering` property (src/headingNumbers.ts) ------------------------
+
+let numbering = { front: "\u0000", settings: headingNumbers, config: headingNumbers };
+/** What the heading numbers plugin draws with; cached per frontmatter and settings. */
+function effectiveNumbering(): HeadingNumbersConfig {
+  if (numbering.front !== front || numbering.settings !== headingNumbers) {
+    const { config } = effectiveHeadingNumbers(headingNumbers, propertyValue(front, HEADING_NUMBERING_PROPERTY));
+    numbering = { front, settings: headingNumbers, config };
   }
+  return numbering.config;
+}
+
+let numberingDrawn = "";
+/** Redraw the numbers when the settings or the property changed what they say. */
+function syncNumbering() {
+  const next = JSON.stringify(effectiveNumbering());
+  if (next === numberingDrawn) return;
+  numberingDrawn = next;
+  if (view) refreshHeadingNumbers(view);
+}
+
+function openNumberingDialog() {
+  openHeadingNumberingDialog({
+    settings: headingNumbers,
+    property: propertyValue(front, HEADING_NUMBERING_PROPERTY),
+    onApply: (value) => frontmatterPanel.setProperty(HEADING_NUMBERING_PROPERTY, value),
+  });
 }
 
 // --- Request/response with the host --------------------------------------------
@@ -523,7 +566,8 @@ async function createEditor(text: string) {
       open: (url, action) => post({ type: "openLucid", url, action }),
       openLink: (href) => post({ type: "openLink", href }),
     },
-    headingNumbers: () => headingNumbers,
+    headingNumbers: () => effectiveNumbering(),
+    onHeadingNumbering: () => openNumberingDialog(),
   });
   crepe.editor.use(changePlugin);
   await crepe.create();
@@ -534,6 +578,7 @@ async function createEditor(text: string) {
     lastSerialized = serialize(ctx);
     lastBack = threadsBlock();
   });
+  numberingDrawn = JSON.stringify(effectiveNumbering());
   editorCreated();
 }
 
@@ -554,6 +599,7 @@ function applyExternal(text: string) {
   ({ front, gap, body } = splitDocument(text));
   lastFront = front;
   frontmatterPanel.set(front);
+  syncNumbering();
   collab?.setFront(front);
   const { body: markdown, block } = splitThreads(body);
   loadThreads(block);

@@ -12,7 +12,7 @@
  * the YAML view grows with its content instead of scrolling. Frontmatter the
  * rows cannot show faithfully (`rowsUnsupported`) opens as YAML only.
  */
-import { ChevronRight, Plus, Tags, Trash2, X, Braces, createElement, type IconNode } from "lucide";
+import { ChevronRight, Plus, Settings, Tags, Trash2, TriangleAlert, X, Braces, createElement, type IconNode } from "lucide";
 
 import {
   entries,
@@ -21,6 +21,7 @@ import {
   highlightYaml,
   previewTokens,
   rowsUnsupported,
+  setProperty,
   setValueText,
   valueText,
   yamlTokens,
@@ -30,6 +31,13 @@ import {
 } from "./frontmatterModel";
 
 type Change = (front: string) => void;
+
+export interface FrontmatterPanelOptions {
+  /** The header's "Heading numbering…" button (shown while expanded). */
+  onHeadingNumbering?: () => void;
+  /** A warning for a property's value (its YAML text), shown on its row; null for none. */
+  propertyWarning?: (key: string, value: string) => string | null;
+}
 
 const icon = (node: IconNode, size = 14) => createElement(node, { width: size, height: size, "stroke-width": 1.75 });
 
@@ -116,6 +124,7 @@ export class FrontmatterPanel {
   constructor(
     host: HTMLElement,
     private readonly onChange: Change,
+    private readonly options: FrontmatterPanelOptions = {},
   ) {
     this.el = document.createElement("div");
     this.el.className = "ken-frontmatter";
@@ -156,6 +165,18 @@ export class FrontmatterPanel {
     this.expanded = true;
     this.render();
     this.el.querySelector<HTMLInputElement>(adding ? ".ken-fm-key" : ".ken-fm-value")?.focus();
+  }
+
+  /**
+   * Set (or with `null`, remove) one one-line property, changing only its
+   * line (frontmatterModel.ts `setProperty`); frontmatter is added if there
+   * is none.
+   */
+  setProperty(key: string, value: string | null): void {
+    const next = setProperty(this.front, key, value);
+    if (next === this.front) return;
+    this.commit(next);
+    this.render();
   }
 
   private commit(front: string) {
@@ -245,6 +266,12 @@ export class FrontmatterPanel {
         this.render();
       });
       remove.classList.add("danger");
+      const onNumbering = this.options.onHeadingNumbering;
+      if (onNumbering) {
+        const gear = this.smallButton(Settings, "Heading numbering…", () => onNumbering());
+        gear.classList.add("ken-fm-numbering");
+        head.append(gear);
+      }
       head.append(yaml, remove);
       this.syncYamlButton();
     } else this.yamlButton = null;
@@ -349,6 +376,22 @@ export class FrontmatterPanel {
       });
     }
     row.append(keyField, valueField, remove);
+    const warn = () => {
+      const message = entry.key ? (this.options.propertyWarning?.(entry.key, valueText(entry)) ?? null) : null;
+      row.classList.toggle("warning", !!message);
+      row.querySelector(".ken-fm-warning")?.remove();
+      if (!message) return;
+      const badge = document.createElement("span");
+      badge.className = "ken-fm-warning";
+      badge.title = message;
+      badge.setAttribute("aria-label", message);
+      badge.setAttribute("role", "img");
+      badge.append(icon(TriangleAlert, 13));
+      valueField.append(badge);
+    };
+    warn();
+    key.addEventListener("input", warn);
+    value.addEventListener("input", warn);
     return row;
   }
 

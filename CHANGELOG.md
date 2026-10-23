@@ -8,6 +8,12 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 
 - Right-click a table of contents for **Delete table of contents**, which removes the whole table of contents (one undo brings it back).
 
+### Fixed
+
+- Undoing every edit puts the file back exactly as it was, instead of rewriting it with normalized syntax (`*` bullets as `-`, underlined headings as `#`, `| --- |` table rules).
+- Replying to or resolving a comment changes only the comments block at the end of the file; the rest of the file is no longer rewritten.
+- After the properties change outside the editor, one Undo (or Redo) press always undoes something you can see, instead of first skipping a properties edit it can no longer apply.
+
 ## [0.5.0] - 2026-10-23
 
 ### Added

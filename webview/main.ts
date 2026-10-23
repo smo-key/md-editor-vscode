@@ -250,6 +250,7 @@ function setWriter(next: boolean) {
   writer = next;
   if (!next) return;
   // Write what the shared document says now, even if this editor saw it before.
+  // The bytes it opened with go too: others may have written the file since.
   lastText = "\u0000";
   baseline.forget();
   dirty = true;
@@ -614,9 +615,10 @@ async function createEditor(text: string) {
   crepe.editor.action((ctx) => {
     view = ctx.get(editorViewCtx);
     // Opening a file is not an edit: the file's own text is the baseline,
-    // and the editor's normalised form of it says the same.
+    // and the editor's normalised form of it says the same (again, too,
+    // once every edit is undone).
     lastBack = threadsBlock();
-    baseline.remember(view.state.doc, serialize(ctx), lastBack, body);
+    baseline.open(view.state.doc, serialize(ctx), lastBack, body);
     resetFront(view, { front, gap });
   });
   numberingDrawn = JSON.stringify(effectiveNumbering());
@@ -668,8 +670,9 @@ function applyExternal(text: string) {
         applyingExternal = false;
       }
     }
+    // The file's new bytes are what undoing back to here writes.
     lastBack = threadsBlock();
-    baseline.remember(v.state.doc, serialize(ctx), lastBack, body);
+    baseline.reload(v.state.doc, serialize(ctx), lastBack, body);
   });
 }
 

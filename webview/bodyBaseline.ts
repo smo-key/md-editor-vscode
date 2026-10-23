@@ -2,42 +2,80 @@
 // alone (a frontmatter edit, a document change that serializes the same)
 // writes the body's bytes exactly as they were. Serializing would normalize
 // syntax nobody touched (`| --- |` to `| - |`, setext headings, `*` bullets).
+//
+// Besides the body last written, it keeps the bytes the file was opened with
+// and the ones of the last change from outside (the source editor, git, a
+// reload). When the editor says the same as one of those again (every edit
+// undone), those bytes are written, so the file reads as it did. A pair is
+// matched on the serialized Markdown, never on the bytes alone, so the bytes
+// always say what the editor's document says: an undo that leaves a remote or
+// outside change in place serializes differently and is written afresh.
+//
+// The comment threads block (`back`) is kept apart: when only it changed (a
+// reply), it is swapped in the remembered bytes and the body is left alone.
+import { replaceThreads } from "./comments/store";
+
+interface Pair {
+  /** The serializer's output for the document. */
+  markdown: string;
+  /** The threads block in `raw`. */
+  back: string;
+  /** The body as written in the file (threads block included). */
+  raw: string;
+}
 
 /** What the body was written (or read) as, and the editor document that says the same. */
 export class BodyBaseline {
   private doc: unknown = null;
-  /** The serializer's output for that document; "\u0000" for none yet. */
-  private markdown = "\u0000";
-  private back = "";
-  private raw = "";
+  /** The body last written; `markdown` is "\u0000" for none yet. */
+  private current: Pair = { markdown: "\u0000", back: "", raw: "" };
+  /** The file's own bytes: as opened, and after the last change from outside. */
+  private opened: Pair | null = null;
+  private reloaded: Pair | null = null;
 
   /** The editor's document `doc`, serialized as `markdown` with threads block `back`, is `raw` in the file. */
   remember(doc: unknown, markdown: string, back: string, raw: string): void {
     this.doc = doc;
-    this.markdown = markdown;
-    this.back = back;
-    this.raw = raw;
+    this.current = { markdown, back, raw };
   }
 
-  /** Forget the baseline: the next body is serialized and written afresh. */
+  /** The file was opened as `raw`: its bytes come back whenever the editor says the same again. */
+  open(doc: unknown, markdown: string, back: string, raw: string): void {
+    this.remember(doc, markdown, back, raw);
+    this.opened = this.current;
+    this.reloaded = null;
+  }
+
+  /** The file changed outside the editor to `raw` (the editor followed). */
+  reload(doc: unknown, markdown: string, back: string, raw: string): void {
+    this.remember(doc, markdown, back, raw);
+    this.reloaded = this.current;
+  }
+
+  /** Forget every baseline: the next body is serialized and written afresh. */
   forget(): void {
     this.doc = null;
-    this.markdown = "\u0000";
+    this.current = { markdown: "\u0000", back: "", raw: "" };
+    this.opened = null;
+    this.reloaded = null;
   }
 
   /**
-   * The body text for `doc` and threads block `back`: the baseline's own
-   * bytes while the editor still says the same thing, otherwise `compose`
-   * of the freshly serialized Markdown (which becomes the baseline).
+   * The body text for `doc` and threads block `back`: remembered bytes while
+   * the editor still says the same thing (the threads block swapped if only
+   * it changed), otherwise `compose` of the freshly serialized Markdown
+   * (which becomes the baseline).
    */
   body(doc: unknown, back: string, serialize: () => string, compose: (markdown: string) => string): string {
-    if (doc === this.doc && back === this.back) return this.raw;
-    const markdown = serialize();
-    if (markdown === this.markdown && back === this.back) {
-      this.doc = doc;
-      return this.raw;
+    if (doc === this.doc && back === this.current.back) return this.current.raw;
+    // The same document needs no serializing to know what it says.
+    const markdown = doc === this.doc ? this.current.markdown : serialize();
+    for (const pair of [this.current, this.reloaded, this.opened]) {
+      if (!pair || pair.markdown !== markdown) continue;
+      this.remember(doc, markdown, back, pair.back === back ? pair.raw : replaceThreads(pair.raw, back));
+      return this.current.raw;
     }
     this.remember(doc, markdown, back, compose(markdown));
-    return this.raw;
+    return this.current.raw;
   }
 }

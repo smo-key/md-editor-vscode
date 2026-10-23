@@ -50,6 +50,7 @@ import { closeShortcutsPanel, initShortcutsPanel, isShortcutsPanelOpen, toggleSh
 import type { EditorConfig, HostMessage, TestAction, WebviewMessage } from "../src/protocol";
 import "@milkdown/crepe/theme/common/style.css";
 import "katex/dist/katex.min.css";
+import { isHostMessage } from "./hostMessage";
 import "@milkdown/crepe/theme/frame.css";
 import "./markdown/githubAlert.css";
 import "./styles.css";
@@ -705,7 +706,11 @@ function runCommand(id: string) {
 }
 
 window.addEventListener("message", async (event: MessageEvent<HostMessage>) => {
+  // Only the VS Code host (or the page itself): embedded frames such as draw.io
+  // must not be able to post `update` and replace the document.
+  if (!isHostMessage(event, window)) return;
   const m = event.data;
+  if (!m || typeof m !== "object") return;
   switch (m.type) {
     case "init":
       docPath = m.docPath;

@@ -143,7 +143,79 @@ try {
     assert.equal((await lastText()).trim(), "");
   });
   assert.deepEqual(h.errors, []);
-  console.log(checks.map((c) => `ok  ${c}`).join("\n"));
 } finally {
   await h.close();
 }
+
+// Drags that start in a table, each in a fresh document.
+const TABLE = "| a | b |\n| - | - |\n| 1 | 2 |";
+async function withDoc(markdown, fn) {
+  const d = await openHarness({ themeFile: process.argv[2], markdown, width: 900, height: 900 });
+  try {
+    await fn(d.page);
+    assert.deepEqual(d.errors, []);
+  } finally {
+    await d.close();
+  }
+}
+/** Press in the middle of `from`, drag in steps to `to` ({x, y}), release. */
+async function drag(p, from, to, steps = 20) {
+  await p.mouse.move(from.x, from.y);
+  await p.mouse.down();
+  for (let i = 1; i <= steps; i++) await p.mouse.move(from.x + ((to.x - from.x) * i) / steps, from.y + ((to.y - from.y) * i) / steps);
+  await p.mouse.up();
+  await p.waitForTimeout(250);
+}
+const centre = async (p, selector) => {
+  const b = await p.locator(selector).first().boundingBox();
+  return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+};
+/** The point just before "text" in "Tail text". */
+const beforeText = (p) =>
+  p.evaluate(() => {
+    const t = [...document.querySelectorAll(".ProseMirror p")].find((e) => e.textContent === "Tail text").firstChild;
+    const r = document.createRange();
+    r.setStart(t, 5);
+    r.setEnd(t, 6);
+    const b = r.getBoundingClientRect();
+    return { x: b.left + 1, y: b.top + b.height / 2 };
+  });
+const saved = (p) => p.evaluate(() => window.__lastText());
+
+await check("a drag from one cell into a cell in another row works (it used to crash the page)", () =>
+  withDoc(`Intro\n\n${TABLE}\n\nTail text\n`, async (p) => {
+    await drag(p, await centre(p, ".ProseMirror th"), await centre(p, ".ProseMirror td:has-text('1')"));
+    assert.equal(await p.evaluate(() => !!document.querySelector(".ProseMirror")), true);
+    const inTable = await p.evaluate(() => !!getSelection().focusNode?.parentElement?.closest("td, th") || document.querySelectorAll(".selectedCell").length > 0);
+    assert.equal(inTable, true, "the selection stays in the table");
+  }),
+);
+
+for (const [name, above] of [["", ""], [" (image above)", "![logo](logo.svg)\n\n"], [" (rule above)", "---\n\n"]]) {
+  for (const [how, key] of [["a drag", "X"], ["a drag", "Backspace"], ["Shift+click", "X"], ["Shift+click", "Backspace"]]) {
+    await check(`${how} from a cell to the text below, then ${key}${name}, removes just the table`, () =>
+      withDoc(`Intro\n\n${above}${TABLE}\n\nTail text\n`, async (p) => {
+        if (how === "a drag") await drag(p, await centre(p, ".ProseMirror td:has-text('1')"), await beforeText(p));
+        else {
+          const c = await centre(p, ".ProseMirror td:has-text('1')");
+          await p.mouse.click(c.x, c.y);
+          await p.waitForTimeout(250);
+          const t = await beforeText(p);
+          await p.keyboard.down("Shift");
+          await p.mouse.click(t.x, t.y);
+          await p.keyboard.up("Shift");
+          await p.waitForTimeout(250);
+        }
+        const hl = await p.evaluate(() => [...document.querySelectorAll(".ken-block-selected")].map((e) => e.className));
+        assert.ok(hl.some((c) => /table/.test(c)), `the table shows as included: ${hl}`);
+        await p.keyboard.press(key);
+        await p.waitForTimeout(250);
+        const text = (await saved(p)).trim();
+        const kept = above ? `Intro\n\n${above.trim().replace("---", "***")}\n\n` : "Intro\n\n";
+        assert.equal(text, `${kept}${key === "X" ? "X" : ""}text`);
+      }),
+    );
+  }
+}
+
+console.log(checks.map((c) => `ok  ${c}`).join("\n"));

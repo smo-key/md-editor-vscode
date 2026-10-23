@@ -433,23 +433,50 @@ function cellAround($pos: ResolvedPos): ProseNode | null {
  * selection and its highlight dropped off the table and came back on the
  * next pointer move: the flicker.
  */
-function collapsedByTables(wanted: Selection, final: Selection): boolean {
-  if (!(wanted instanceof TextSelection) || !(final instanceof TextSelection) || wanted.eq(final)) return false;
-  const { $from, $to } = wanted;
-  if ($to.parentOffset !== 0 || cellAround($from) === cellAround($to)) return false;
-  return final.from === $from.start() && final.to === $from.end();
+/** What the table plugin collapses: a text range ending at the start of a cell other than the one it starts in. */
+function tablesWouldCollapse(sel: Selection): boolean {
+  if (!(sel instanceof TextSelection)) return false;
+  const { $from, $to } = sel;
+  return $to.parentOffset === 0 && cellAround($from) !== cellAround($to);
 }
 
-/** Undo that collapse: the selection takes the table whole instead (selection only). */
+function collapsedByTables(wanted: Selection, final: Selection): boolean {
+  if (!(final instanceof TextSelection) || wanted.eq(final) || !tablesWouldCollapse(wanted)) return false;
+  return final.from === wanted.$from.start() && final.to === wanted.$from.end();
+}
+
+/** The table around `$pos`, if any. */
+function tableAround($pos: ResolvedPos): Span | null {
+  for (let d = 1; d <= $pos.depth; d++) {
+    if (isTable($pos.node(d))) return { from: $pos.before(d), to: $pos.after(d) };
+  }
+  return null;
+}
+
+/** Whether the range starts outside any table and its head is in one. */
+function entersTable(sel: Selection): boolean {
+  return !tableAround(sel.$anchor) && !!tableAround(sel.$head);
+}
+
+/**
+ * Undo that collapse for a drag from outside into a table: the selection
+ * takes the table whole instead (selection only). A drag that starts in a
+ * table is the table plugin's to handle: a range within one table can't be
+ * widened, and putting it back would only be collapsed again, endlessly
+ * (which froze and crashed the page); one leaving the table would lose its
+ * start in the cell.
+ */
 function keepTableSelection(trs: readonly Transaction[], oldState: EditorState, state: EditorState): Transaction | null {
   if (isRemoteChange(trs) || trs.some((tr) => tr.docChanged || tr.getMeta(key))) return null;
   const candidates = [oldState.selection, ...trs.map((tr) => tr.selection)];
-  const wanted = candidates.find((s) => collapsedByTables(s, state.selection));
+  const wanted = candidates.find((s) => collapsedByTables(s, state.selection) && entersTable(s));
   if (!wanted) return null;
-  const table = opaqueAround(wanted.$head) ?? opaqueAround(wanted.$anchor);
-  if (!table) return null;
   const sel = blockRangeSelection(state.doc, wanted.anchor, wanted.head);
-  if (collapsedByTables(sel, sel) || sel.eq(state.selection)) return null;
+  // Never hand the table plugin something it collapses again. And only ends
+  // in text: mid-drag, an end between blocks (a table right after an image)
+  // can't be shown as a browser selection, so the drag's start was lost.
+  if (tablesWouldCollapse(sel) || sel.eq(state.selection)) return null;
+  if (!sel.$anchor.parent.inlineContent || !sel.$head.parent.inlineContent) return null;
   return state.tr.setSelection(sel).setMeta(key, true).setMeta("addToHistory", false);
 }
 

@@ -145,7 +145,8 @@ describe("whatsNewHtml", () => {
   });
 
   it("shows the title, the sections and both buttons", () => {
-    expect(html).toContain("What’s New in Ken Markdown Editor 0.4.0");
+    expect(html).toContain("<title>What's New in Ken Markdown Editor 0.4.0</title>");
+    expect(html).toContain("<h1>What’s New in 0.4.0</h1>");
     expect(html).toContain("<h2>0.4.0");
     expect(html).toContain("<li>Math.</li>");
     expect(html).not.toContain("A caret bug");

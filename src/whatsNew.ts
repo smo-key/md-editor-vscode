@@ -187,7 +187,7 @@ ${renderMarkdown(s.body)}
 <main>
 <header>
 <p class="eyebrow">Ken Markdown Editor</p>
-<h1>What’s New in Ken Markdown Editor ${v}</h1>
+<h1>What’s New in ${v}</h1>
 <p class="subtitle">${subtitle}</p>
 </header>
 ${notes}

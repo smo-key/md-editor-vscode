@@ -18,6 +18,7 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 
 ### Fixed
 
+- Links keep the form you wrote them in: bare links (https://…), www. and email links, and [url](url) links are no longer rewritten as <https://…> when you edit elsewhere in the document.
 - Embedded pages, such as the draw.io editor, can no longer send the editor messages that change your document; only VS Code can.
 - Typing or Backspace over a selection that reaches into a table no longer replaces or selects the image or rule just before it.
 - A key pressed straight after a click (such as Backspace next to a comment) could be applied at the old caret and lost.

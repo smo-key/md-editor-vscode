@@ -51,9 +51,12 @@ import {
   clearTextInCurrentBlockCommand,
 } from "@milkdown/kit/preset/commonmark";
 import { $command, $prose, $remark } from "@milkdown/kit/utils";
+import type { EditorView } from "@milkdown/kit/prose/view";
+import { Trash2 } from "lucide";
 
 import { collectHeadings, type HeadingEntry } from "./anchors";
 import { isRemoteChange } from "../remoteChange";
+import { openContextMenu, type MenuEntry } from "../contextMenu";
 
 /** The marker written to disk, exactly as it is emitted. */
 export const TOC_COMMENT = "<!-- ken:toc -->";
@@ -561,6 +564,100 @@ export function addTocMenuItem(
   });
 }
 
+// ---------------------------------------------------------------------------
+// Context menu: right-click the table of contents to delete it.
+// ---------------------------------------------------------------------------
+
+/** The label of the context menu's delete entry. */
+export const DELETE_TOC_LABEL = "Delete table of contents";
+
+/**
+ * The transaction removing the flagged list at `pos`, or `null` when there is
+ * none there. One step, so a single undo brings it back. The caret lands at
+ * the block that took its place.
+ */
+export function deleteTocTransaction(
+  state: EditorState,
+  pos: number,
+): Transaction | null {
+  const node = state.doc.nodeAt(pos);
+  if (!node || node.type.name !== "bullet_list" || node.attrs.toc !== true) {
+    return null;
+  }
+  const tr = state.tr.delete(pos, pos + node.nodeSize);
+  const at = Math.min(tr.mapping.map(pos), tr.doc.content.size);
+  tr.setSelection(Selection.near(tr.doc.resolve(at), 1));
+  return tr.scrollIntoView();
+}
+
+/** The document position of the flagged list rendered as `el`, if any. */
+function tocPosAtDOM(view: EditorView, el: Element): number | undefined {
+  let found: number | undefined;
+  view.state.doc.descendants((node, pos) => {
+    if (found !== undefined) return false;
+    if (node.type.name === "bullet_list" && node.attrs.toc === true) {
+      if (view.nodeDOM(pos) === el) found = pos;
+      return false;
+    }
+    return true;
+  });
+  return found;
+}
+
+/**
+ * The table of contents' context menu entries (exported for tests). `locate`
+ * finds the list when the entry is chosen, not when the menu opened, so an
+ * edit (a collaborator's, say) in between cannot leave it pointing elsewhere.
+ */
+export function tocMenuItems(
+  view: EditorView,
+  locate: () => number | undefined,
+): MenuEntry[] {
+  return [
+    {
+      label: DELETE_TOC_LABEL,
+      icon: Trash2,
+      danger: true,
+      onSelect: () => {
+        const pos = locate();
+        if (pos === undefined) return;
+        const tr = deleteTocTransaction(view.state, pos);
+        if (!tr) return;
+        view.dispatch(tr);
+        view.focus();
+      },
+    },
+  ];
+}
+
+/**
+ * Right-clicking anywhere on a table of contents opens a menu with "Delete
+ * table of contents", in place of the browser's own menu.
+ */
+export const tocContextMenuPlugin = $prose(
+  () =>
+    new Plugin({
+      key: new PluginKey("ken-toc-menu"),
+      props: {
+        handleDOMEvents: {
+          contextmenu: (view, event) => {
+            const target = event.target instanceof Element ? event.target : null;
+            const el = target?.closest(`ul.${TOC_CLASS}`);
+            if (!el || !view.dom.contains(el)) return false;
+            if (tocPosAtDOM(view, el) === undefined) return false;
+            event.preventDefault();
+            openContextMenu(
+              event.clientX,
+              event.clientY,
+              tocMenuItems(view, () => tocPosAtDOM(view, el)),
+            );
+            return true;
+          },
+        },
+      },
+    }),
+);
+
 /** Everything the table of contents needs, ready for `editor.use(...)`. */
 export const tocPlugins = [
   remarkTocPlugin,
@@ -568,4 +665,5 @@ export const tocPlugins = [
   insertTocCommand,
   tocSyncPlugin,
   tocDecorations,
+  tocContextMenuPlugin,
 ].flat();

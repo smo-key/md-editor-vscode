@@ -5,7 +5,10 @@
  *   beside it and linked. Either way the Markdown gets a relative,
  *   percent-encoded path, so the file stays portable.
  * - Files dragged from VS Code's Explorer (hold Shift while dropping) arrive as
- *   URIs, not file contents: they are linked where they are, nothing is copied.
+ *   URIs, not file contents. The host links them where they are when they are
+ *   in the document's workspace folder (`kenMarkdown.workspaceFiles`), and
+ *   copies them otherwise. A file from the OS that is already in the workspace
+ *   (same name and bytes) is linked too, by the host's `saveAttachment`.
  * - Placement never breaks a line in two: links go inline where the caret or
  *   drop point is; images replace an empty line or go before/after the
  *   paragraph (inline in table cells, which hold a single line).

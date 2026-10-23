@@ -11,6 +11,7 @@ import type {
   WebviewMessage,
 } from "./protocol";
 import { classifyHref, imageFolder, minimalChange, toEOL, toLF, uniqueName } from "./sync";
+import { byCloseness, insideFolder, isImageName, nameGlob, sameBytes, workspaceFilesMode } from "./workspaceFiles";
 import type { CollabManager, Endpoint } from "./collab/manager";
 import { fromBase64, toBase64 } from "./collab/wire";
 
@@ -47,6 +48,11 @@ export function toolbarPosition(value: unknown): ToolbarPosition {
 
 function readImageFolder(scope: vscode.Uri): string {
   return vscode.workspace.getConfiguration("kenMarkdown", scope).get<string>("imageFolder", "_Images");
+}
+
+/** Whether files already in the workspace are linked (default) or copied. */
+function readWorkspaceFiles(scope: vscode.Uri) {
+  return workspaceFilesMode(vscode.workspace.getConfiguration("kenMarkdown", scope).get<string>("workspaceFiles", "link"));
 }
 
 export function readConfig(scope?: vscode.Uri): EditorConfig {
@@ -198,7 +204,7 @@ class EditorSession {
         return;
       case "saveAttachment":
         try {
-          const path = await this.saveAttachment(m.name, m.data, m.image);
+          const path = (m.sourceName && (await this.findInWorkspace(m.sourceName, m.data))) || (await this.saveAttachment(m.name, m.data, m.image));
           this.post({ type: "attachmentSaved", id: m.id, path });
         } catch (err) {
           this.post({ type: "attachmentSaved", id: m.id, error: String(err) });
@@ -243,7 +249,7 @@ class EditorSession {
         }
         return;
       case "linkUris":
-        this.post({ type: "linkedUris", id: m.id, items: m.uris.map((u) => this.linkFor(u)) });
+        this.post({ type: "linkedUris", id: m.id, items: await Promise.all(m.uris.map((u) => this.linkFor(u))) });
         return;
       case "openLink":
         await this.openLink(m.href);
@@ -385,8 +391,53 @@ class EditorSession {
     return vscode.Uri.joinPath(this.root, ...parts);
   }
 
-  /** How the document should reference a file dropped from the Explorer. */
-  private linkFor(raw: string): LinkedUri {
+  /** The document's workspace folder, when it is in one. */
+  private get workspaceFolder(): vscode.WorkspaceFolder | undefined {
+    return vscode.workspace.getWorkspaceFolder(this.document.uri);
+  }
+
+  /** Whether `uri` is a file in the document's workspace folder. */
+  private inWorkspace(uri: vscode.Uri): boolean {
+    const folder = this.workspaceFolder?.uri;
+    if (!folder || uri.scheme !== folder.scheme || uri.authority !== folder.authority) return false;
+    return insideFolder(folder.path, uri.path, process.platform === "win32");
+  }
+
+  /** Root-relative path of a URI in the document's workspace folder (which is `root` then). */
+  private rootRelative(uri: vscode.Uri): string {
+    return path.posix.relative(this.root.path, uri.path);
+  }
+
+  /**
+   * A file in the document's workspace folder named `name` with exactly these
+   * bytes, as a root-relative path: what a file pasted or dropped from the OS
+   * (whose path the webview never learns) most likely is. Undefined when
+   * `kenMarkdown.workspaceFiles` is "copy" or there is none.
+   */
+  private async findInWorkspace(name: string, data: Uint8Array): Promise<string | undefined> {
+    const folder = this.workspaceFolder;
+    if (!folder || readWorkspaceFiles(this.document.uri) !== "link" || !name || name.includes("/")) return undefined;
+    try {
+      const found = await vscode.workspace.findFiles(new vscode.RelativePattern(folder, `**/${nameGlob(name)}`), undefined, 50);
+      const byPath = new Map(found.filter((u) => path.posix.basename(u.path) === name).map((u) => [u.path, u]));
+      for (const p of byCloseness(path.posix.dirname(this.document.uri.path), [...byPath.keys()])) {
+        const uri = byPath.get(p)!;
+        if ((await vscode.workspace.fs.stat(uri)).size !== data.length) continue;
+        if (sameBytes(await vscode.workspace.fs.readFile(uri), data)) return this.rootRelative(uri);
+      }
+    } catch {
+      // Not found is fine: the file is copied as before.
+    }
+    return undefined;
+  }
+
+  /**
+   * How the document should reference a file dropped from the Explorer (or
+   * any URI drop): linked where it is when it is in the document's workspace
+   * folder and `kenMarkdown.workspaceFiles` is "link", else copied like a
+   * pasted file. Folders and unreadable URIs are linked as they are.
+   */
+  private async linkFor(raw: string): Promise<LinkedUri> {
     let uri: vscode.Uri;
     try {
       uri = vscode.Uri.parse(raw, true);
@@ -395,11 +446,22 @@ class EditorSession {
     }
     const name = path.posix.basename(uri.path) || raw;
     const doc = this.document.uri;
-    if (uri.scheme !== doc.scheme || uri.authority !== doc.authority) {
-      return { path: uri.toString(), relative: false, name };
+    const asIs = (): LinkedUri => {
+      if (uri.scheme !== doc.scheme || uri.authority !== doc.authority) return { path: uri.toString(), relative: false, name };
+      const rel = path.posix.relative(path.posix.dirname(doc.path), uri.path);
+      return { path: rel || name, relative: true, name };
+    };
+    if (this.inWorkspace(uri) && readWorkspaceFiles(doc) === "link") return asIs();
+    try {
+      if ((await vscode.workspace.fs.stat(uri)).type & vscode.FileType.Directory) return asIs();
+      const data = await vscode.workspace.fs.readFile(uri);
+      const saved = await this.saveAttachment(name, data, isImageName(name));
+      const docDir = path.posix.dirname(this.docPath);
+      const rel = path.posix.relative(docDir === "." ? "" : docDir, saved);
+      return { path: rel, relative: true, name: path.posix.basename(saved) };
+    } catch {
+      return asIs();
     }
-    const rel = path.posix.relative(path.posix.dirname(doc.path), uri.path);
-    return { path: rel || name, relative: true, name };
   }
 
   private async openLink(href: string): Promise<void> {

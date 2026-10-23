@@ -32,6 +32,12 @@ export interface EditorConfig {
    * sends it; the webview treats a missing value (old harness configs) as off.
    */
   headingNumbers: HeadingNumbersConfig;
+  /**
+   * Width of a tab character, in columns: the document's effective
+   * `editor.tabSize` (`[markdown]` overrides included). The host always sends
+   * it; the webview treats a missing value (old harness configs) as 4.
+   */
+  tabSize: number;
 }
 
 export interface LucidchartConfig {

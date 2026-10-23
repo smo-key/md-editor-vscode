@@ -444,18 +444,12 @@ function tabBelongsToList(state: EditorState, types: ReturnType<typeof listTypes
   return false;
 }
 
-/** Whether the selected items sit in a nested list, so they can be outdented. */
-function canOutdent(state: EditorState, types: ReturnType<typeof listTypes>): boolean {
-  const { $from, $to } = state.selection;
-  const range = $from.blockRange($to, (node) => node.childCount > 0 && node.firstChild!.type === types.item);
-  return !!range && range.depth >= 2 && $from.node(range.depth - 1).type === types.item;
-}
-
 /**
- * Tab / Shift+Tab in a list item indent / outdent it, or do nothing when it
- * can't move (the first item of a level; a top-level item). They always claim
- * the key there, so it never falls through to Crepe's indent plugin, which
- * would insert four spaces into the item. Runs ahead of the preset's list
+ * Tab / Shift+Tab in a list item. Tab indents the item, or does nothing when
+ * it can't (the first item of a level). Shift+Tab outdents a nested item one
+ * level, and turns a top-level item back into a plain paragraph. Both always
+ * claim the key there, so it never falls through to Crepe's indent plugin,
+ * which would type a tab into the item. Runs ahead of the preset's list
  * keymap but after the table (200) and heading (150) keys.
  */
 export const listTabKeymap = $useKeymap("kenListTab", {
@@ -472,9 +466,8 @@ export const listTabKeymap = $useKeymap("kenListTab", {
     priority: 120,
     shortcuts: "Shift-Tab",
     command: (ctx: Ctx) => (state, dispatch) => {
-      const types = listTypes(ctx);
-      if (!tabBelongsToList(state, types)) return false;
-      if (canOutdent(state, types)) liftListItemCommand(ctx)(state, dispatch);
+      if (!tabBelongsToList(state, listTypes(ctx))) return false;
+      liftListItemCommand(ctx)(state, dispatch);
       return true;
     },
   },

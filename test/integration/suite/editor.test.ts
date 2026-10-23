@@ -870,6 +870,21 @@ describe("Ken Markdown Editor", function () {
     }
   });
 
+  it("draws tabs editor.tabSize wide, [markdown] overrides included, live", async () => {
+    const uri = fixture("sample.md");
+    await openEditor(uri);
+    const tabSize = () => webview(uri, { kind: "getStyle", selector: ".milkdown .ProseMirror", property: "tab-size" });
+    const editor = vscode.workspace.getConfiguration("editor", { languageId: "markdown" });
+    try {
+      await editor.update("tabSize", 3, vscode.ConfigurationTarget.Global, true);
+      await until("markdown tab size", tabSize, (v) => v === "3");
+      await editor.update("tabSize", 7, vscode.ConfigurationTarget.Global, true);
+      await until("markdown tab size changed", tabSize, (v) => v === "7");
+    } finally {
+      await editor.update("tabSize", undefined, vscode.ConfigurationTarget.Global, true);
+    }
+  });
+
   it("applies paragraph spacing live, leaving list items alone", async () => {
     const uri = fixture("sample.md");
     await openEditor(uri);

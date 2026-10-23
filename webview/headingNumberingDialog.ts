@@ -2,23 +2,34 @@
  * "Heading numbering": the dialog that sets a document's own heading
  * numbering, as its `ken-heading-numbering` property (src/headingNumbers.ts).
  *
- * It edits a `NumberingChoice` (editor settings / on with these styles / off)
+ * It edits a `NumberingChoice` (editor settings / on with these levels / off)
  * and hands the property's new value to `onApply`: `null` removes it. It
  * reads and writes no document itself; main.ts saves the value through the
  * Properties panel, so only that one frontmatter line changes.
+ *
+ * Under "On", a preset fills in every level (style, parents, prefix) and the
+ * separator; editing any of them shows the preset as "Custom".
  *
  * A modal like the shortcut list (shortcutsPanel.ts): Escape or Cancel closes
  * it without writing, Tab stays inside it, and focus goes back where it was.
  */
 import {
   formatNumberingProperty,
+  HEADING_NUMBER_PARENTS,
+  HEADING_NUMBER_PRESET_NAMES,
   HEADING_NUMBER_STYLES,
   headingNumberLabels,
   numberingChoice,
+  prefixProblem,
+  presetLevels,
+  presetOf,
   separatorProblem,
+  type HeadingNumberParents,
+  type HeadingNumberPreset,
   type HeadingNumbersConfig,
   type HeadingNumberStyle,
   type NumberingChoice,
+  type NumberingLevels,
 } from "../src/headingNumbers";
 
 export interface HeadingNumberingDialogOptions {
@@ -32,11 +43,37 @@ export interface HeadingNumberingDialogOptions {
 
 const STYLE_LABELS: Record<HeadingNumberStyle, string> = {
   decimal: "1, 2, 3",
+  "decimal-leading-zero": "01, 02, 03",
   "lower-alpha": "a, b, c",
   "upper-alpha": "A, B, C",
   "lower-roman": "i, ii, iii",
   "upper-roman": "I, II, III",
+  "parenthesized-decimal": "(1), (2), (3)",
+  "parenthesized-lower-alpha": "(a), (b), (c)",
+  "parenthesized-upper-alpha": "(A), (B), (C)",
+  "parenthesized-lower-roman": "(i), (ii), (iii)",
+  "parenthesized-upper-roman": "(I), (II), (III)",
+  "decimal-paren": "1), 2), 3)",
+  "lower-alpha-paren": "a), b), c)",
+  "upper-alpha-paren": "A), B), C)",
+  "lower-roman-paren": "i), ii), iii)",
+  "upper-roman-paren": "I), II), III)",
   none: "None",
+};
+
+const PARENTS_LABELS: Record<HeadingNumberParents, [string, string]> = {
+  auto: ["Auto", "Only its own label for a parenthesized style, else with its parents"],
+  full: ["With parents", "Parent numbers, then this level's: 1.a.i, or 1.01(a)"],
+  legal: ["Parents as digits", "Parent numbers as plain digits, as Word's legal style: Section 1.01 under Article I"],
+  own: ["Own only", "Only this level's own label: (a)"],
+};
+
+const PRESET_LABELS: Record<HeadingNumberPreset | "custom", string> = {
+  outline: "Outline (1, 1.a, 1.a.i)",
+  decimal: "Decimal (1, 1.1, 1.1.1)",
+  legal: "Legal (1.1.1, (a), (i), (A))",
+  "legal-article": "Legal: Article, Section (I, 1.01, (a))",
+  custom: "Custom",
 };
 
 type Mode = NumberingChoice["mode"];
@@ -71,15 +108,30 @@ export function numberingPreview(config: HeadingNumbersConfig): string {
 
 let ids = 0;
 
+function select<T extends string>(id: string, values: readonly T[], label: (v: T) => string, title?: (v: T) => string): HTMLSelectElement {
+  const el = document.createElement("select");
+  el.id = id;
+  for (const value of values) {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = label(value);
+    if (title) option.title = title(value);
+    el.append(option);
+  }
+  return el;
+}
+
 export function openHeadingNumberingDialog(options: HeadingNumberingDialogOptions): void {
   closeHeadingNumberingDialog();
   restoreFocus = document.activeElement as HTMLElement | null;
   const { settings } = options;
   const start = numberingChoice(options.property, settings);
   let mode: Mode = start.choice.mode;
-  // The styles the "On" choice edits: the document's, else the settings'.
-  const styles: HeadingNumberStyle[] = start.choice.mode === "on" ? [...start.choice.styles] : [...settings.styles];
-  let separator = start.choice.mode === "on" ? start.choice.separator : settings.separator;
+  // The levels the "On" choice edits: the document's, else the settings'.
+  const levels: NumberingLevels =
+    start.choice.mode === "on"
+      ? { styles: [...start.choice.styles], parents: [...start.choice.parents], prefixes: [...start.choice.prefixes], separator: start.choice.separator }
+      : { styles: [...settings.styles], parents: [...settings.parents], prefixes: [...settings.prefixes], separator: settings.separator };
 
   const id = `ken-numbering-${++ids}`;
   const shade = document.createElement("div");
@@ -98,6 +150,7 @@ export function openHeadingNumberingDialog(options: HeadingNumberingDialogOption
   const title = document.createElement("h2");
   title.id = `${id}-title`;
   title.textContent = "Heading numbering";
+  title.title = "For this document only, saved as its ken-heading-numbering property. Numbers are never written into the text.";
   const close = document.createElement("button");
   close.type = "button";
   close.className = "ken-dialog-close";
@@ -109,11 +162,6 @@ export function openHeadingNumberingDialog(options: HeadingNumberingDialogOption
 
   const body = document.createElement("div");
   body.className = "ken-dialog-body";
-
-  const intro = document.createElement("p");
-  intro.className = "ken-dialog-note";
-  intro.textContent = "For this document only. Saved as the ken-heading-numbering property; numbers are never written into the text.";
-  body.append(intro);
 
   if (start.invalid) {
     const warning = document.createElement("p");
@@ -145,29 +193,75 @@ export function openHeadingNumberingDialog(options: HeadingNumberingDialogOption
   }
   body.append(modes);
 
+  const presetRow = document.createElement("div");
+  presetRow.className = "ken-numbering-preset-row";
+  const presetLabel = document.createElement("label");
+  presetLabel.htmlFor = `${id}-preset`;
+  presetLabel.textContent = "Preset";
+  const preset = select(`${id}-preset`, [...HEADING_NUMBER_PRESET_NAMES, "custom"] as const, (v) => PRESET_LABELS[v]);
+  preset.classList.add("ken-numbering-preset");
+  preset.addEventListener("change", () => {
+    // Custom keeps the fields as they are, ready to edit.
+    if (preset.value === "custom") return;
+    Object.assign(levels, presetLevels(preset.value as HeadingNumberPreset));
+    refresh();
+  });
+  presetRow.append(presetLabel, preset);
+  body.append(presetRow);
+
   const grid = document.createElement("div");
   grid.className = "ken-numbering-levels";
-  const selects: HTMLSelectElement[] = [];
+  for (const heading of ["", "Style", "Parents", "Prefix"]) {
+    const h = document.createElement("span");
+    h.className = "ken-dialog-label";
+    h.textContent = heading;
+    grid.append(h);
+  }
+  const styleSelects: HTMLSelectElement[] = [];
+  const parentSelects: HTMLSelectElement[] = [];
+  const prefixInputs: HTMLInputElement[] = [];
   for (let i = 0; i < 6; i++) {
     const label = document.createElement("label");
     label.htmlFor = `${id}-h${i + 1}`;
     label.textContent = `H${i + 1}`;
-    const select = document.createElement("select");
-    select.id = `${id}-h${i + 1}`;
-    select.dataset.level = String(i + 1);
-    for (const style of HEADING_NUMBER_STYLES) {
-      const option = document.createElement("option");
-      option.value = style;
-      option.textContent = STYLE_LABELS[style];
-      select.append(option);
-    }
-    select.addEventListener("change", () => {
-      styles[i] = select.value as HeadingNumberStyle;
+    const style = select(`${id}-h${i + 1}`, HEADING_NUMBER_STYLES, (v) => STYLE_LABELS[v]);
+    style.dataset.level = String(i + 1);
+    style.addEventListener("change", () => {
+      levels.styles[i] = style.value as HeadingNumberStyle;
       refresh();
     });
-    selects.push(select);
-    grid.append(label, select);
+    const parents = select(
+      `${id}-h${i + 1}-parents`,
+      HEADING_NUMBER_PARENTS,
+      (v) => PARENTS_LABELS[v][0],
+      (v) => PARENTS_LABELS[v][1],
+    );
+    parents.dataset.parents = String(i + 1);
+    parents.setAttribute("aria-label", `H${i + 1} parent numbers`);
+    parents.addEventListener("change", () => {
+      levels.parents[i] = parents.value as HeadingNumberParents;
+      refresh();
+    });
+    const prefix = document.createElement("input");
+    prefix.type = "text";
+    prefix.dataset.prefix = String(i + 1);
+    prefix.spellcheck = false;
+    prefix.maxLength = 24;
+    prefix.placeholder = i === 0 ? "Article " : i === 1 ? "Section " : "";
+    prefix.setAttribute("aria-label", `H${i + 1} prefix`);
+    prefix.addEventListener("input", () => {
+      levels.prefixes[i] = prefix.value;
+      refresh();
+    });
+    styleSelects.push(style);
+    parentSelects.push(parents);
+    prefixInputs.push(prefix);
+    grid.append(label, style, parents, prefix);
   }
+  body.append(grid);
+
+  const sepRow = document.createElement("div");
+  sepRow.className = "ken-numbering-preset-row";
   const sepLabel = document.createElement("label");
   sepLabel.htmlFor = `${id}-sep`;
   sepLabel.textContent = "Separator";
@@ -178,11 +272,11 @@ export function openHeadingNumberingDialog(options: HeadingNumberingDialogOption
   sepInput.spellcheck = false;
   sepInput.maxLength = 8;
   sepInput.addEventListener("input", () => {
-    separator = sepInput.value;
+    levels.separator = sepInput.value;
     refresh();
   });
-  grid.append(sepLabel, sepInput);
-  body.append(grid);
+  sepRow.append(sepLabel, sepInput);
+  body.append(sepRow);
 
   const error = document.createElement("p");
   error.className = "ken-numbering-error";
@@ -200,16 +294,6 @@ export function openHeadingNumberingDialog(options: HeadingNumberingDialogOption
   body.append(error, previewBox);
 
   const foot = document.createElement("footer");
-  const remove = document.createElement("button");
-  remove.type = "button";
-  remove.className = "ken-dialog-button secondary ken-dialog-remove";
-  remove.textContent = "Remove from document";
-  remove.title = "Remove ken-heading-numbering, so the editor settings apply";
-  remove.disabled = options.property === undefined;
-  remove.addEventListener("click", () => {
-    closeHeadingNumberingDialog();
-    options.onApply(null);
-  });
   const cancel = document.createElement("button");
   cancel.type = "button";
   cancel.className = "ken-dialog-button secondary";
@@ -227,35 +311,39 @@ export function openHeadingNumberingDialog(options: HeadingNumberingDialogOption
     if (value === (options.property?.trim() ?? null)) return;
     options.onApply(value);
   });
-  const spacer = document.createElement("span");
-  spacer.className = "ken-dialog-spacer";
-  foot.append(remove, spacer, cancel, apply);
+  foot.append(cancel, apply);
 
   el.append(head, body, foot);
   shade.append(el);
 
   function choice(): NumberingChoice {
-    if (mode === "on") return { mode, styles: [...styles], separator };
+    if (mode === "on") return { mode, styles: [...levels.styles], parents: [...levels.parents], prefixes: [...levels.prefixes], separator: levels.separator };
     return { mode };
   }
 
   function refresh() {
     const editable = mode === "on";
-    // "Editor settings" shows what the settings say; "Off" keeps the styles
+    // "Editor settings" shows what the settings say; "Off" keeps the levels
     // for when it's turned back on.
-    const shown = mode === "settings" ? settings.styles : styles;
-    selects.forEach((s, i) => {
-      s.value = shown[i]!;
-      s.disabled = !editable;
-    });
-    sepInput.value = mode === "settings" ? settings.separator : separator;
+    const shown: NumberingLevels = mode === "settings" ? settings : levels;
+    preset.value = presetOf(shown);
+    preset.disabled = !editable;
+    for (let i = 0; i < 6; i++) {
+      styleSelects[i]!.value = shown.styles[i]!;
+      parentSelects[i]!.value = shown.parents[i]!;
+      if (prefixInputs[i]!.value !== shown.prefixes[i]) prefixInputs[i]!.value = shown.prefixes[i]!;
+      styleSelects[i]!.disabled = parentSelects[i]!.disabled = prefixInputs[i]!.disabled = !editable;
+    }
+    if (sepInput.value !== shown.separator) sepInput.value = shown.separator;
     sepInput.disabled = !editable;
-    const problem = editable ? separatorProblem(separator) : null;
+    const problem = editable
+      ? (separatorProblem(levels.separator) ?? levels.prefixes.map(prefixProblem).find((p): p is string => !!p) ?? null)
+      : null;
     error.textContent = problem ?? "";
     error.hidden = !problem;
     apply.disabled = !!problem;
     const config: HeadingNumbersConfig =
-      mode === "settings" ? settings : mode === "off" ? { ...settings, enabled: false } : { enabled: true, styles, separator };
+      mode === "settings" ? settings : mode === "off" ? { ...settings, enabled: false } : { enabled: true, ...levels };
     preview.textContent = numberingPreview(config);
   }
 

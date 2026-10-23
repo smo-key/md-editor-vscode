@@ -17,6 +17,7 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 
 ### Fixed
 
+- Typing or Backspace over a selection that reaches into a table no longer replaces or selects the image or rule just before it.
 - A key pressed straight after a click (such as Backspace next to a comment) could be applied at the old caret and lost.
 - Selecting across tables and images no longer flickers. While you drag to select, images show a text cursor and letting go over one doesn't open it.
 - Editing a document no longer removes the blank line between its properties (frontmatter) and the body.

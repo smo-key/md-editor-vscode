@@ -14,6 +14,7 @@ import { slashShortcutInputRule, slashShortcutKeys } from "./markdown/slashShort
 import { anchorLinkPlugin } from "./markdown/anchors";
 import { headingLinkPlugin } from "./markdown/headingLink";
 import { wikiLinkPlugin, type LinkClick } from "./markdown/wikiLinks";
+import { lucidPlugin, type LucidOptions } from "./markdown/lucid";
 import { tableContextMenu } from "./markdown/tableMenu";
 import { tableFullWidthPlugins } from "./markdown/tableFullWidth";
 import { tocPlugins } from "./markdown/toc";
@@ -52,6 +53,8 @@ export interface EditorOptions {
   toolbarHost?: HTMLElement;
   /** A comment's highlight was clicked (open its thread). */
   onCommentActivate?: (id: string | null) => void;
+  /** Lucidchart previews (markdown/lucid.ts): the setting and the Edit/Open actions. */
+  lucid?: LucidOptions;
 }
 
 /** A configured, not yet created, editor: call `create()` on it. */
@@ -117,6 +120,8 @@ export function buildEditor(options: EditorOptions): Crepe {
   crepe.editor.use(anchorLinkPlugin);
   crepe.editor.use(headingLinkPlugin);
   crepe.editor.use(wikiLinkPlugin(onLink, () => false));
+  // A Lucid link alone in its paragraph shows a preview under it (decorations only).
+  crepe.editor.use(lucidPlugin(options.lucid));
   // Order matters: these replace preset nodes, so they register after them.
   crepe.editor.use(tableFullWidthPlugins);
   crepe.editor.use(mathPlugins);

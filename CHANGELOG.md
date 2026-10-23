@@ -19,6 +19,7 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 
 ### Fixed
 
+- Pasting into a code block, math or mermaid block, or inline code now inserts plain text exactly as copied, without backslash escapes or Markdown formatting, including text copied from the editor itself.
 - Dragging across table cells makes a cell selection again, and typing, Backspace or Delete over it clear those cells without breaking the table's rows, columns or alignment.
 - Links keep the form you wrote them in: bare links (https://…), www. and email links, and [url](url) links are no longer rewritten as <https://…> when you edit elsewhere in the document.
 - Embedded pages, such as the draw.io editor, can no longer send the editor messages that change your document; only VS Code can.

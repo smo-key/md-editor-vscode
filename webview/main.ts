@@ -48,6 +48,8 @@ import { closeLightbox, showLightbox } from "./lightbox";
 import { DRAG_SELECTING_CLASS } from "./markdown/blockSelection";
 import { initDrawio, versionOf } from "./drawio";
 import { FrontmatterPanel } from "./frontmatter";
+import { frontHistory, recordFront, resetFront, type FrontState } from "./frontHistory";
+import { BodyBaseline } from "./bodyBaseline";
 import { threadStore, splitThreads, formatThreads, type CommentThread } from "./comments/store";
 import { Collab, sharedHistory } from "./collab";
 import { Presence } from "./presence";
@@ -121,7 +123,9 @@ const frontmatterPanel = new FrontmatterPanel(
     front = next;
     // Removing the properties takes the blank lines that followed them too.
     if (!next) gap = "";
-    collab?.setFront(next);
+    // Into the editor's undo history, in order with the body's edits.
+    if (view) recordFront(view, { front, gap });
+    collab?.setFront(next, true);
     syncNumbering();
     dirty = true;
     sync();
@@ -141,14 +145,24 @@ let view: EditorView | null = null;
 let docPath = "README.md";
 /** The full document text (frontmatter included) the editor last agreed with the host on. */
 let lastText = "";
-/** Serialized body Markdown for the current state; a change from it is a user edit. */
-let lastSerialized = "";
+/** The body as last read or written; kept byte for byte while the editor's document says the same. */
+const baseline = new BodyBaseline();
 /** Frontmatter is set aside and put back on every save (the editor would mangle it). */
 let front = "";
 /** The blank lines between the frontmatter and the body, kept exactly (the editor drops them). */
 let gap = "";
-/** The frontmatter as last written, so a properties-only edit is still saved. */
-let lastFront = "";
+
+/** An undo or redo went back (or forward) to this frontmatter (frontHistory.ts). */
+function restoreFront(next: FrontState) {
+  if (next.front === front && next.gap === gap) return;
+  front = next.front;
+  gap = next.gap;
+  frontmatterPanel.restore(front);
+  collab?.setFront(front);
+  syncNumbering();
+  dirty = true;
+  sync();
+}
 
 // --- Collaboration ---------------------------------------------------------------
 // While a session is on, the document is shared live (collab.ts). One editor
@@ -175,12 +189,21 @@ function startCollab(m: Extract<HostMessage, { type: "collabStart" }>) {
     {
       send: (data) => post({ type: "collabUpdate", data }),
       sendAwareness: (data) => post({ type: "collabAwareness", data }),
-      onFront: (next) => {
+      onFront: (next, undone) => {
         if (next === front) return;
         front = next;
         if (!next) gap = "";
-        frontmatterPanel.set(next);
-        syncNumbering();
+        // Undone here (the shared history) is like typing here: the field being edited follows.
+        if (undone) frontmatterPanel.restore(next);
+        else frontmatterPanel.set(next);
+        // Editor transactions wait for Y.js to finish delivering this change:
+        // dispatching now would hand y-prosemirror a document the same update
+        // has yet to change, which it would write back over it.
+        queueMicrotask(() => {
+          if (!view || front !== next) return;
+          resetFront(view, { front, gap });
+          syncNumbering();
+        });
         dirty = true;
         scheduleSync();
       },
@@ -227,7 +250,7 @@ function setWriter(next: boolean) {
   if (!next) return;
   // Write what the shared document says now, even if this editor saw it before.
   lastText = "\u0000";
-  lastSerialized = "\u0000";
+  baseline.forget();
   dirty = true;
   sync();
 }
@@ -522,16 +545,24 @@ function sync(silent = false): string | null {
   clearTimeout(syncTimer);
   if (!dirty || !crepe) return null;
   dirty = false;
-  let markdown = "";
-  crepe.editor.action((ctx) => {
-    markdown = serialize(ctx);
-  });
+  const editor = crepe;
   const back = threadsBlock();
-  if (markdown === lastSerialized && front === lastFront && back === lastBack) return null;
-  lastSerialized = markdown;
-  lastFront = front;
   lastBack = back;
-  const text = joinDocument(front, gap, unescapeWikiLinks(markdown)) + (back ? `${markdown ? "\n" : ""}${back}` : "");
+  // A frontmatter-only edit (or a change that serializes the same) keeps the
+  // body's bytes: serializing would normalize syntax nobody touched.
+  const body = baseline.body(
+    view?.state.doc,
+    back,
+    () => {
+      let markdown = "";
+      editor.editor.action((ctx) => {
+        markdown = serialize(ctx);
+      });
+      return markdown;
+    },
+    (markdown) => unescapeWikiLinks(markdown) + (back ? `${markdown ? "\n" : ""}${back}` : ""),
+  );
+  const text = joinDocument(front, gap, body);
   if (text === lastText) return null;
   lastText = text;
   if (!silent && writer) post({ type: "edit", text });
@@ -545,7 +576,6 @@ function serialize(ctx: Ctx): string {
 async function createEditor(text: string) {
   let body: string;
   ({ front, gap, body } = splitDocument(text));
-  lastFront = front;
   const { body: markdown, block } = splitThreads(body);
   loadingThreads = true;
   threadStore.load(block);
@@ -570,13 +600,17 @@ async function createEditor(text: string) {
     onHeadingNumbering: () => openNumberingDialog(),
   });
   crepe.editor.use(changePlugin);
+  // Restored after the undo's own update has finished (restoring redraws the numbers, a transaction).
+  crepe.editor.use($prose(() => frontHistory((next) => queueMicrotask(() => restoreFront(next)))));
   await crepe.create();
   commentsPanel = new CommentsPanel(() => view);
   crepe.editor.action((ctx) => {
     view = ctx.get(editorViewCtx);
-    // Opening a file is not an edit: the editor's normalised form of it is the baseline.
-    lastSerialized = serialize(ctx);
+    // Opening a file is not an edit: the file's own text is the baseline,
+    // and the editor's normalised form of it says the same.
     lastBack = threadsBlock();
+    baseline.remember(view.state.doc, serialize(ctx), lastBack, body);
+    resetFront(view, { front, gap });
   });
   numberingDrawn = JSON.stringify(effectiveNumbering());
   editorCreated();
@@ -597,10 +631,11 @@ function applyExternal(text: string) {
   lastText = text;
   let body: string;
   ({ front, gap, body } = splitDocument(text));
-  lastFront = front;
   frontmatterPanel.set(front);
   syncNumbering();
   collab?.setFront(front);
+  // The file's frontmatter is the history's now; older frontmatter undos are stale.
+  if (view) resetFront(view, { front, gap });
   const { body: markdown, block } = splitThreads(body);
   loadThreads(block);
   collab?.setThreads(sharedThreads());
@@ -626,8 +661,8 @@ function applyExternal(text: string) {
         applyingExternal = false;
       }
     }
-    lastSerialized = serialize(ctx);
     lastBack = threadsBlock();
+    baseline.remember(v.state.doc, serialize(ctx), lastBack, body);
   });
 }
 

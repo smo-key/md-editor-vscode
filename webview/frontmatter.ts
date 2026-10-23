@@ -143,6 +143,25 @@ export class FrontmatterPanel {
     this.render();
   }
 
+  /**
+   * The frontmatter went back (or forward) to `front` by undo or redo: shown
+   * even while a field is being edited, which keeps the focus (the same
+   * field, the caret at its end) so undo can go on from there.
+   */
+  restore(front: string): void {
+    const fields = () => [...this.el.querySelectorAll<HTMLTextAreaElement | HTMLInputElement>("textarea, input")];
+    const at = fields().indexOf(document.activeElement as HTMLTextAreaElement);
+    this.front = front;
+    this.model = front ? parseFrontmatter(front) : null;
+    this.render();
+    if (at < 0) return;
+    const now = fields();
+    const field = now[Math.min(at, now.length - 1)];
+    if (!field) return;
+    field.focus();
+    field.setSelectionRange(field.value.length, field.value.length);
+  }
+
   /** `kenMarkdown.alwaysShowProperties`: an empty panel for documents without any. */
   setAlwaysShow(on: boolean): void {
     if (on === this.alwaysShow) return;

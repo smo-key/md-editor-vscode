@@ -10,7 +10,7 @@ import { Hub } from "../../src/collab/hub";
 import { fromBase64, toBase64, type Connection, type FromHub } from "../../src/collab/wire";
 import { Collab, initials, sharedHistory, type Person } from "../../webview/collab";
 import { isRemoteChange } from "../../webview/remoteChange";
-import { ySyncPluginKey } from "y-prosemirror";
+import { ySyncPluginKey, yUndoPluginKey } from "y-prosemirror";
 import { normalizeTrailingNewlines } from "../../webview/markdown/gfmFidelity";
 import { mountEditor, stubLayout } from "./editorEnv";
 
@@ -112,6 +112,8 @@ interface Editor {
   collab: Collab | null;
   people: Person[];
   front: string;
+  /** Whether the last frontmatter change came from an undo or redo here. */
+  frontUndone: boolean;
   threads: string[];
   destroy(): Promise<void>;
 }
@@ -126,6 +128,7 @@ async function share(hub: Hub, name: string, markdown: string, room = "doc.md"):
     collab: null,
     people: [],
     front: "",
+    frontUndone: false,
     threads: [],
     destroy: async () => {
       editor.collab?.stop();
@@ -142,7 +145,10 @@ async function share(hub: Hub, name: string, markdown: string, room = "doc.md"):
           {
             send: (data) => hub.receive(conn, { t: "update", room, peer, data: toBase64(data) }),
             sendAwareness: (data) => hub.receive(conn, { t: "awareness", room, peer, data: toBase64(data) }),
-            onFront: (f) => (editor.front = f),
+            onFront: (f, undone) => {
+              editor.front = f;
+              editor.frontUndone = !!undone;
+            },
             onThreads: (t) => (editor.threads = t),
             onPeople: (p) => (editor.people = p),
           },
@@ -262,6 +268,47 @@ describe("shared editing", () => {
       shared.undo(a.view.state, a.view.dispatch);
       expect(a.markdown()).toBe("One two B.\n");
       expect(b.markdown()).toBe("One two B.\n");
+    } finally {
+      await b.destroy();
+      await a.destroy();
+    }
+  });
+
+  it("undoes your frontmatter edits in order with your body edits, and not others'", async () => {
+    const hub = new Hub();
+    const a = await share(hub, "Ada", "One two.\n");
+    const b = await share(hub, "Bob", "");
+    const pause = () => yUndoPluginKey.getState(a.view.state)!.undoManager.stopCapturing();
+    try {
+      // Someone else's frontmatter edit is not Ada's to undo.
+      b.collab!.setFront("---\nby: Bob\n---\n", true);
+      expect(a.front).toBe("---\nby: Bob\n---\n");
+      typeAfter(a.view, "One", " A");
+      pause();
+      a.front = "---\nby: Ada\n---\n";
+      a.collab!.setFront(a.front, true);
+      pause();
+      expect(a.frontUndone).toBe(false);
+      const shared = sharedHistory(a.view.state)!;
+
+      // Ada's last edit was the frontmatter: it goes first.
+      shared.undo(a.view.state, a.view.dispatch);
+      expect(a.frontUndone).toBe(true);
+      expect(a.front).toBe("---\nby: Bob\n---\n");
+      expect(b.front).toBe("---\nby: Bob\n---\n");
+      expect(a.markdown()).toBe("One A two.\n");
+
+      // Then the typing, and nothing more.
+      shared.undo(a.view.state, a.view.dispatch);
+      expect(a.markdown()).toBe("One two.\n");
+      expect(shared.undo(a.view.state)).toBeFalsy();
+      expect(a.front).toBe("---\nby: Bob\n---\n");
+
+      shared.redo(a.view.state, a.view.dispatch);
+      expect(a.markdown()).toBe("One A two.\n");
+      shared.redo(a.view.state, a.view.dispatch);
+      expect(a.front).toBe("---\nby: Ada\n---\n");
+      expect(b.front).toBe("---\nby: Ada\n---\n");
     } finally {
       await b.destroy();
       await a.destroy();

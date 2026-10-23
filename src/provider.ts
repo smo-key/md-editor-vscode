@@ -10,6 +10,7 @@ import type {
   ToolbarPosition,
   WebviewMessage,
 } from "./protocol";
+import { headingNumbersConfig } from "./headingNumbers";
 import { editUrl, lucidPreviewMode, openUrl, parseLucidUrl } from "./lucidUrl";
 import { classifyHref, imageFolder, minimalChange, toEOL, toLF, uniqueName } from "./sync";
 import {
@@ -81,6 +82,11 @@ export function readConfig(scope?: vscode.Uri): EditorConfig {
     alwaysShowProperties: c.get<boolean>("alwaysShowProperties", false),
     commentAuthor: c.get<string>("commentAuthor", "").trim() || defaultAuthor(),
     lucidchart: { preview: lucidPreviewMode(c.get<unknown>("lucidchart.preview", "auto")) },
+    headingNumbers: headingNumbersConfig({
+      enabled: c.get<unknown>("headingNumbers.enabled", false),
+      styles: ["h1", "h2", "h3", "h4", "h5", "h6"].map((h) => c.get<unknown>(`headingNumbers.${h}`)),
+      separator: c.get<unknown>("headingNumbers.separator", "."),
+    }),
   };
 }
 

@@ -1,7 +1,11 @@
+import { readFileSync } from "fs";
+import { join } from "path";
 import { describe, expect, it } from "vitest";
 
 import {
+  DEFAULT_HEADING_NUMBER_SEPARATOR,
   DEFAULT_HEADING_NUMBER_STYLES,
+  HEADING_NUMBER_STYLES,
   formatCounter,
   headingNumberLabels,
   headingNumbersConfig,
@@ -160,5 +164,26 @@ describe("headingNumbersConfig", () => {
 
   it("falls back to the default separator when it is not a string", () => {
     expect(headingNumbersConfig({ separator: 3 }).separator).toBe(".");
+  });
+});
+
+describe("kenMarkdown.headingNumbers settings", () => {
+  const pkg = JSON.parse(readFileSync(join(__dirname, "../../package.json"), "utf8")) as {
+    contributes: { configuration: { properties: Record<string, Record<string, unknown>> } };
+  };
+  const props = pkg.contributes.configuration.properties;
+
+  it("is off by default with a '.' separator", () => {
+    expect(props["kenMarkdown.headingNumbers.enabled"]).toMatchObject({ type: "boolean", default: false });
+    expect(props["kenMarkdown.headingNumbers.separator"]).toMatchObject({ type: "string", default: DEFAULT_HEADING_NUMBER_SEPARATOR });
+  });
+
+  it("offers every style for each level, defaulting as the code does", () => {
+    for (let i = 0; i < 6; i++) {
+      const setting = props[`kenMarkdown.headingNumbers.h${i + 1}`]!;
+      expect(setting.enum).toEqual([...HEADING_NUMBER_STYLES]);
+      expect((setting.enumDescriptions as string[]).length).toBe(HEADING_NUMBER_STYLES.length);
+      expect(setting.default).toBe(DEFAULT_HEADING_NUMBER_STYLES[i]);
+    }
   });
 });

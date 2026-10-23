@@ -1,8 +1,9 @@
 /** Messages between the extension host and the editor webview. */
 
+import type { HeadingNumbersConfig } from "./headingNumbers";
 import type { LucidPreviewMode } from "./lucidUrl";
 
-export type { LucidPreviewMode };
+export type { HeadingNumbersConfig, LucidPreviewMode };
 
 export type ToolbarPosition = "top" | "bottom" | "hidden";
 
@@ -26,6 +27,11 @@ export interface EditorConfig {
    * as `{ preview: "auto" }`.
    */
   lucidchart: LucidchartConfig;
+  /**
+   * Heading numbers (`kenMarkdown.headingNumbers.*`), display only. The host always
+   * sends it; the webview treats a missing value (old harness configs) as off.
+   */
+  headingNumbers: HeadingNumbersConfig;
 }
 
 export interface LucidchartConfig {

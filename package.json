@@ -690,6 +690,142 @@
           "maximum": 2400,
           "markdownDescription": "Maximum width of the text column, in pixels."
         },
+        "kenMarkdown.headingNumbers.enabled": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Show a small number to the left of each heading (`1`, `1.a`, `1.a.i`…) and before each table of contents entry. Display only: numbers are never written to the file. Headings inside quotes, alerts, lists and tables aren't numbered, and a skipped level (an H2 followed by an H4) is left out rather than shown as 0. Set each level's style with `#kenMarkdown.headingNumbers.h1#`…`#kenMarkdown.headingNumbers.h6#`."
+        },
+        "kenMarkdown.headingNumbers.h1": {
+          "type": "string",
+          "enum": [
+            "decimal",
+            "lower-alpha",
+            "upper-alpha",
+            "lower-roman",
+            "upper-roman",
+            "none"
+          ],
+          "enumDescriptions": [
+            "1, 2, 3",
+            "a, b, c (then aa, ab…)",
+            "A, B, C (then AA, AB…)",
+            "i, ii, iii",
+            "I, II, III",
+            "Not numbered, and left out of deeper headings' numbers."
+          ],
+          "default": "decimal",
+          "markdownDescription": "Number style for level 1 headings, when `#kenMarkdown.headingNumbers.enabled#` is on."
+        },
+        "kenMarkdown.headingNumbers.h2": {
+          "type": "string",
+          "enum": [
+            "decimal",
+            "lower-alpha",
+            "upper-alpha",
+            "lower-roman",
+            "upper-roman",
+            "none"
+          ],
+          "enumDescriptions": [
+            "1, 2, 3",
+            "a, b, c (then aa, ab…)",
+            "A, B, C (then AA, AB…)",
+            "i, ii, iii",
+            "I, II, III",
+            "Not numbered, and left out of deeper headings' numbers."
+          ],
+          "default": "lower-alpha",
+          "markdownDescription": "Number style for level 2 headings, when `#kenMarkdown.headingNumbers.enabled#` is on."
+        },
+        "kenMarkdown.headingNumbers.h3": {
+          "type": "string",
+          "enum": [
+            "decimal",
+            "lower-alpha",
+            "upper-alpha",
+            "lower-roman",
+            "upper-roman",
+            "none"
+          ],
+          "enumDescriptions": [
+            "1, 2, 3",
+            "a, b, c (then aa, ab…)",
+            "A, B, C (then AA, AB…)",
+            "i, ii, iii",
+            "I, II, III",
+            "Not numbered, and left out of deeper headings' numbers."
+          ],
+          "default": "lower-roman",
+          "markdownDescription": "Number style for level 3 headings, when `#kenMarkdown.headingNumbers.enabled#` is on."
+        },
+        "kenMarkdown.headingNumbers.h4": {
+          "type": "string",
+          "enum": [
+            "decimal",
+            "lower-alpha",
+            "upper-alpha",
+            "lower-roman",
+            "upper-roman",
+            "none"
+          ],
+          "enumDescriptions": [
+            "1, 2, 3",
+            "a, b, c (then aa, ab…)",
+            "A, B, C (then AA, AB…)",
+            "i, ii, iii",
+            "I, II, III",
+            "Not numbered, and left out of deeper headings' numbers."
+          ],
+          "default": "decimal",
+          "markdownDescription": "Number style for level 4 headings, when `#kenMarkdown.headingNumbers.enabled#` is on."
+        },
+        "kenMarkdown.headingNumbers.h5": {
+          "type": "string",
+          "enum": [
+            "decimal",
+            "lower-alpha",
+            "upper-alpha",
+            "lower-roman",
+            "upper-roman",
+            "none"
+          ],
+          "enumDescriptions": [
+            "1, 2, 3",
+            "a, b, c (then aa, ab…)",
+            "A, B, C (then AA, AB…)",
+            "i, ii, iii",
+            "I, II, III",
+            "Not numbered, and left out of deeper headings' numbers."
+          ],
+          "default": "lower-alpha",
+          "markdownDescription": "Number style for level 5 headings, when `#kenMarkdown.headingNumbers.enabled#` is on."
+        },
+        "kenMarkdown.headingNumbers.h6": {
+          "type": "string",
+          "enum": [
+            "decimal",
+            "lower-alpha",
+            "upper-alpha",
+            "lower-roman",
+            "upper-roman",
+            "none"
+          ],
+          "enumDescriptions": [
+            "1, 2, 3",
+            "a, b, c (then aa, ab…)",
+            "A, B, C (then AA, AB…)",
+            "i, ii, iii",
+            "I, II, III",
+            "Not numbered, and left out of deeper headings' numbers."
+          ],
+          "default": "lower-roman",
+          "markdownDescription": "Number style for level 6 headings, when `#kenMarkdown.headingNumbers.enabled#` is on."
+        },
+        "kenMarkdown.headingNumbers.separator": {
+          "type": "string",
+          "default": ".",
+          "markdownDescription": "Text between the levels of a heading number: `.` gives `1.a.i`."
+        },
         "kenMarkdown.toolbar": {
           "type": "string",
           "enum": [

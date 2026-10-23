@@ -698,7 +698,7 @@ describe("Ken Markdown Editor", function () {
     await webview(uri, { kind: "click", selector: ".ken-fm-toggle" });
     assert.strictEqual(await count(".ken-fm-row"), 2);
     await webview(uri, { kind: "fill", selector: ".ken-fm-row:first-child .ken-fm-value", value: "Renamed" });
-    await until("title saved", () => doc.getText(), (t) => t.startsWith("---\ntitle: Renamed\naliases: [demo]\n---\n#"));
+    await until("title saved", () => doc.getText(), (t) => t.startsWith("---\ntitle: Renamed\naliases: [demo]\n---\n\n#"));
   });
 
   it("adds frontmatter with the Properties command, without a default title", async () => {

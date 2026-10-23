@@ -203,26 +203,42 @@ describe("Ken Markdown Editor", function () {
   });
 
   it("undoes one step per Cmd/Ctrl+Z", async () => {
-    const uri = fixture("sample.md");
+    // Its own fixture, so earlier tests' saved edits can't change what it sees.
+    const uri = fixture("undo.md");
     const doc = await openEditor(uri);
-    const original = doc.getText();
-    const mod = process.platform === "darwin" ? { meta: true } : { ctrl: true };
-    await webview(uri, { kind: "insertText", text: " first", at: "end" });
-    await until("first edit", () => doc.getText(), (t) => t.includes(" first"));
+    const mac = process.platform === "darwin";
+    const mod = mac ? { meta: true } : { ctrl: true };
+    assert.ok(await webview(uri, { kind: "caretAfter", text: "Undo me." }));
+    await webview(uri, { kind: "insertText", text: " first", at: "caret" });
+    await until("first edit", () => doc.getText(), (t) => t.includes("Undo me. first\n"));
     await sleep(700);
-    await webview(uri, { kind: "insertText", text: " second", at: "end" });
-    await until("second edit", () => doc.getText(), (t) => t.includes(" second"));
+    await webview(uri, { kind: "insertText", text: " second", at: "caret" });
+    await until("second edit", () => doc.getText(), (t) => t.includes("Undo me. first second\n"));
     await sleep(700);
-    await webview(uri, { kind: "key", key: "z", code: "KeyZ", ...mod });
+    // VS Code ignores synthetic (untrusted) key events forwarded from a
+    // webview, so a test can't press Cmd/Ctrl+Z itself (the real key press is
+    // covered by "routes real key presses", KEN_TEST_REAL_KEYS=1). What it can
+    // check is each half of the route: the page leaves the key to VS Code
+    // without undoing anything itself, the key is bound to kenMarkdown.undo,
+    // and that command undoes exactly one step.
+    for (const key of [{ key: "z", code: "KeyZ", ...mod }, { key: "z", code: "KeyZ", ...mod, shift: true }]) {
+      const r = (await webview(uri, { kind: "key", ...key })) as { leftToVsCode: boolean; editorChanged: boolean };
+      assert.deepStrictEqual(r, { leftToVsCode: true, editorChanged: false }, `${JSON.stringify(key)} is left to VS Code`);
+    }
+    const bindings = vscode.extensions.getExtension("ArthurPachachura.ken-markdown-editor")!.packageJSON.contributes.keybindings as { command: string; key: string; mac?: string; when?: string }[];
+    const bound = (command: string, keys: string) =>
+      bindings.some((b) => b.command === command && (mac ? b.mac ?? b.key : b.key) === keys && /kenMarkdown\.editorFocused/.test(b.when ?? ""));
+    assert.ok(bound("kenMarkdown.undo", mac ? "cmd+z" : "ctrl+z"), "Cmd/Ctrl+Z runs kenMarkdown.undo");
+    assert.ok(bound("kenMarkdown.redo", mac ? "cmd+shift+z" : "ctrl+y"), "Cmd+Shift+Z / Ctrl+Y runs kenMarkdown.redo");
+    assert.ok(doc.getText().includes("Undo me. first second\n"), "the keys alone changed nothing");
+    await vscode.commands.executeCommand("kenMarkdown.undo");
     await until("one undo", () => doc.getText(), (t) => !t.includes(" second"));
     await sleep(1000);
-    assert.ok(doc.getText().includes(" first"), `only the last edit is undone: ${JSON.stringify(doc.getText().slice(-60))}`);
-    await webview(uri, { kind: "key", key: "z", code: "KeyZ", ...mod, shift: process.platform === "darwin" });
-    if (process.platform !== "darwin") await webview(uri, { kind: "key", key: "y", code: "KeyY", ...mod });
+    assert.ok(doc.getText().includes("Undo me. first\n"), `only the last edit is undone: ${JSON.stringify(doc.getText())}`);
+    await vscode.commands.executeCommand("kenMarkdown.redo");
     await until("redo", () => doc.getText(), (t) => t.includes(" second"));
     await sleep(1000);
-    assert.ok(doc.getText().includes(" first second"), "redo restores exactly one step");
-    void original;
+    assert.ok(doc.getText().includes("Undo me. first second\n"), "redo restores exactly one step");
   });
 
   it("opens the slash menu on / and runs the chosen command", async () => {

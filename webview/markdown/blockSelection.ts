@@ -165,11 +165,50 @@ export function deletionRange(state: EditorState): Span | null {
   return from === sel.from && to === sel.to ? null : { from, to };
 }
 
-/** Delete `span` and put the caret where it was. */
-function deleteSpan(state: EditorState, span: Span) {
+/**
+ * Delete `span` and put a text caret where the selection's text survives:
+ * at its far end when that was in text (the rest of that paragraph), else at
+ * its near end, else in the text right beside the gap. Never a node
+ * selection: typing would then replace the image or rule before the gap.
+ * `caret` is false when no text is beside the gap (the caller decides).
+ */
+function deleteSpan(state: EditorState, span: Span): { tr: Transaction; caret: boolean } {
+  const doc = state.doc;
+  const farInText = doc.resolve(span.to).parent.inlineContent;
+  const nearInText = doc.resolve(span.from).parent.inlineContent;
   const tr = state.tr.delete(span.from, span.to);
-  tr.setSelection(Selection.near(tr.doc.resolve(tr.mapping.map(span.from, -1)), -1));
-  return tr;
+  const inText = (pos: number) => (tr.doc.resolve(pos).parent.inlineContent ? pos : null);
+  const gap = tr.mapping.map(span.from, -1);
+  const at =
+    (farInText ? inText(tr.mapping.map(span.to, 1)) : null) ??
+    (nearInText ? inText(gap) : null) ??
+    textInside(tr.doc, gap, -1) ??
+    textInside(tr.doc, gap, 1);
+  if (at !== null) {
+    tr.setSelection(TextSelection.create(tr.doc, at));
+    return { tr, caret: true };
+  }
+  return { tr, caret: false };
+}
+
+/** Delete `span`, leaving a text caret even where no text is beside the gap. */
+function deleteSpanToCaret(state: EditorState, span: Span): Transaction {
+  const { tr, caret } = deleteSpan(state, span);
+  if (caret) return tr;
+  const gap = tr.mapping.map(span.from, -1);
+  const found = TextSelection.findFrom(tr.doc.resolve(gap), -1, true) ?? TextSelection.findFrom(tr.doc.resolve(gap), 1, true);
+  if (found) return tr.setSelection(found);
+  tr.insert(gap, state.schema.nodes.paragraph.create());
+  return tr.setSelection(TextSelection.create(tr.doc, gap + 1));
+}
+
+/** Delete `span` and type `text` where the caret lands, in a new paragraph if no text is beside the gap. */
+function replaceSpanWithText(state: EditorState, span: Span, text: string): Transaction {
+  const { tr, caret } = deleteSpan(state, span);
+  if (caret) return tr.insertText(text);
+  const gap = tr.mapping.map(span.from, -1);
+  tr.insert(gap, state.schema.nodes.paragraph.create(null, state.schema.text(text)));
+  return tr.setSelection(TextSelection.create(tr.doc, gap + 1 + text.length));
 }
 
 function decorations(state: EditorState): DecorationSet {
@@ -263,7 +302,7 @@ export function shiftArrow(key: Arrow): Command {
 export const deleteBlockRange: Command = (state, dispatch) => {
   const span = deletionRange(state);
   if (!span) return false;
-  if (dispatch) dispatch(deleteSpan(state, span).scrollIntoView());
+  if (dispatch) dispatch(deleteSpanToCaret(state, span).scrollIntoView());
   return true;
 };
 
@@ -375,7 +414,7 @@ export function trackDragSelect(dom: HTMLElement): () => void {
   };
 }
 
-const key = new PluginKey("ken-block-selection");
+const key = new PluginKey<DecorationSet>("ken-block-selection");
 
 /** The table cell around `$pos`, if any. */
 function cellAround($pos: ResolvedPos): ProseNode | null {
@@ -434,13 +473,21 @@ export const blockSelectionPlugin = $prose(
         };
       },
       appendTransaction: keepTableSelection,
+      // The highlight is worked out only when the document or the selection
+      // changes, not on every view update (a selection over a long document
+      // walks all of it).
+      state: {
+        init: (_, state) => decorations(state),
+        apply: (tr, old: DecorationSet, oldState, state) =>
+          tr.docChanged || !oldState.selection.eq(state.selection) ? decorations(state) : old,
+      },
       props: {
-        decorations,
+        decorations: (state) => key.getState(state) as DecorationSet | undefined,
         // Typing over such a selection replaces what Backspace would remove.
         handleTextInput(view, _from, _to, text) {
           const span = deletionRange(view.state);
           if (!span) return false;
-          view.dispatch(deleteSpan(view.state, span).insertText(text).scrollIntoView());
+          view.dispatch(replaceSpanWithText(view.state, span, text).scrollIntoView());
           return true;
         },
       },

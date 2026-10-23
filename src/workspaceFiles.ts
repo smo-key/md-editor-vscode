@@ -67,3 +67,59 @@ export function isImageName(name: string): boolean {
   const dot = name.lastIndexOf(".");
   return dot > 0 && IMAGE_EXTS.has(name.slice(dot + 1).toLowerCase());
 }
+
+/** `a{b,c}d` as `abd`, `acd`; nested braces too. Unbalanced braces stay as they are. */
+export function expandBraces(glob: string): string[] {
+  // Innermost group first: the first `}` and the `{` just before it.
+  const close = glob.indexOf("}");
+  if (close < 0) return [glob];
+  const open = glob.lastIndexOf("{", close);
+  if (open < 0) return [glob];
+  const head = glob.slice(0, open);
+  const tail = glob.slice(close + 1);
+  const all = glob
+    .slice(open + 1, close)
+    .split(",")
+    .flatMap((alt) => expandBraces(head + alt + tail));
+  return [...new Set(all)];
+}
+
+/**
+ * One exclude glob for `findFiles` from glob → enabled maps (`files.exclude`,
+ * `search.exclude`), `node_modules` always included. Only `true` entries count
+ * (a `{ when }` sibling rule can't be expressed in a glob). Each pattern also
+ * excludes everything below it, as the settings do for folders.
+ */
+export function excludeGlob(...settings: Record<string, unknown>[]): string {
+  const out: string[] = [];
+  const add = (pattern: string) => {
+    for (const p of expandBraces(pattern)) {
+      const clean = p.trim().replace(/\/+$/, "");
+      if (!clean || /[{},]/.test(clean)) continue;
+      for (const g of [clean, `${clean}/**`]) if (!out.includes(g)) out.push(g);
+    }
+  };
+  add("**/node_modules");
+  for (const map of settings) for (const [pattern, on] of Object.entries(map ?? {})) if (on === true) add(pattern);
+  return `{${out.join(",")}}`;
+}
+
+/** Largest file copied from a URI drop; bigger ones are linked where they are. */
+export const COPY_LIMIT = 50 * 1024 * 1024;
+
+interface UriLike {
+  scheme: string;
+  authority: string;
+}
+
+/**
+ * Whether a dropped URI may be read and copied beside the document: a local
+ * file, or a file on the document's own file system (a remote workspace's
+ * `vscode-remote`, a virtual workspace). Never VS Code's own stores
+ * (`vscode-userdata` holds settings and keybindings) or unsaved buffers.
+ */
+export function mayCopyScheme(uri: UriLike, doc: UriLike): boolean {
+  if (uri.scheme === "file") return true;
+  if (uri.scheme === "vscode-userdata" || uri.scheme === "untitled") return false;
+  return uri.scheme === doc.scheme && uri.authority === doc.authority;
+}

@@ -383,3 +383,48 @@ export function rowsUnsupported(fm: Frontmatter): string | null {
   }
   return null;
 }
+
+// --- One property, by line ----------------------------------------------------
+
+/** The entry for `key` in a frontmatter block: its first line and line count. */
+function findProperty(lines: string[], key: string): { start: number; count: number } | null {
+  // lines[0] is the opening `---`; stop at the closing one.
+  for (let i = 1; i < lines.length && lines[i]!.trim() !== "---"; i++) {
+    const m = KEY_LINE.exec(lines[i]!);
+    if (!m || m[1]!.trim() !== key) continue;
+    let end = i + 1;
+    while (end < lines.length && lines[end]!.trim() !== "---" && lines[end]!.trim() !== "" && (/^[ \t]/.test(lines[end]!) || /^- /.test(lines[end]!))) end++;
+    return { start: i, count: end - i };
+  }
+  return null;
+}
+
+/** A property's value as its YAML text (`valueText`), or undefined when absent. */
+export function propertyValue(front: string, key: string): string | undefined {
+  if (!front) return undefined;
+  const entry = entries(parseFrontmatter(front)).find((e) => e.key === key);
+  return entry ? valueText(entry) : undefined;
+}
+
+/**
+ * Set (or with `null`, remove) one one-line property, touching only its own
+ * line(s): every other line stays byte for byte. A missing property is added
+ * before the closing `---`; frontmatter is created when there is none, and
+ * removed when the property was all it held.
+ */
+export function setProperty(front: string, key: string, value: string | null): string {
+  if (!front) return value === null ? "" : `---\n${key}: ${value}\n---\n`;
+  const eol = front.includes("\r\n") ? "\r\n" : "\n";
+  const lines = front.split(/\r?\n/);
+  const found = findProperty(lines, key);
+  const line = value === null ? [] : [`${key}: ${value}`];
+  if (found) lines.splice(found.start, found.count, ...line);
+  else if (value !== null) {
+    let close = lines.length - 1;
+    while (close > 0 && lines[close]!.trim() !== "---") close--;
+    if (close === 0) return front;
+    lines.splice(close, 0, ...line);
+  } else return front;
+  const next = lines.join(eol);
+  return /^---[ \t]*\r?\n---[ \t]*(\r?\n)?$/.test(next) ? "" : next;
+}

@@ -12,10 +12,10 @@
  * Only headings that are direct children of the document count: one inside a
  * blockquote, an alert, a list or a table is neither numbered nor counted.
  *
- * The label hangs outside the text column, so heading text never shifts. When
- * the pane is too narrow for that (the gutter can't hold the widest label and
- * the heading's copy-link button), the view switches every label to sit inline
- * before the heading text instead.
+ * The label hangs outside the text column, right-aligned to end a fixed gap
+ * before it, so heading text never shifts. When the pane is too narrow for the
+ * widest label, the whole column pads its left side just enough (see
+ * `layout`) rather than pushing headings alone.
  */
 import type { Node as ProseNode } from "@milkdown/kit/prose/model";
 import { Plugin, PluginKey } from "@milkdown/kit/prose/state";
@@ -30,8 +30,8 @@ import { findTocList } from "./toc";
 export const HEADING_NUMBERED_CLASS = "ken-heading-numbered";
 /** The label, drawn by the stylesheet. */
 export const HEADING_NUMBER_ATTR = "data-heading-number";
-/** On the editor when labels sit inline because the gutter is too narrow. */
-export const HEADING_NUMBERS_INLINE_CLASS = "ken-heading-numbers-inline";
+/** On the text column (`.measure`) when it pads its left side to make room for the labels. */
+export const HEADING_NUMBERS_RESERVE_CLASS = "ken-heading-numbers-reserve";
 
 const key = new PluginKey<DecorationSet>("ken-heading-numbers");
 
@@ -105,27 +105,66 @@ function build(doc: ProseNode, config: HeadingNumbersConfig | undefined): Decora
   return DecorationSet.create(doc, decorations);
 }
 
-/**
- * Room the hanging labels need left of the text, in px: the widest label
- * (estimated from its length; the stylesheet sets it at 0.8× the body size
- * with tabular figures), the gap to the text, and the copy-link button.
- */
-function neededGutter(view: EditorView): number {
-  let chars = 0;
-  for (const el of view.dom.querySelectorAll<HTMLElement>(`:scope > .${HEADING_NUMBERED_CLASS}`)) {
-    chars = Math.max(chars, el.getAttribute(HEADING_NUMBER_ATTR)?.length ?? 0);
-  }
-  if (chars === 0) return 0;
-  const body = parseFloat(getComputedStyle(view.dom).fontSize) || 16;
-  return chars * 0.62 * body * 0.8 + 14 + 22 + 8;
+/** The width of the widest label, as the stylesheet draws it. */
+function widestLabel(view: EditorView): number {
+  const headings = [...view.dom.querySelectorAll<HTMLElement>(`:scope > .${HEADING_NUMBERED_CLASS}`)];
+  if (!headings.length) return 0;
+  const longest = headings.reduce((a, b) =>
+    (b.getAttribute(HEADING_NUMBER_ATTR)?.length ?? 0) > (a.getAttribute(HEADING_NUMBER_ATTR)?.length ?? 0) ? b : a,
+  );
+  // A probe in the label's own font: the `::before` box itself is zero-width.
+  const style = getComputedStyle(longest, "::before");
+  const probe = document.createElement("span");
+  probe.textContent = longest.getAttribute(HEADING_NUMBER_ATTR) ?? "";
+  Object.assign(probe.style, {
+    position: "absolute",
+    visibility: "hidden",
+    whiteSpace: "nowrap",
+    fontFamily: style.fontFamily,
+    fontSize: style.fontSize,
+    fontWeight: style.fontWeight,
+    fontVariantNumeric: style.fontVariantNumeric,
+    letterSpacing: style.letterSpacing,
+  });
+  document.body.append(probe);
+  const width = probe.getBoundingClientRect().width;
+  probe.remove();
+  return width;
 }
 
-/** Labels hang in the gutter when it is wide enough, else sit inline. */
+/** Sets the column's extra left padding; 0 removes it. */
+function setReserve(column: HTMLElement, px: number): void {
+  column.classList.toggle(HEADING_NUMBERS_RESERVE_CLASS, px > 0);
+  if (px > 0) column.style.setProperty("--ken-heading-number-reserve", `${px}px`);
+  else column.style.removeProperty("--ken-heading-number-reserve");
+}
+
+/**
+ * Labels always hang left of the text column. When the pane leaves too little
+ * room left of the column for the widest label, the whole column (the
+ * Properties panel included) gets just enough extra left padding, so every
+ * block moves together and headings stay flush with the text below them.
+ */
 function layout(view: EditorView): void {
+  const column = view.dom.closest<HTMLElement>(".measure");
+  if (!column) return;
+  const label = widestLabel(view);
+  if (label === 0) return setReserve(column, 0);
   const scroller = view.dom.closest(".editor-scroll") ?? document.documentElement;
-  const gutter = view.dom.getBoundingClientRect().left - scroller.getBoundingClientRect().left;
-  const needed = neededGutter(view);
-  view.dom.classList.toggle(HEADING_NUMBERS_INLINE_CLASS, needed > 0 && gutter < needed);
+  const gap = parseFloat(getComputedStyle(view.dom).getPropertyValue("--ken-heading-number-gap")) || 14;
+  // Label, gap to the text, and a few px clear of the pane's edge.
+  const needed = label + gap + 4;
+  const room = () => view.dom.getBoundingClientRect().left - scroller.getBoundingClientRect().left;
+  setReserve(column, 0);
+  // The padding moves the text by up to its own amount (a centred column moves
+  // less), so close the shortfall in a few steps.
+  let reserve = 0;
+  for (let i = 0; i < 4; i++) {
+    const short = needed - room();
+    if (short <= 0.5) break;
+    reserve = Math.ceil(reserve + short);
+    setReserve(column, reserve);
+  }
 }
 
 /** Heading numbers, read from `config()` at each rebuild. */
@@ -164,6 +203,8 @@ export function headingNumbersPlugin(config: () => HeadingNumbersConfig | undefi
             },
             destroy: () => {
               if (frame) cancelAnimationFrame(frame);
+              const column = view.dom.closest<HTMLElement>(".measure");
+              if (column) setReserve(column, 0);
               observer?.disconnect();
               window.removeEventListener("resize", schedule);
             },

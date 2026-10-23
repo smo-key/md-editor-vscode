@@ -157,6 +157,8 @@ Every editing action is a VS Code command, so you can change, remove or add keys
 | `kenMarkdown.collaboration.port` | `0` | Port for collaboration sessions you start; `0` picks a free one. |
 | `kenMarkdown.collaboration.allowNetwork` | `false` | Let people on your network join sessions you start (invites still need their secret token). |
 
+A document can override the `kenMarkdown.headingNumbers.*` settings with a `ken-heading-numbering` property in its frontmatter: `off`, `on` (your per-level styles), or a format such as `"1.a.i"` or `"I-1-a"` (one token per level from H1 down: `1`, `a`, `A`, `i`, `I`, or `_` for none; the text between tokens is the separator; levels left out use your settings). Set it with the gear in the expanded Properties panel, or right-click a heading and choose **Heading numbering…** (the same menu has **Copy link to heading**).
+
 ## FAQ
 
 **Will it change my Markdown files?** Only when you edit them, and only the changed lines are rewritten. Opening a file never modifies it.

@@ -742,16 +742,16 @@ body {
   }
   /* The copy-link button moves out past the label (its width estimated from
      its length: tabular figures run about 0.62em). */
-  .measure .milkdown .ProseMirror:not(.ken-heading-numbers-inline) > .ken-heading-numbered > .ken-heading-link {
+  .measure .milkdown .ProseMirror > .ken-heading-numbered > .ken-heading-link {
     left: calc(
       -1 * (22px + var(--ken-heading-number-gap) + 8px + var(--ken-heading-number-chars, 0) * 0.62 * var(--ken-heading-number-size))
     );
   }
-  /* Too narrow a pane for the gutter: the label sits before the text. */
-  .measure .milkdown .ProseMirror.ken-heading-numbers-inline > .ken-heading-numbered:not(.crepe-placeholder)::before {
-    width: auto;
-    margin-left: 0;
-    margin-right: 0.5em;
+  /* Too narrow a pane for the gutter: the whole column (never just the
+     headings) pads its left side by just what the widest label lacks, so
+     labels still hang outside it. The plugin measures and sets the amount. */
+  .measure.ken-heading-numbers-reserve {
+    padding-left: calc(clamp(20px, 5%, 48px) + var(--ken-heading-number-reserve, 0px));
   }
   /* In the table of contents the label leads the entry, inline. */
   .measure .milkdown ul.ken-toc p.ken-heading-numbered::before {
@@ -1411,6 +1411,193 @@ body[data-toolbar="top"] .ken-toolbar {
   border-color: transparent;
   background: transparent;
   opacity: 0.5;
+}
+
+/* --- Dialogs (headingNumberingDialog.ts): the shortcut list's surface ------- */
+.ken-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: color-mix(in srgb, var(--vscode-editor-background) 55%, transparent);
+}
+.ken-dialog {
+  display: flex;
+  flex-direction: column;
+  width: min(440px, 100%);
+  max-height: 100%;
+  border: 1px solid var(--vscode-editorWidget-border, var(--vscode-widget-border, transparent));
+  border-radius: 8px;
+  background: var(--vscode-editorWidget-background);
+  color: var(--vscode-editorWidget-foreground, var(--vscode-editor-foreground));
+  box-shadow: 0 8px 32px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.35));
+  font-family: var(--vscode-font-family);
+  font-size: 12.5px;
+}
+.ken-dialog header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px 10px 16px;
+  border-bottom: 1px solid var(--vscode-editorWidget-border, var(--vscode-widget-border, transparent));
+}
+.ken-dialog h2 {
+  flex: 1;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+.ken-dialog-close {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+.ken-dialog-close:hover {
+  background: var(--vscode-toolbar-hoverBackground, var(--vscode-list-hoverBackground));
+}
+.ken-dialog-body {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 16px 14px;
+}
+.ken-dialog-note {
+  margin: 0;
+  color: var(--vscode-descriptionForeground);
+}
+.ken-dialog-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--vscode-descriptionForeground);
+}
+.ken-dialog footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--vscode-editorWidget-border, var(--vscode-widget-border, transparent));
+}
+.ken-dialog-spacer {
+  flex: 1;
+}
+.ken-dialog-button {
+  padding: 4px 12px;
+  border: 1px solid var(--vscode-button-border, transparent);
+  border-radius: 4px;
+  font: inherit;
+  cursor: pointer;
+}
+.ken-dialog-button.primary {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+.ken-dialog-button.primary:hover:not(:disabled) {
+  background: var(--vscode-button-hoverBackground);
+}
+.ken-dialog-button.secondary {
+  background: var(--vscode-button-secondaryBackground, transparent);
+  color: var(--vscode-button-secondaryForeground, inherit);
+}
+.ken-dialog-button.secondary:hover:not(:disabled) {
+  background: var(--vscode-button-secondaryHoverBackground, var(--vscode-toolbar-hoverBackground));
+}
+.ken-dialog-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.ken-dialog :is(button, input, select):focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 1px;
+}
+.ken-numbering-modes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ken-numbering-modes label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.ken-numbering-modes input {
+  margin: 0;
+  accent-color: var(--vscode-button-background);
+}
+.ken-numbering-levels {
+  display: grid;
+  grid-template-columns: auto 1fr auto 1fr;
+  align-items: center;
+  gap: 6px 10px;
+}
+.ken-numbering-levels label {
+  color: var(--vscode-descriptionForeground);
+}
+.ken-numbering-levels :is(select, input) {
+  min-width: 0;
+  height: 24px;
+  padding: 0 6px;
+  border: 1px solid var(--vscode-dropdown-border, var(--vscode-input-border, transparent));
+  border-radius: 3px;
+  background: var(--vscode-dropdown-background, var(--vscode-input-background));
+  color: var(--vscode-dropdown-foreground, var(--vscode-input-foreground));
+  font: inherit;
+}
+.ken-numbering-levels input {
+  border-color: var(--vscode-input-border, transparent);
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  font-family: var(--vscode-editor-font-family, monospace);
+}
+.ken-numbering-levels :is(select, input):disabled {
+  opacity: 0.55;
+}
+.ken-numbering-preview-box {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  background: var(--vscode-textCodeBlock-background, var(--vscode-editor-background));
+}
+.ken-numbering-preview {
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.ken-numbering-warning,
+.ken-numbering-error {
+  margin: 0;
+  color: var(--vscode-editorWarning-foreground, var(--vscode-errorForeground));
+}
+.ken-numbering-error {
+  color: var(--vscode-errorForeground);
+}
+.ken-numbering-error[hidden] {
+  display: none;
+}
+
+/* A Properties row whose value the editor can't use (e.g. ken-heading-numbering). */
+.ken-fm-warning {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  transform: translateY(-50%);
+  display: inline-flex;
+  color: var(--vscode-editorWarning-foreground, var(--vscode-errorForeground));
+  pointer-events: auto;
 }
 
 /* --- Heading control (headingControl.ts) ------------------------------------- */

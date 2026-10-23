@@ -74,6 +74,8 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
       vscode.commands.registerCommand("kenMarkdown._testKeybindingsFile", () => keybindingsFile),
       vscode.commands.registerCommand("kenMarkdown._testCollab", () => collab.stats()),
+      // URLs the host would have opened in the browser (openExternal is stubbed in tests).
+      vscode.commands.registerCommand("kenMarkdown._testExternalOpened", () => [...provider.externalOpened]),
       vscode.commands.registerCommand("kenMarkdown._testEditors", (uri: string) => provider.sessionsFor(uri).length),
       vscode.commands.registerCommand("kenMarkdown._testAt", async (uri: string, index: number, action: TestAction) => {
         const session = provider.sessionsFor(uri)[index];

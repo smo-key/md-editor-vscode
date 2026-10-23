@@ -18,10 +18,16 @@ import { Decoration, DecorationSet, type EditorView } from "@milkdown/kit/prose/
 import { $prose } from "@milkdown/kit/utils";
 import { ExternalLink, Image, Pencil, RotateCw, Workflow, createElement, type IconNode } from "lucide";
 
-// TEMPORARY: replace with "../../src/lucidUrl" once feat/lucid-host (WP2) is on main.
-import { embedUrl, parseLucidUrl, type LucidRef } from "./lucidUrl.local";
+import {
+  embedUrl,
+  lucidPreviewMode,
+  parseLucidUrl,
+  type LucidDocumentRef,
+  type LucidImageRef,
+  type LucidPreviewMode,
+} from "../../src/lucidUrl";
 
-export type LucidMode = "auto" | "onClick" | "off";
+export type LucidMode = LucidPreviewMode;
 
 export interface LucidOptions {
   /** The `kenMarkdown.lucidchart.preview` setting, read at each rebuild. */
@@ -32,8 +38,8 @@ export interface LucidOptions {
   openLink?: (href: string) => void;
 }
 
-type DocRef = LucidRef & { kind: "document" };
-type ImageRef = LucidRef & { kind: "image" };
+type DocRef = LucidDocumentRef;
+type ImageRef = LucidImageRef;
 
 export interface LucidBlock {
   /** Start of the source paragraph (or image block). */
@@ -99,14 +105,17 @@ function soleContent(p: ProseNode): { href: string; text: string; image?: ProseN
   return img ? { image: img } : null;
 }
 
+// `href` is kept exactly as the document has it: that is what the actions
+// post (the host parses it again).
 function asImage(src: unknown): ImageRef | null {
-  const ref = parseLucidUrl(String(src ?? ""));
-  return ref?.kind === "image" ? ref : null;
+  const href = String(src ?? "");
+  const ref = parseLucidUrl(href);
+  return ref?.kind === "image" ? { ...ref, href } : null;
 }
 
 function asDoc(href: string): DocRef | null {
   const ref = parseLucidUrl(href);
-  return ref?.kind === "document" ? ref : null;
+  return ref?.kind === "document" ? { ...ref, href } : null;
 }
 
 /** The link text as a title, unless it is just the URL. */
@@ -244,7 +253,7 @@ function frameCard(initial: LucidBlock, initialMode: LucidMode, options: LucidOp
   fallback.className = "ken-lucid-state";
   body.append(frame, fallback);
 
-  const hint = document.createElement("p");
+  const hint = document.createElement("div");
   hint.className = "ken-lucid-hint";
   const help = document.createElement("a");
   help.href = LUCID_HELP_URL;
@@ -262,7 +271,7 @@ function frameCard(initial: LucidBlock, initialMode: LucidMode, options: LucidOp
   dom.append(header, body, hint);
 
   const text = (s: string, cls = "ken-lucid-message") => {
-    const p = document.createElement("p");
+    const p = document.createElement("div");
     p.className = cls;
     p.textContent = s;
     return p;
@@ -461,8 +470,7 @@ const key = new PluginKey<PluginState>("ken-lucid");
 
 export function lucidPlugin(options?: LucidOptions) {
   const modeOf = (): LucidMode => {
-    const m = options?.mode() ?? "auto";
-    return m === "off" || m === "onClick" ? m : "auto";
+    return lucidPreviewMode(options?.mode());
   };
   return $prose(() => {
     const cards = new Map<string, Card>();

@@ -21,6 +21,8 @@ import "@fontsource/jetbrains-mono/500.css";
 
 import type { LinkClick } from "./markdown/wikiLinks";
 import { buildEditor } from "./editorSetup";
+import { lucidRefreshKey } from "./markdown/lucid";
+import { lucidPreviewMode, type LucidPreviewMode } from "../src/lucidUrl";
 import { carriesFiles, handleFileDrop, type FileDropOptions } from "./fileDrop";
 import { normalizeTrailingNewlines } from "./markdown/gfmFidelity";
 import {
@@ -236,6 +238,8 @@ const unescapeWikiLinks = (md: string) => md.replace(/\\\[\\\[([^\n]+?)\\?\]\\?\
 
 // --- Settings ----------------------------------------------------------------
 
+let lucidPreview: LucidPreviewMode = "auto";
+
 function applyConfig(config: EditorConfig) {
   const root = document.documentElement.style;
   // An empty setting falls back to the stylesheet's default (the bundled fonts).
@@ -252,6 +256,13 @@ function applyConfig(config: EditorConfig) {
   const position = config.toolbar === "bottom" || config.toolbar === "hidden" ? config.toolbar : "top";
   document.body.dataset.toolbar = position;
   frontmatterPanel.setAlwaysShow(config.alwaysShowProperties === true);
+  // Lucid previews (markdown/lucid.ts) read this at each rebuild; a missing
+  // setting (an older harness) is `auto`.
+  const preview = lucidPreviewMode(config.lucidchart?.preview);
+  if (preview !== lucidPreview) {
+    lucidPreview = preview;
+    view?.dispatch(view.state.tr.setMeta(lucidRefreshKey, true));
+  }
 }
 
 // --- Request/response with the host --------------------------------------------
@@ -497,6 +508,11 @@ async function createEditor(text: string) {
     proxyDomURL: proxyImageSrc,
     toolbarHost,
     onCommentActivate: (id) => commentsPanel?.open(id),
+    lucid: {
+      mode: () => lucidPreview,
+      open: (url, action) => post({ type: "openLucid", url, action }),
+      openLink: (href) => post({ type: "openLink", href }),
+    },
   });
   crepe.editor.use(changePlugin);
   await crepe.create();

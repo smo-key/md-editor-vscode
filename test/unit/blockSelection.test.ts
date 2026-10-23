@@ -151,6 +151,23 @@ describe("stable rendering while selecting", () => {
     });
   });
 
+  it("a drag from one cell to the start of a cell in another row settles (no endless fixing)", async () => {
+    await withEditor("Intro\n\n| a | b |\n| - | - |\n| 1 | 2 |\n\nTail text\n", (view) => {
+      // What the browser reports mid-drag from "a" into "1": the table plugin
+      // collapses it; it must not be put back again and again.
+      const anchor = posOf(view, "a");
+      const head = posOf(view, "1", { start: true });
+      const tr = view.state.tr.setSelection(TextSelection.create(view.state.doc, anchor, head));
+      // This used to loop for ever (out of memory).
+      const result = view.state.applyTransaction(tr);
+      expect(result.transactions.length).toBeLessThan(5);
+      view.updateState(result.state);
+      // Within one table: the table plugin's own handling stands, and no
+      // whole-table range is forced on it.
+      expect(view.state.selection.head).not.toBe(posOf(view, "Tail", { start: true }));
+    });
+  });
+
   it("a selection the user moves out of the table stays where it was put", async () => {
     await withEditor(DOC, (view) => {
       const start = posOf(view, "Intro", { start: true });

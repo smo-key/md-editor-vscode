@@ -61,6 +61,22 @@ With the caret in a table the toolbar switches to table actions, and right-click
 
 - **Mermaid** diagrams render live from ` ```mermaid ` fences, themed to match your editor. Click one to zoom.
 - **draw.io** diagrams: insert with `/drawio`, then double-click to edit in diagrams.net's embedded editor. They are saved as `.drawio.svg` or `.drawio.png`, ordinary images that GitHub shows, with the diagram source embedded.
+- **Lucidchart** and Lucidspark: put a Lucid link on a line of its own and a live preview appears under it, with **Edit** and **Open in Lucidchart** (both open your browser) and **Reload**. The preview reloads when you come back from editing. The file keeps the plain link, which GitHub shows as a link. A Lucid link inside a sentence, or in a table, stays an ordinary link.
+
+#### Making a Lucid diagram preview
+
+The editor can't sign you in to Lucid, so a preview only shows diagrams that anyone with the link may view. Do one of these in Lucid:
+
+- **Activate the embed code**: in the document, **More › Embed › Activate Embed Code**, then paste the document's link on its own line. Without this, the preview shows Lucid's sign-in or "request access" screen, or stays blank.
+- **Publish it as an image** (recommended for repositories): **More › Publish › Image**, then link the image to the document:
+
+  ```markdown
+  [![Payments architecture](https://lucid.app/publicSegments/view/<image id>/image.png)](https://lucid.app/lucidchart/<document id>/edit)
+  ```
+
+  It shows here and on GitHub, and gets the same Edit and Open buttons.
+
+Set `kenMarkdown.lucidchart.preview` to `onClick` to load each preview only when you ask, or `off` for plain links.
 
 ### Comments
 
@@ -133,6 +149,7 @@ Every editing action is a VS Code command, so you can change, remove or add keys
 | `kenMarkdown.alwaysShowProperties` | `false` | Show the Properties panel on every document. |
 | `kenMarkdown.commentAuthor` | *(git's `user.name`)* | Your name on comments you add. |
 | `kenMarkdown.imageFolder` | `_Images` | Where pasted and dropped images are saved; empty for beside the document. |
+| `kenMarkdown.lucidchart.preview` | `auto` | Lucidchart/Lucidspark link previews: `auto` loads each from lucid.app when it scrolls into view, `onClick` waits for a Load preview click, `off` shows plain links. |
 | `kenMarkdown.workspaceFiles` | `link` | Files already in the workspace: `link` to them where they are, or `copy` them like outside files. |
 | `kenMarkdown.collaboration.port` | `0` | Port for collaboration sessions you start; `0` picks a free one. |
 | `kenMarkdown.collaboration.allowNetwork` | `false` | Let people on your network join sessions you start (invites still need their secret token). |
@@ -141,7 +158,7 @@ Every editing action is a VS Code command, so you can change, remove or add keys
 
 **Will it change my Markdown files?** Only when you edit them, and only the changed lines are rewritten. Opening a file never modifies it.
 
-**Does it need an internet connection?** No. The one exception is editing draw.io diagrams, which loads diagrams.net's embedded editor (nothing is uploaded).
+**Does it need an internet connection?** No. The exceptions are editing draw.io diagrams, which loads diagrams.net's embedded editor (nothing is uploaded), and Lucidchart previews, which load from lucid.app (Lucid sees the document id and your IP address; nothing from the file is sent). Without a connection a Lucid preview says you're offline and loads once you're back. Set `kenMarkdown.lucidchart.preview` to `onClick` or `off` to load nothing from Lucid until you ask.
 
 **Is live collaboration secure?** The session runs only while you host it, and only people with the invite's secret token can join. By default it listens on your machine only. Traffic isn't encrypted on a network, so prefer Live Share or a VPN outside trusted networks. Concurrent edits to the same Property or the same comment thread keep the last one saved.
 

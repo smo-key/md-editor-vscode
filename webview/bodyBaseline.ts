@@ -68,8 +68,10 @@ export class BodyBaseline {
    */
   body(doc: unknown, back: string, serialize: () => string, compose: (markdown: string) => string): string {
     if (doc === this.doc && back === this.current.back) return this.current.raw;
-    // The same document needs no serializing to know what it says.
-    const markdown = doc === this.doc ? this.current.markdown : serialize();
+    // Serialized even for the same document: what it serializes as depends on
+    // the threads too (a draft's markers are left out until its first message,
+    // which is also when it joins the threads block).
+    const markdown = serialize();
     for (const pair of [this.current, this.reloaded, this.opened]) {
       if (!pair || pair.markdown !== markdown) continue;
       this.remember(doc, markdown, back, pair.back === back ? pair.raw : replaceThreads(pair.raw, back));

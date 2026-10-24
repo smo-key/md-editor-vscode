@@ -299,6 +299,33 @@ describe("Ken Markdown Editor", function () {
     await until("undone", () => doc.getText(), (t) => !t.includes("Typed."));
     await sleep(700);
     assert.strictEqual(doc.getText(), original, "the original bytes, not a normalized rewrite");
+    await until("clean", () => doc.isDirty, (d) => d === false);
+    // Ken's history survives the revert: redo brings the edit back.
+    await vscode.commands.executeCommand("kenMarkdown.redo");
+    await until("redone", () => doc.getText(), (t) => t.includes("Type here. Typed."));
+    assert.ok(doc.isDirty, "redo makes the file modified again");
+    await vscode.commands.executeCommand("kenMarkdown.undo");
+    await until("undone again", () => doc.isDirty, (d) => d === false);
+    assert.strictEqual(doc.getText(), original);
+  });
+
+  it("keeps a keystroke typed right after the last undo", async () => {
+    const uri = fixture("undo-bytes.md");
+    const doc = await openEditor(uri);
+    const original = doc.getText();
+    assert.ok(await webview(uri, { kind: "caretAfter", text: "Type here." }));
+    await webview(uri, { kind: "insertText", text: " Typed.", at: "caret" });
+    await until("edit", () => doc.getText(), (t) => t.includes("Type here. Typed."));
+    await vscode.commands.executeCommand("kenMarkdown.undo");
+    await webview(uri, { kind: "insertText", text: "X", at: "caret" });
+    await until("keystroke kept", () => doc.getText(), (t) => t.includes("Type here.X"));
+    await sleep(700);
+    assert.ok(doc.getText().includes("Type here.X"), "the keystroke survives the revert");
+    assert.ok(!doc.getText().includes("Typed."));
+    assert.ok(doc.isDirty);
+    await vscode.commands.executeCommand("kenMarkdown.undo");
+    await until("X undone", () => doc.getText(), (t) => t === original);
+    await until("clean", () => doc.isDirty, (d) => d === false);
   });
 
   it("opens the slash menu on / and runs the chosen command", async () => {

@@ -14,6 +14,7 @@ import { headingNumbersConfig } from "./headingNumbers";
 import { editUrl, lucidPreviewMode, openUrl, parseLucidUrl } from "./lucidUrl";
 import { tabSizeValue } from "./tabSize";
 import { classifyHref, imageFolder, minimalChange, toEOL, toLF, uniqueName } from "./sync";
+import { sameAsSaved, savedTextFor } from "./savedText";
 import {
   byCloseness,
   COPY_LIMIT,
@@ -145,6 +146,8 @@ class EditorSession {
   private editChain: Promise<unknown> = Promise.resolve();
   /** Webview edits not yet applied; echoes are suppressed while any are. */
   private pendingEdits = 0;
+  /** The document's text as last saved or loaded, when known (see `clearIfSaved`). */
+  private savedText: string | undefined;
 
   /** Whether the webview has keyboard focus (drives `kenMarkdown.editorFocused`). */
   focused = false;
@@ -159,6 +162,7 @@ class EditorSession {
     private readonly host: SessionHost,
   ) {
     this.webviewText = toLF(document.getText());
+    this.savedText = document.isDirty ? undefined : document.getText();
   }
 
   /** Folder that document-relative paths in the webview are measured from. */
@@ -202,6 +206,7 @@ class EditorSession {
           this.post({ type: "config", config: readConfig(this.document.uri) });
         }
       }),
+      ...this.watchSavedText(),
       this.host.collab.onDidChange(() => this.syncCollab()),
       this.panel.onDidChangeViewState(() => {
         if (!this.panel.active) this.setFocused(false);
@@ -424,6 +429,71 @@ class EditorSession {
       change.text,
     );
     await vscode.workspace.applyEdit(edit);
+    await this.clearIfSaved();
+  }
+
+  /**
+   * Keep `savedText` current. It only saves disk reads: `clearIfSaved`
+   * confirms against the disk before reverting.
+   */
+  private watchSavedText(): vscode.Disposable[] {
+    const ours = (d: vscode.TextDocument) => d.uri.toString() === this.document.uri.toString();
+    return [
+      vscode.workspace.onDidSaveTextDocument((d) => {
+        if (ours(d)) this.savedText = d.getText();
+      }),
+      vscode.workspace.onDidChangeTextDocument((e) => {
+        if (!ours(e.document)) return;
+        if (e.contentChanges.length === 0) {
+          // A dirty-state change, whose `isDirty` is current: clean means
+          // the text is the saved one (an undo to it in VS Code, a revert).
+          if (!e.document.isDirty) this.savedText = e.document.getText();
+        } else if (this.pendingEdits === 0 && !e.document.isDirty) {
+          // Not Ken's edit, on a clean document: a reload from disk, or the
+          // first keystroke in another editor (a content change's `isDirty`
+          // is the state before it). Read the disk again when needed.
+          this.savedText = undefined;
+        }
+      }),
+    ];
+  }
+
+  /**
+   * When an edit from Ken leaves the document equal to the file on disk (every
+   * edit undone), revert it so VS Code no longer shows it as modified. VS Code
+   * only clears the marker by itself when its own undo stack reaches the saved
+   * version, and Ken's undo history lives in the webview. The text is
+   * identical, so the revert changes no content and nothing is posted back;
+   * redo in Ken still works and makes the document dirty again.
+   *
+   * Runs inside the edit chain, so a keystroke sent meanwhile waits for it.
+   */
+  private async clearIfSaved(): Promise<void> {
+    const doc = this.document;
+    if (doc.isUntitled || !doc.isDirty) return;
+    const crlf = doc.eol === vscode.EndOfLine.CRLF;
+    const readSaved = async () => {
+      try {
+        return savedTextFor(await vscode.workspace.fs.readFile(doc.uri), crlf);
+      } catch {
+        return undefined;
+      }
+    };
+    // Opened dirty (e.g. restored by hot exit): learn the saved text once.
+    this.savedText ??= await readSaved();
+    if (!sameAsSaved(doc.getText(), this.savedText)) return;
+    // The cache may be stale if the file changed outside VS Code; a revert
+    // reloads from disk, so only the disk counts.
+    const version = doc.version;
+    const onDisk = await readSaved();
+    if (!sameAsSaved(doc.getText(), onDisk)) return;
+    // The revert command acts on the active editor, so only revert while
+    // that is this panel; and never over a change made since the compare.
+    const tab = vscode.window.tabGroups.activeTabGroup.activeTab?.input;
+    const activeHere =
+      this.panel.active && tab instanceof vscode.TabInputCustom && tab.uri.toString() === doc.uri.toString();
+    if (!activeHere || doc.version !== version || !doc.isDirty || doc.isClosed) return;
+    await vscode.commands.executeCommand("workbench.action.files.revert");
   }
 
   /**

@@ -4,6 +4,8 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-24
+
 ### Added
 
 - Right-click a table of contents for **Delete table of contents**, which removes the whole table of contents (one undo brings it back).

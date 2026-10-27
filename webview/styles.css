@@ -158,6 +158,13 @@ body {
   .measure .milkdown .mermaid-preview foreignObject p {
     padding: 4px 0;
   }
+  /* Lines of one cell (tableCellBlocks.ts) sit as close as wrapped lines. */
+  .measure .milkdown .ProseMirror :is(td, th) p + p {
+    padding-top: 0;
+  }
+  .measure .milkdown .ProseMirror :is(td, th) p:has(+ p) {
+    padding-bottom: 0;
+  }
   .measure .milkdown h1,
   .measure .milkdown h2,
   .measure .milkdown h3,

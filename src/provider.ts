@@ -5,6 +5,7 @@ import type {
   EditorPrefs,
   HostMessage,
   LinkedUri,
+  ShortcutKeys,
   ShortcutLabels,
   TestAction,
   ToolbarPosition,
@@ -238,6 +239,7 @@ class EditorSession {
           config: readConfig(this.document.uri),
           docPath: this.docPath,
           shortcuts: this.host.shortcutLabels(),
+          keys: this.host.shortcutKeys(),
           prefs: this.host.prefs(),
         });
         this.syncCollab();
@@ -279,6 +281,9 @@ class EditorSession {
         this.post({ type: "resolved", id: m.id, url: this.panel.webview.asWebviewUri(uri).toString() });
         return;
       }
+      case "readClipboard":
+        this.post({ type: "clipboardText", id: m.id, text: await vscode.env.clipboard.readText() });
+        return;
       case "readFile":
         try {
           // A plain copy: a Node Buffer would reach the webview as {type: "Buffer", data} (Buffer.toJSON).
@@ -734,6 +739,7 @@ function makeNonce(): string {
 interface SessionHost {
   readonly collab: CollabManager;
   shortcutLabels(): ShortcutLabels;
+  shortcutKeys(): ShortcutKeys;
   prefs(): EditorPrefs;
   setPrefs(prefs: EditorPrefs): void;
   focusChanged(): void;
@@ -746,6 +752,7 @@ export class KenMarkdownEditorProvider implements vscode.CustomTextEditorProvide
   readonly sessions = new Map<string, EditorSession>();
   private readonly all = new Set<EditorSession>();
   private labels: ShortcutLabels = {};
+  private keys: ShortcutKeys = {};
   /** URLs `openExternal` would have opened, in test mode only (no browser is launched). */
   readonly externalOpened: string[] = [];
 
@@ -775,6 +782,10 @@ export class KenMarkdownEditorProvider implements vscode.CustomTextEditorProvide
     return this.labels;
   }
 
+  shortcutKeys(): ShortcutKeys {
+    return this.keys;
+  }
+
   openExternal(url: string): Thenable<boolean> {
     if (this.context.extensionMode === vscode.ExtensionMode.Test) {
       this.externalOpened.push(url);
@@ -792,9 +803,10 @@ export class KenMarkdownEditorProvider implements vscode.CustomTextEditorProvide
   }
 
   /** New effective keybindings: refresh every open editor's hints. */
-  setShortcutLabels(labels: ShortcutLabels) {
+  setShortcutLabels(labels: ShortcutLabels, keys: ShortcutKeys = {}) {
     this.labels = labels;
-    for (const s of this.all) s.send({ type: "shortcuts", labels });
+    this.keys = keys;
+    for (const s of this.all) s.send({ type: "shortcuts", labels, keys });
   }
 
   focusChanged() {

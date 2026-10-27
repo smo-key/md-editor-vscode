@@ -144,6 +144,11 @@
         "category": "Ken Markdown"
       },
       {
+        "command": "kenMarkdown.clearFormatting",
+        "title": "Clear Formatting",
+        "category": "Ken Markdown"
+      },
+      {
         "command": "kenMarkdown.paragraph",
         "title": "Text (Paragraph)",
         "category": "Ken Markdown"
@@ -191,6 +196,11 @@
       {
         "command": "kenMarkdown.checklist",
         "title": "Checklist",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.toggleChecked",
+        "title": "Check or Uncheck Checklist Item",
         "category": "Ken Markdown"
       },
       {
@@ -301,6 +311,26 @@
       {
         "command": "kenMarkdown.redo",
         "title": "Redo",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.pastePlain",
+        "title": "Paste as Plain Text",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.moveUp",
+        "title": "Move Up (Table Row, List Item or Block)",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.moveDown",
+        "title": "Move Down (Table Row, List Item or Block)",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.duplicate",
+        "title": "Duplicate (Table Row, List Item or Block)",
         "category": "Ken Markdown"
       },
       {
@@ -456,6 +486,10 @@
           "when": "activeCustomEditorId == 'kenMarkdown.editor'"
         },
         {
+          "command": "kenMarkdown.clearFormatting",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
           "command": "kenMarkdown.paragraph",
           "when": "activeCustomEditorId == 'kenMarkdown.editor'"
         },
@@ -493,6 +527,10 @@
         },
         {
           "command": "kenMarkdown.checklist",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.toggleChecked",
           "when": "activeCustomEditorId == 'kenMarkdown.editor'"
         },
         {
@@ -581,6 +619,22 @@
         },
         {
           "command": "kenMarkdown.redo",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.pastePlain",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.moveUp",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.moveDown",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.duplicate",
           "when": "activeCustomEditorId == 'kenMarkdown.editor'"
         },
         {
@@ -1255,6 +1309,12 @@
         "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
       },
       {
+        "command": "kenMarkdown.clearFormatting",
+        "key": "ctrl+\\",
+        "mac": "cmd+\\",
+        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+      },
+      {
         "command": "kenMarkdown.paragraph",
         "key": "ctrl+alt+0",
         "mac": "cmd+alt+0",
@@ -1315,6 +1375,24 @@
         "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
       },
       {
+        "command": "kenMarkdown.toggleChecked",
+        "key": "ctrl+enter",
+        "mac": "cmd+enter",
+        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+      },
+      {
+        "command": "kenMarkdown.outdentListItem",
+        "key": "ctrl+[",
+        "mac": "cmd+[",
+        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+      },
+      {
+        "command": "kenMarkdown.indentListItem",
+        "key": "ctrl+]",
+        "mac": "cmd+]",
+        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+      },
+      {
         "command": "kenMarkdown.quote",
         "key": "ctrl+shift+b",
         "mac": "cmd+shift+b",
@@ -1324,6 +1402,12 @@
         "command": "kenMarkdown.codeBlock",
         "key": "ctrl+alt+c",
         "mac": "cmd+alt+c",
+        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+      },
+      {
+        "command": "kenMarkdown.insertTable",
+        "key": "ctrl+alt+t",
+        "mac": "cmd+alt+t",
         "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
       },
       {
@@ -1348,6 +1432,84 @@
         "command": "kenMarkdown.redo",
         "key": "ctrl+shift+z",
         "mac": "cmd+shift+z",
+        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+      },
+      {
+        "command": "kenMarkdown.pastePlain",
+        "key": "ctrl+shift+v",
+        "mac": "cmd+shift+v",
+        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+      },
+      {
+        "command": "kenMarkdown.moveUp",
+        "key": "alt+up",
+        "mac": "alt+up",
+        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+      },
+      {
+        "command": "kenMarkdown.moveDown",
+        "key": "alt+down",
+        "mac": "alt+down",
+        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+      },
+      {
+        "command": "kenMarkdown.duplicate",
+        "key": "shift+alt+down",
+        "mac": "shift+alt+down",
+        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+      },
+      {
+        "command": "kenMarkdown.duplicate",
+        "key": "shift+alt+up",
+        "mac": "shift+alt+up",
+        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+      },
+      {
+        "command": "kenMarkdown.table.insertRowAbove",
+        "key": "ctrl+alt+up",
+        "mac": "ctrl+alt+up",
+        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+      },
+      {
+        "command": "kenMarkdown.table.insertRowBelow",
+        "key": "ctrl+alt+down",
+        "mac": "ctrl+alt+down",
+        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+      },
+      {
+        "command": "kenMarkdown.table.insertColumnLeft",
+        "key": "ctrl+alt+shift+left",
+        "mac": "ctrl+alt+shift+left",
+        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+      },
+      {
+        "command": "kenMarkdown.table.insertColumnRight",
+        "key": "ctrl+alt+shift+right",
+        "mac": "ctrl+alt+shift+right",
+        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+      },
+      {
+        "command": "kenMarkdown.table.moveColumnLeft",
+        "key": "ctrl+alt+left",
+        "mac": "ctrl+alt+left",
+        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+      },
+      {
+        "command": "kenMarkdown.table.moveColumnRight",
+        "key": "ctrl+alt+right",
+        "mac": "ctrl+alt+right",
+        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+      },
+      {
+        "command": "kenMarkdown.table.deleteRow",
+        "key": "ctrl+alt+backspace",
+        "mac": "ctrl+alt+backspace",
+        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+      },
+      {
+        "command": "kenMarkdown.table.deleteColumn",
+        "key": "ctrl+alt+shift+backspace",
+        "mac": "ctrl+alt+shift+backspace",
         "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
       },
       {

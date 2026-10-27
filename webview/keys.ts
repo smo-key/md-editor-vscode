@@ -10,6 +10,12 @@
  * before ProseMirror or CodeMirror see it, which both then ignore it, while
  * the event still reaches VS Code. Clipboard, select-all, typing (AltGr) and
  * macOS Ctrl text navigation are untouched.
+ *
+ * Other keys bound to editor commands (Alt+↑ moves a row, Ctrl+Alt+→ a
+ * column…) are claimed the same way, but only while the command can act and
+ * the caret is in the editor's text (not a code block or a text field), so
+ * where the command has nothing to do the key keeps its usual meaning. The
+ * host sends the effective keys, so a rebinding is followed.
  */
 const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
 
@@ -27,11 +33,83 @@ export function vscodeOwnsKey(e: KeyboardEvent, mac = isMac): boolean {
   return true;
 }
 
-export function installKeyRouting(target: Window = window): void {
+const CODES: Record<string, string> = {
+  up: "ArrowUp",
+  down: "ArrowDown",
+  left: "ArrowLeft",
+  right: "ArrowRight",
+  enter: "Enter",
+  backspace: "Backspace",
+  delete: "Delete",
+  tab: "Tab",
+  space: "Space",
+  escape: "Escape",
+  home: "Home",
+  end: "End",
+  pageup: "PageUp",
+  pagedown: "PageDown",
+  "[": "BracketLeft",
+  "]": "BracketRight",
+  "\\": "Backslash",
+  "/": "Slash",
+  "-": "Minus",
+  "=": "Equal",
+  ",": "Comma",
+  ".": "Period",
+  ";": "Semicolon",
+  "'": "Quote",
+  "`": "Backquote",
+};
+
+/** Does the event press `key` (VS Code notation, one chord: "ctrl+alt+up")? */
+export function matchesKey(e: KeyboardEvent, key: string): boolean {
+  const chords = key.trim().toLowerCase().split(/\s+/);
+  if (chords.length !== 1) return false;
+  const parts = chords[0]!.split("+");
+  // "ctrl++" is the plus key.
+  const main = parts.pop() || "+";
+  const mods = new Set(parts);
+  const meta = mods.has("cmd") || mods.has("meta") || mods.has("win");
+  if (e.ctrlKey !== mods.has("ctrl") || e.altKey !== mods.has("alt") || e.shiftKey !== mods.has("shift") || e.metaKey !== meta) return false;
+  let code = CODES[main];
+  if (!code && /^[a-z]$/.test(main)) code = `Key${main.toUpperCase()}`;
+  if (!code && /^[0-9]$/.test(main)) code = `Digit${main}`;
+  if (!code && /^f\d{1,2}$/.test(main)) code = main.toUpperCase();
+  return !!code && e.code === code;
+}
+
+let bound: Record<string, string[]> = {};
+
+/** Effective keys per editor command id (from the host). */
+export function setBoundKeys(keys: Record<string, string[]>): void {
+  bound = keys;
+}
+
+/** The editor command bound to this key press, if any. */
+export function boundCommand(e: KeyboardEvent): string | null {
+  for (const [id, keys] of Object.entries(bound)) {
+    if (keys.some((k) => matchesKey(e, k))) return id;
+  }
+  return null;
+}
+
+/** The key's target is the editor's own text (not a code block, a field or a panel). */
+export function inEditorText(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false;
+  return !!target.closest(".ProseMirror") && !target.closest(".cm-editor, input, textarea");
+}
+
+export function installKeyRouting(target: Window = window, canRun: (id: string) => boolean = () => false): void {
   target.addEventListener(
     "keydown",
     (e) => {
-      if (vscodeOwnsKey(e)) e.preventDefault();
+      if (vscodeOwnsKey(e)) {
+        e.preventDefault();
+        return;
+      }
+      if (e.isComposing || !inEditorText(e.target)) return;
+      const id = boundCommand(e);
+      if (id && canRun(id)) e.preventDefault();
     },
     true,
   );

@@ -10,7 +10,7 @@ import { lift, setBlockType, toggleMark, wrapIn } from "@milkdown/kit/prose/comm
 import { redo, undo, redoDepth, undoDepth } from "@milkdown/kit/prose/history";
 import { sharedHistory } from "./collab";
 import { liftListItem, sinkListItem, wrapInList } from "@milkdown/kit/prose/schema-list";
-import { TextSelection, type EditorState } from "@milkdown/kit/prose/state";
+import { NodeSelection, TextSelection, type EditorState, type Transaction } from "@milkdown/kit/prose/state";
 import {
   CellSelection,
   TableMap,
@@ -97,6 +97,12 @@ import {
   Radical,
   PanelTop,
   PanelBottom,
+  ClipboardPaste,
+  ChevronsUp,
+  ChevronsDown,
+  CopyPlus,
+  RemoveFormatting,
+  SquareCheck,
   type IconNode,
 } from "lucide";
 
@@ -109,8 +115,9 @@ import { insertInlineMath } from "./markdown/math";
 import { insertAttachments } from "./fileDrop";
 import { addComment, commentsOpen, openCommentCount, toggleComments } from "./comments/panel";
 import { withColumnWidths } from "./tableResize";
+import { handleTablePaste } from "./markdown/tablePaste";
 
-export type CommandGroup = "history" | "text" | "format" | "list" | "insert" | "alert" | "comment" | "table";
+export type CommandGroup = "history" | "edit" | "text" | "format" | "list" | "insert" | "alert" | "comment" | "table";
 
 export interface EditorCommand {
   id: string;
@@ -133,6 +140,8 @@ export interface EditorCommand {
   run(ctx: Ctx, view: EditorView): void;
   isActive?(state: EditorState): boolean;
   isEnabled?(state: EditorState): boolean;
+  /** From a key, only acts with the caret in the editor's text (not a code block or text field). */
+  editorOnly?: boolean;
   /** The label in the table menu when it depends on the state (e.g. "Remove header row"). */
   menuLabel?(state: EditorState): string;
 }
@@ -325,6 +334,155 @@ function insertLink(view: EditorView, ctx: Ctx) {
     view.dispatch(tr.setSelection(TextSelection.create(tr.doc, from, from + text.length)));
   }
   call(ctx, toggleLinkCommand.key);
+}
+
+// --- Paste as plain text ---------------------------------------------------------
+
+let readClipboard: () => Promise<string> = () => navigator.clipboard.readText();
+
+/** How the clipboard is read (the host reads it: a webview can't). */
+export function setClipboardReader(reader: () => Promise<string>): void {
+  readClipboard = reader;
+}
+
+/**
+ * Insert `raw` as plain text, in the formatting of where it goes: the marks at
+ * the caret (bold stays bold), and each further line a new block like the
+ * caret's (a new paragraph, list item or cell line). In code it is code; in a
+ * table, a block of cells (tab-separated) still fills cells.
+ */
+export function insertPlainText(view: EditorView, raw: string): void {
+  const text = raw.replace(/\r\n?/g, "\n");
+  if (!text) return;
+  const { state } = view;
+  if (isInTable(state) && (state.selection instanceof CellSelection || text.includes("\t"))) {
+    const data = { getData: (t: string) => (t === "text/plain" ? text : ""), files: [] } as unknown as DataTransfer;
+    if (handleTablePaste(view, data)) return;
+  }
+  const { $from, $to, empty } = state.selection;
+  const marks = state.storedMarks ?? (empty ? $from.marks() : ($from.marksAcross($to) ?? $from.marks()));
+  const tr = state.tr;
+  if (!empty) tr.deleteSelection();
+  const parent = tr.selection.$from.parent;
+  if (parent.type.spec.code || marks.some((m) => m.type.spec.code)) {
+    tr.insertText(parent.type.spec.code ? text : text.replace(/\n/g, " "));
+    view.dispatch(tr.scrollIntoView().setMeta("uiEvent", "paste"));
+    return;
+  }
+  text.split("\n").forEach((line, i) => {
+    if (i > 0) {
+      const $pos = tr.selection.$from;
+      // In a list item's first paragraph, a new item (unchecked, for a checklist).
+      const item = $pos.depth >= 2 && $pos.node(-1).type.name === "list_item" && $pos.index(-1) === 0 ? $pos.node(-1) : null;
+      const depth = item ? 2 : 1;
+      const types = item
+        ? [{ type: item.type, attrs: { ...item.attrs, checked: item.attrs.checked == null ? null : false } }, { type: $pos.parent.type, attrs: $pos.parent.attrs }]
+        : undefined;
+      const pos = $pos.pos;
+      tr.split(pos, depth, types);
+      tr.setSelection(TextSelection.create(tr.doc, pos + depth * 2));
+    }
+    if (line) {
+      const pos = tr.selection.from;
+      tr.insert(pos, state.schema.text(line, marks));
+      tr.setSelection(TextSelection.create(tr.doc, pos + line.length));
+    }
+  });
+  view.dispatch(tr.scrollIntoView().setMeta("uiEvent", "paste"));
+}
+
+// --- Moving and duplicating blocks ----------------------------------------------
+
+/** The thing Alt+↑/↓ moves: the caret's list item, table row, or block. */
+interface Unit {
+  pos: number;
+  node: ProseNode;
+  /** Index in the parent, and the parent. */
+  index: number;
+  parent: ProseNode;
+  /** Children at the parent's start that must stay there (a table's header row). */
+  pinned: number;
+}
+
+function unitAt(state: EditorState): Unit | null {
+  const sel = state.selection;
+  const { $from } = sel;
+  const make = (d: number): Unit | null => {
+    if (d < 1) return null;
+    const parent = $from.node(d - 1);
+    const node = $from.node(d);
+    const pinned = parent.type.name === "table" && parent.firstChild?.type.name === "table_header_row" ? 1 : 0;
+    if (node.type.name === "table_header_row") return null;
+    return { pos: $from.before(d), node, index: $from.index(d - 1), parent, pinned };
+  };
+  if (sel instanceof NodeSelection && sel.node.isBlock) {
+    const parent = $from.parent;
+    if (parent.type.spec.tableRole) return null;
+    return { pos: sel.from, node: sel.node, index: $from.index(), parent, pinned: 0 };
+  }
+  if ($from.parent.type.spec.code) return null;
+  for (let d = $from.depth; d > 0; d--) {
+    const name = $from.node(d).type.name;
+    if (name === "list_item" || name === "table_row" || name === "table_header_row") return make(d);
+  }
+  let d = $from.depth;
+  while (d > 1 && $from.node(d - 1).childCount === 1) d--;
+  return make(d);
+}
+
+/** Swap the unit with its neighbour; null when it can't move that way. */
+function moveUnitTr(state: EditorState, dir: -1 | 1): Transaction | null {
+  const unit = unitAt(state);
+  if (!unit) return null;
+  const other = unit.index + dir;
+  if (other < unit.pinned || other >= unit.parent.childCount) return null;
+  const neighbour = unit.parent.child(other);
+  const start = dir < 0 ? unit.pos - neighbour.nodeSize : unit.pos;
+  const end = dir < 0 ? unit.pos + unit.node.nodeSize : unit.pos + unit.node.nodeSize + neighbour.nodeSize;
+  const tr = state.tr.replaceWith(start, end, dir < 0 ? [unit.node, neighbour] : [neighbour, unit.node]);
+  const shift = dir < 0 ? -neighbour.nodeSize : neighbour.nodeSize;
+  const sel = state.selection;
+  if (sel instanceof NodeSelection) tr.setSelection(NodeSelection.create(tr.doc, sel.from + shift));
+  else tr.setSelection(TextSelection.create(tr.doc, sel.anchor + shift, sel.head + shift));
+  return tr.scrollIntoView();
+}
+
+/** Copy the unit below itself, caret into the copy (VS Code's Copy Line Down). */
+function duplicateUnitTr(state: EditorState): Transaction | null {
+  const unit = unitAt(state);
+  if (!unit) return null;
+  const after = unit.pos + unit.node.nodeSize;
+  const tr = state.tr.insert(after, unit.node.type.name === "list_item" ? unit.node : unit.node.copy(unit.node.content));
+  const shift = unit.node.nodeSize;
+  const sel = state.selection;
+  if (sel instanceof NodeSelection) tr.setSelection(NodeSelection.create(tr.doc, sel.from + shift));
+  else tr.setSelection(TextSelection.create(tr.doc, sel.anchor + shift, sel.head + shift));
+  return tr.scrollIntoView();
+}
+
+const FORMAT_MARKS = ["strong", "emphasis", "underline", "strike_through", "inlineCode", "highlight", "subscript", "superscript"];
+
+/** Drop bold, italic, underline, strikethrough and inline code (links and comments stay). */
+function clearFormatting(view: EditorView) {
+  const { state } = view;
+  const types = FORMAT_MARKS.map((n) => state.schema.marks[n]).filter((t): t is MarkType => !!t);
+  const tr = state.tr;
+  if (state.selection.empty) {
+    tr.setStoredMarks((state.storedMarks ?? state.selection.$from.marks()).filter((m) => !types.includes(m.type)));
+  } else {
+    for (const range of state.selection.ranges) for (const t of types) tr.removeMark(range.$from.pos, range.$to.pos, t);
+  }
+  view.dispatch(tr);
+}
+
+/** The checklist item holding the caret, with its position. */
+function taskItem(state: EditorState): { node: ProseNode; pos: number } | null {
+  const { $from } = state.selection;
+  for (let d = $from.depth; d > 0; d--) {
+    const node = $from.node(d);
+    if (node.type.name === "list_item") return node.attrs.checked == null ? null : { node, pos: $from.before(d) };
+  }
+  return null;
 }
 
 // --- Tables ------------------------------------------------------------------
@@ -599,6 +757,61 @@ export const COMMANDS: EditorCommand[] = [
     },
   },
 
+  {
+    id: "paste-plain",
+    editorOnly: true,
+    label: "Paste as plain text",
+    icon: ClipboardPaste,
+    group: "edit",
+    keywords: ["paste", "plain", "unformatted"],
+    run: (_ctx, view) => {
+      void readClipboard().then(
+        (text) => insertPlainText(view, text),
+        () => undefined,
+      );
+    },
+  },
+
+  {
+    id: "move-up",
+    editorOnly: true,
+    label: "Move up (row, list item or block)",
+    icon: ChevronsUp,
+    group: "edit",
+    keywords: ["move", "up", "row"],
+    run: (_ctx, view) => {
+      const tr = moveUnitTr(view.state, -1);
+      if (tr) view.dispatch(tr);
+    },
+    isEnabled: (state) => !!moveUnitTr(state, -1),
+  },
+  {
+    id: "move-down",
+    editorOnly: true,
+    label: "Move down (row, list item or block)",
+    icon: ChevronsDown,
+    group: "edit",
+    keywords: ["move", "down", "row"],
+    run: (_ctx, view) => {
+      const tr = moveUnitTr(view.state, 1);
+      if (tr) view.dispatch(tr);
+    },
+    isEnabled: (state) => !!moveUnitTr(state, 1),
+  },
+  {
+    id: "duplicate",
+    editorOnly: true,
+    label: "Duplicate (row, list item or block)",
+    icon: CopyPlus,
+    group: "edit",
+    keywords: ["duplicate", "copy", "clone"],
+    run: (_ctx, view) => {
+      const tr = duplicateUnitTr(view.state);
+      if (tr) view.dispatch(tr);
+    },
+    isEnabled: (state) => !!duplicateUnitTr(state),
+  },
+
   // Block types
   {
     id: "paragraph",
@@ -679,6 +892,16 @@ export const COMMANDS: EditorCommand[] = [
     isEnabled: (state) => !inCodeBlock(state),
   },
 
+  {
+    id: "clear-format",
+    label: "Clear formatting",
+    icon: RemoveFormatting,
+    group: "format",
+    keywords: ["clear", "remove", "plain"],
+    run: (_ctx, view) => clearFormatting(view),
+    isEnabled: (state) => !inCodeBlock(state),
+  },
+
   // Lists
   {
     id: "bullet-list",
@@ -718,7 +941,21 @@ export const COMMANDS: EditorCommand[] = [
   },
 
   {
+    id: "toggle-task",
+    editorOnly: true,
+    label: "Check / uncheck item",
+    icon: SquareCheck,
+    group: "list",
+    keywords: ["check", "done", "tick"],
+    run: (_ctx, view) => {
+      const item = taskItem(view.state);
+      if (item) view.dispatch(view.state.tr.setNodeMarkup(item.pos, undefined, { ...item.node.attrs, checked: !item.node.attrs.checked }));
+    },
+    isEnabled: (state) => !!taskItem(state),
+  },
+  {
     id: "outdent",
+    editorOnly: true,
     label: "Outdent list item",
     icon: ListIndentDecrease,
     group: "list",
@@ -730,6 +967,7 @@ export const COMMANDS: EditorCommand[] = [
   },
   {
     id: "indent",
+    editorOnly: true,
     label: "Indent list item",
     icon: ListIndentIncrease,
     group: "list",
@@ -925,6 +1163,7 @@ export const COMMANDS: EditorCommand[] = [
   // Table (contextual)
   {
     id: "row-above",
+    editorOnly: true,
     label: "Insert row above",
     icon: ArrowUpToLine,
     group: "table",
@@ -933,6 +1172,7 @@ export const COMMANDS: EditorCommand[] = [
   },
   {
     id: "row-below",
+    editorOnly: true,
     label: "Insert row below",
     icon: ArrowDownToLine,
     group: "table",
@@ -941,6 +1181,7 @@ export const COMMANDS: EditorCommand[] = [
   },
   {
     id: "col-left",
+    editorOnly: true,
     label: "Insert column left",
     icon: ArrowLeftToLine,
     group: "table",
@@ -954,6 +1195,7 @@ export const COMMANDS: EditorCommand[] = [
   },
   {
     id: "col-right",
+    editorOnly: true,
     label: "Insert column right",
     icon: ArrowRightToLine,
     group: "table",
@@ -986,6 +1228,7 @@ export const COMMANDS: EditorCommand[] = [
   },
   {
     id: "col-left-move",
+    editorOnly: true,
     label: "Move column left",
     icon: ArrowLeft,
     group: "table",
@@ -994,6 +1237,7 @@ export const COMMANDS: EditorCommand[] = [
   },
   {
     id: "col-right-move",
+    editorOnly: true,
     label: "Move column right",
     icon: ArrowRight,
     group: "table",
@@ -1077,6 +1321,7 @@ export const COMMANDS: EditorCommand[] = [
   },
   {
     id: "delete-row",
+    editorOnly: true,
     label: "Delete row",
     icon: TableRowsSplit,
     group: "table",
@@ -1089,6 +1334,7 @@ export const COMMANDS: EditorCommand[] = [
   },
   {
     id: "delete-col",
+    editorOnly: true,
     label: "Delete column",
     icon: TableColumnsSplit,
     group: "table",

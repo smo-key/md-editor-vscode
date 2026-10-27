@@ -138,3 +138,18 @@ export function editorShortcutLabels(platform: NodeJS.Platform, userBindings: un
   }
   return labels;
 }
+
+/**
+ * Every effective key per editor command id, in VS Code's notation, for the
+ * webview: it claims those keys (keys.ts) so the page doesn't also act on them
+ * (Alt+↑ would otherwise move the caret as well as the row).
+ */
+export function editorShortcutKeys(platform: NodeJS.Platform, userBindings: unknown): Record<string, string[]> {
+  const keys = effectiveKeys(platform, userBindings);
+  const out: Record<string, string[]> = {};
+  for (const s of SHORTCUTS) {
+    if (!s.editor || out[s.editor]) continue;
+    out[s.editor] = keys.get(s.command) ?? [];
+  }
+  return out;
+}

@@ -55,7 +55,11 @@ Typing Markdown works as you'd expect: `# `, `- `, `1. `, `[ ] `, `> `, `` ``` `
 
 ### Tables
 
-With the caret in a table the toolbar switches to table actions, and right-clicking a cell offers the same list: insert, move and delete rows and columns, align columns, and toggle full width. <kbd>Tab</kbd> moves between cells and adds a row from the last one. Drag a column's border to resize it; widths are saved in a comment that GitHub and other renderers hide.
+With the caret in a table the toolbar switches to table actions, and right-clicking a cell offers the same list: insert, move and delete rows and columns, align columns, toggle full width, remove or restore the header row, and add a total row (column sums, set apart). <kbd>Tab</kbd> moves between cells and adds a row from the last one. Drag a column's border to resize it; widths are saved in a comment that GitHub and other renderers hide.
+
+Cells can hold several lines and lists: <kbd>Shift+Enter</kbd> (or <kbd>Alt+Enter</kbd>) starts a new line, and the list buttons and shortcuts work in a cell. They're saved as `<br>` and inline `<ul>`/`<ol>` HTML, which GitHub renders.
+
+Paste a block of cells (from a table, Excel, Google Sheets, or CSV/TSV text) and it fills the cells from the caret onward, growing the table as needed; one value pasted over several selected cells goes into each. Spreadsheet or CSV data pasted outside a table becomes a new table. <kbd>⇧⌘V</kbd> (<kbd>Ctrl+Shift+V</kbd>) pastes plain text in the formatting at the caret.
 
 ### Diagrams
 
@@ -131,6 +135,17 @@ Every editing action is a VS Code command, so you can change, remove or add keys
 | Quote | ⇧⌘B | Ctrl+Shift+B |
 | Code block | ⌥⌘C | Ctrl+Alt+C |
 | Add comment | ⌥⌘M | Ctrl+Alt+M |
+| Paste as plain text | ⇧⌘V | Ctrl+Shift+V |
+| Clear formatting | ⌘\\ | Ctrl+\\ |
+| Check / uncheck checklist item | ⌘Enter | Ctrl+Enter |
+| Indent / outdent list item | ⌘] / ⌘[ (or Tab / ⇧Tab) | Ctrl+] / Ctrl+[ |
+| Move table row, list item or block up / down | ⌥↑ / ⌥↓ | Alt+↑ / Alt+↓ |
+| Duplicate table row, list item or block | ⇧⌥↓ / ⇧⌥↑ | Shift+Alt+↓ / ↑ |
+| Insert table | ⌥⌘T | Ctrl+Alt+T |
+| Table: insert row above / below | ⌃⌥↑ / ⌃⌥↓ | Ctrl+Alt+↑ / ↓ |
+| Table: move column left / right | ⌃⌥← / ⌃⌥→ | Ctrl+Alt+← / → |
+| Table: insert column left / right | ⌃⌥⇧← / ⌃⌥⇧→ | Ctrl+Alt+Shift+← / → |
+| Table: delete row / column | ⌃⌥⌫ / ⌃⌥⇧⌫ | Ctrl+Alt+Backspace / Ctrl+Alt+Shift+Backspace |
 | Show all shortcuts | ⌘/ | Ctrl+/ |
 
 ## Settings

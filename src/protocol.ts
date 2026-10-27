@@ -60,10 +60,19 @@ export interface LinkedUri {
 }
 
 export type HostMessage =
-  | { type: "init"; text: string; config: EditorConfig; docPath: string; shortcuts: ShortcutLabels; prefs: EditorPrefs }
+  | {
+      type: "init";
+      text: string;
+      config: EditorConfig;
+      docPath: string;
+      shortcuts: ShortcutLabels;
+      /** Effective keys per editor command id, which the page claims (keys.ts). */
+      keys?: ShortcutKeys;
+      prefs: EditorPrefs;
+    }
   /** Run an editor command (webview/commands.ts id), from a VS Code keybinding or the palette. */
   | { type: "command"; id: string }
-  | { type: "shortcuts"; labels: ShortcutLabels }
+  | { type: "shortcuts"; labels: ShortcutLabels; keys?: ShortcutKeys }
   | { type: "showShortcuts" }
   | { type: "update"; text: string }
   | { type: "config"; config: EditorConfig }
@@ -73,6 +82,8 @@ export type HostMessage =
   | { type: "fileRead"; id: number; data?: Uint8Array; error?: string }
   | { type: "fileWritten"; id: number; error?: string }
   | { type: "diagramCreated"; id: number; path?: string; error?: string }
+  /** The clipboard's text, for Paste as Plain Text. */
+  | { type: "clipboardText"; id: number; text: string }
   | { type: "flush"; id: number }
   /** A collaboration session began for this editor (collab.ts): `seed` fills the empty shared document. */
   | { type: "collabStart"; seed: boolean; state: Uint8Array; awareness: Uint8Array; name: string }
@@ -118,6 +129,9 @@ export interface EditorPrefs {
 /** Effective key label per editor command id (and "kenMarkdown.showShortcuts"); "" when unbound. */
 export type ShortcutLabels = Record<string, string>;
 
+/** Effective keys per editor command id, in VS Code notation (e.g. "alt+up"). */
+export type ShortcutKeys = Record<string, string[]>;
+
 export type WebviewMessage =
   | { type: "ready" }
   | { type: "focus"; focused: boolean }
@@ -136,6 +150,8 @@ export type WebviewMessage =
   | { type: "readFile"; id: number; path: string }
   | { type: "writeFile"; id: number; path: string; data: Uint8Array }
   | { type: "createDiagram"; id: number }
+  /** Read the clipboard's text (a webview can't read it itself). */
+  | { type: "readClipboard"; id: number }
   | { type: "openFile"; path: string }
   | { type: "openLink"; href: string }
   | { type: "openWikiLink"; target: string }

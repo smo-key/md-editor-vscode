@@ -44,6 +44,13 @@
       "mac": "cmd+k"
     },
     {
+      "command": "kenMarkdown.clearFormatting",
+      "editor": "clear-format",
+      "title": "Clear Formatting",
+      "key": "ctrl+\\",
+      "mac": "cmd+\\"
+    },
+    {
       "command": "kenMarkdown.paragraph",
       "editor": "paragraph",
       "title": "Text (Paragraph)",
@@ -114,14 +121,25 @@
       "mac": "cmd+alt+9"
     },
     {
+      "command": "kenMarkdown.toggleChecked",
+      "editor": "toggle-task",
+      "title": "Check or Uncheck Checklist Item",
+      "key": "ctrl+enter",
+      "mac": "cmd+enter"
+    },
+    {
       "command": "kenMarkdown.outdentListItem",
       "editor": "outdent",
-      "title": "Outdent List Item"
+      "title": "Outdent List Item",
+      "key": "ctrl+[",
+      "mac": "cmd+["
     },
     {
       "command": "kenMarkdown.indentListItem",
       "editor": "indent",
-      "title": "Indent List Item"
+      "title": "Indent List Item",
+      "key": "ctrl+]",
+      "mac": "cmd+]"
     },
     {
       "command": "kenMarkdown.quote",
@@ -140,7 +158,9 @@
     {
       "command": "kenMarkdown.insertTable",
       "editor": "table",
-      "title": "Insert Table"
+      "title": "Insert Table",
+      "key": "ctrl+alt+t",
+      "mac": "cmd+alt+t"
     },
     {
       "command": "kenMarkdown.insertDivider",
@@ -242,24 +262,68 @@
       "alias": true
     },
     {
+      "command": "kenMarkdown.pastePlain",
+      "editor": "paste-plain",
+      "title": "Paste as Plain Text",
+      "key": "ctrl+shift+v",
+      "mac": "cmd+shift+v"
+    },
+    {
+      "command": "kenMarkdown.moveUp",
+      "editor": "move-up",
+      "title": "Move Up (Table Row, List Item or Block)",
+      "key": "alt+up",
+      "mac": "alt+up"
+    },
+    {
+      "command": "kenMarkdown.moveDown",
+      "editor": "move-down",
+      "title": "Move Down (Table Row, List Item or Block)",
+      "key": "alt+down",
+      "mac": "alt+down"
+    },
+    {
+      "command": "kenMarkdown.duplicate",
+      "editor": "duplicate",
+      "title": "Duplicate (Table Row, List Item or Block)",
+      "key": "shift+alt+down",
+      "mac": "shift+alt+down"
+    },
+    {
+      "command": "kenMarkdown.duplicate",
+      "editor": "duplicate",
+      "title": "Duplicate (Table Row, List Item or Block)",
+      "key": "shift+alt+up",
+      "mac": "shift+alt+up",
+      "alias": true
+    },
+    {
       "command": "kenMarkdown.table.insertRowAbove",
       "editor": "row-above",
-      "title": "Table: Insert Row Above"
+      "title": "Table: Insert Row Above",
+      "key": "ctrl+alt+up",
+      "mac": "ctrl+alt+up"
     },
     {
       "command": "kenMarkdown.table.insertRowBelow",
       "editor": "row-below",
-      "title": "Table: Insert Row Below"
+      "title": "Table: Insert Row Below",
+      "key": "ctrl+alt+down",
+      "mac": "ctrl+alt+down"
     },
     {
       "command": "kenMarkdown.table.insertColumnLeft",
       "editor": "col-left",
-      "title": "Table: Insert Column Left"
+      "title": "Table: Insert Column Left",
+      "key": "ctrl+alt+shift+left",
+      "mac": "ctrl+alt+shift+left"
     },
     {
       "command": "kenMarkdown.table.insertColumnRight",
       "editor": "col-right",
-      "title": "Table: Insert Column Right"
+      "title": "Table: Insert Column Right",
+      "key": "ctrl+alt+shift+right",
+      "mac": "ctrl+alt+shift+right"
     },
     {
       "command": "kenMarkdown.table.moveRowUp",
@@ -274,12 +338,16 @@
     {
       "command": "kenMarkdown.table.moveColumnLeft",
       "editor": "col-left-move",
-      "title": "Table: Move Column Left"
+      "title": "Table: Move Column Left",
+      "key": "ctrl+alt+left",
+      "mac": "ctrl+alt+left"
     },
     {
       "command": "kenMarkdown.table.moveColumnRight",
       "editor": "col-right-move",
-      "title": "Table: Move Column Right"
+      "title": "Table: Move Column Right",
+      "key": "ctrl+alt+right",
+      "mac": "ctrl+alt+right"
     },
     {
       "command": "kenMarkdown.table.alignLeft",
@@ -314,12 +382,16 @@
     {
       "command": "kenMarkdown.table.deleteRow",
       "editor": "delete-row",
-      "title": "Table: Delete Row"
+      "title": "Table: Delete Row",
+      "key": "ctrl+alt+backspace",
+      "mac": "ctrl+alt+backspace"
     },
     {
       "command": "kenMarkdown.table.deleteColumn",
       "editor": "delete-col",
-      "title": "Table: Delete Column"
+      "title": "Table: Delete Column",
+      "key": "ctrl+alt+shift+backspace",
+      "mac": "ctrl+alt+shift+backspace"
     },
     {
       "command": "kenMarkdown.table.deleteTable",

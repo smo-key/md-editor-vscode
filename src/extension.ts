@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import * as fs from "fs";
 import * as path from "path";
-import { SHORTCUTS, editorShortcutLabels, parseJsonc } from "./keybindings";
+import { SHORTCUTS, editorShortcutKeys, editorShortcutLabels, parseJsonc } from "./keybindings";
 import type { TestAction } from "./protocol";
 import { KenMarkdownEditorProvider, VIEW_TYPE } from "./provider";
 import { CollabManager } from "./collab/manager";
@@ -61,7 +61,7 @@ export function activate(context: vscode.ExtensionContext) {
     } catch {
       // No user keybindings (or unreadable): the defaults apply.
     }
-    provider.setShortcutLabels(editorShortcutLabels(process.platform, user));
+    provider.setShortcutLabels(editorShortcutLabels(process.platform, user), editorShortcutKeys(process.platform, user));
   };
   refreshLabels();
   fs.watchFile(keybindingsFile, { interval: 1000 }, refreshLabels);

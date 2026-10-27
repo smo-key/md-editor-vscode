@@ -2,8 +2,8 @@ import { readFileSync } from "fs";
 import { describe, expect, it } from "vitest";
 
 import { COMMANDS } from "../../webview/commands";
-import { vscodeOwnsKey } from "../../webview/keys";
-import { SHORTCUTS, editorShortcutLabels, effectiveKeys, keyLabel, parseJsonc } from "../../src/keybindings";
+import { boundCommand, matchesKey, setBoundKeys, vscodeOwnsKey } from "../../webview/keys";
+import { SHORTCUTS, editorShortcutKeys, editorShortcutLabels, effectiveKeys, keyLabel, parseJsonc } from "../../src/keybindings";
 // @ts-expect-error plain ESM script without types
 import { sync } from "../../scripts/sync-contributes.mjs";
 
@@ -53,7 +53,8 @@ describe("effective keybindings (src/keybindings.ts)", () => {
     const labels = editorShortcutLabels("darwin", undefined);
     expect(labels.bold).toBe("⌘B");
     expect(labels.heading2).toBe("⌥⌘2");
-    expect(labels.table).toBe("");
+    expect(labels.divider).toBe("");
+    expect(labels["move-up"]).toBe("⌥↑");
     expect(labels["kenMarkdown.showShortcuts"]).toBe("⌘/");
     expect(editorShortcutLabels("linux", []).bold).toBe("Ctrl+B");
   });
@@ -102,6 +103,38 @@ describe("shortcut definitions", () => {
     const pkg = JSON.parse(readFileSync("package.json", "utf8"));
     for (const kb of pkg.contributes.keybindings) {
       expect(kb.when).toContain("kenMarkdown.editorFocused");
+    }
+  });
+});
+
+describe("bound keys (webview/keys.ts)", () => {
+  it("matches VS Code key notation against key presses", () => {
+    expect(matchesKey(key({ code: "ArrowUp", key: "ArrowUp", altKey: true }), "alt+up")).toBe(true);
+    expect(matchesKey(key({ code: "ArrowUp", key: "ArrowUp", altKey: true, shiftKey: true }), "alt+up")).toBe(false);
+    expect(matchesKey(key({ code: "Backslash", key: "\\", metaKey: true }), "cmd+\\")).toBe(true);
+    expect(matchesKey(key({ code: "BracketRight", key: "]", ctrlKey: true }), "ctrl+]")).toBe(true);
+    expect(matchesKey(key({ code: "Enter", key: "Enter", ctrlKey: true, altKey: true }), "ctrl+alt+enter")).toBe(true);
+  });
+
+  it("finds the command for a key, following the user's bindings", () => {
+    const user = [{ key: "ctrl+shift+up", command: "kenMarkdown.moveUp" }];
+    setBoundKeys(editorShortcutKeys("linux", user));
+    expect(boundCommand(key({ code: "ArrowUp", key: "ArrowUp", ctrlKey: true, shiftKey: true }))).toBe("move-up");
+    expect(boundCommand(key({ code: "ArrowUp", key: "ArrowUp", altKey: true }))).toBe("move-up");
+    expect(boundCommand(key({ code: "ArrowUp", key: "ArrowUp" }))).toBeNull();
+    setBoundKeys({});
+  });
+});
+
+describe("default keys", () => {
+  it.each(["darwin", "win32"] as const)("never give two commands the same key on %s", (platform) => {
+    const owner = new Map<string, string>();
+    for (const [command, keys] of effectiveKeys(platform, [])) {
+      for (const k of keys) {
+        const norm = k.split("+").sort().join("+");
+        expect(owner.get(norm) ?? command, `${k}: ${owner.get(norm)} and ${command}`).toBe(command);
+        owner.set(norm, command);
+      }
     }
   });
 });

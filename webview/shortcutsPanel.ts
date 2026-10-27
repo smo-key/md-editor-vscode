@@ -26,6 +26,7 @@ const GROUPS: [string, CommandGroup[]][] = [
   ["Insert", ["insert", "alert"]],
   ["Tables", ["table"]],
   ["Comments", ["comment"]],
+  ["Editing", ["edit"]],
   ["History", ["history"]],
 ];
 

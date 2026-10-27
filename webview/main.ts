@@ -57,9 +57,9 @@ import { Presence } from "./presence";
 import { commentIds, refreshComments } from "./comments/anchors";
 import { CommentsPanel } from "./comments/panel";
 import { joinDocument, propertyValue, splitDocument } from "./frontmatterModel";
-import { installKeyRouting } from "./keys";
+import { inEditorText, installKeyRouting, setBoundKeys } from "./keys";
 import { onLastHeadingLevel, setLastHeadingLevel } from "./headingControl";
-import { command, execute, setShortcutLabels } from "./commands";
+import { COMMANDS, command, execute, setClipboardReader, setShortcutLabels } from "./commands";
 import { closeShortcutsPanel, initShortcutsPanel, isShortcutsPanelOpen, toggleShortcutsPanel } from "./shortcutsPanel";
 import type { EditorConfig, HostMessage, TestAction, WebviewMessage } from "../src/protocol";
 import "@milkdown/crepe/theme/common/style.css";
@@ -360,6 +360,10 @@ function request<T extends HostMessage>(build: (id: number) => WebviewMessage): 
     post(build(id));
   });
 }
+
+setClipboardReader(async () =>
+  (await request<Extract<HostMessage, { type: "clipboardText" }>>((id) => ({ type: "readClipboard", id }))).text,
+);
 
 // --- Attachments -----------------------------------------------------------------
 // Pasted or dropped files are written beside the document by the host and
@@ -815,7 +819,10 @@ function runTest(action: TestAction): unknown {
 
 // Keys VS Code owns (see keys.ts), and focus, which scopes those keybindings
 // to this editor (`kenMarkdown.editorFocused`).
-installKeyRouting();
+installKeyRouting(window, (id) => {
+  const cmd = COMMANDS.find((c) => c.id === id);
+  return !!cmd && !!view && (cmd.isEnabled ? cmd.isEnabled(view.state) : true);
+});
 initShortcutsPanel(post);
 onLastHeadingLevel((level) => post({ type: "setPrefs", prefs: { lastHeading: level } }));
 window.addEventListener("focus", () => post({ type: "focus", focused: true }));
@@ -823,8 +830,11 @@ window.addEventListener("blur", () => post({ type: "focus", focused: false }));
 
 function runCommand(id: string) {
   if (!crepe) return;
+  const cmd = command(id);
+  // Keys such as Alt+↑ are typing in a text field or code block, not a command.
+  if (cmd.editorOnly && document.activeElement && document.activeElement !== document.body && !inEditorText(document.activeElement)) return;
   if (isShortcutsPanelOpen()) closeShortcutsPanel();
-  crepe.editor.action((ctx) => execute(ctx, command(id)));
+  crepe.editor.action((ctx) => execute(ctx, cmd));
 }
 
 window.addEventListener("message", async (event: MessageEvent<HostMessage>) => {
@@ -837,6 +847,7 @@ window.addEventListener("message", async (event: MessageEvent<HostMessage>) => {
     case "init":
       docPath = m.docPath;
       setShortcutLabels(m.shortcuts ?? {});
+      setBoundKeys(m.keys ?? {});
       setLastHeadingLevel(m.prefs?.lastHeading ?? 1);
       threadStore.author = m.config.commentAuthor || "Me";
       applyConfig(m.config);
@@ -862,6 +873,7 @@ window.addEventListener("message", async (event: MessageEvent<HostMessage>) => {
       return;
     case "shortcuts":
       setShortcutLabels(m.labels);
+      setBoundKeys(m.keys ?? {});
       return;
     case "showShortcuts":
       toggleShortcutsPanel();
@@ -890,6 +902,7 @@ window.addEventListener("message", async (event: MessageEvent<HostMessage>) => {
     case "fileRead":
     case "fileWritten":
     case "diagramCreated":
+    case "clipboardText":
       waiting.get(m.id)?.(m);
       waiting.delete(m.id);
       return;

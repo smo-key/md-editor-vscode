@@ -23,6 +23,7 @@ import { tocPlugins } from "./markdown/toc";
 import { tableLayoutPlugin } from "./markdown/tableLayout";
 import { tableCellBlockSchemas } from "./markdown/tableCellBlocks";
 import { configureListDelimiter, listStylePlugins } from "./markdown/listStyles";
+import { listJoinPlugin } from "./markdown/listJoin";
 import { imageBlockAltSchema, tightListJoin } from "./markdown/gfmFidelity";
 import { configureLinkText, linkFidelityPlugins } from "./markdown/linkFidelity";
 import { markRunPlugins } from "./markdown/markRuns";
@@ -149,6 +150,8 @@ export function buildEditor(options: EditorOptions): Crepe {
   crepe.editor.use(tocPlugins);
   crepe.editor.use(listStylePlugins);
   crepe.editor.config(configureListDelimiter);
+  // Lists left touching become one list (markdown/listJoin.ts).
+  crepe.editor.use(listJoinPlugin);
   crepe.editor.use(tableLayoutPlugin);
   crepe.editor.use(columnResizePlugin);
   crepe.editor.use(blockExitPlugin);

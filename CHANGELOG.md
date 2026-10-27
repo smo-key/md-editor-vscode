@@ -13,6 +13,10 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 - New commands with keyboard shortcuts: **Move Up/Down** (⌥↑/⌥↓) moves the table row, list item or block at the caret; **Duplicate** (⇧⌥↓/⇧⌥↑); **Clear Formatting** (⌘\\ / Ctrl+\\); **Check or Uncheck Checklist Item** (⌘Enter / Ctrl+Enter). Default keys for inserting a table (⌥⌘T / Ctrl+Alt+T), indenting and outdenting list items (⌘] / ⌘[), and table rows and columns: insert (⌃⌥↑/↓, ⌃⌥⇧←/→), move columns (⌃⌥←/→) and delete (⌃⌥⌫, ⌃⌥⇧⌫). All can be changed in Keyboard Shortcuts. Keys that aren't Cmd/Ctrl+letter shortcuts keep their usual meaning wherever the command has nothing to do (e.g. ⌥↑ in a code block).
 - **Open Changes in Ken Markdown**: a Markdown file's changes since the last commit, rendered as in the editor, with added blocks in green, removed ones in red and the changed words inside an edited block highlighted. Combined (one column) or split (side by side, scrolled together); open it from the editor's title bar, Source Control, a text diff or the command palette. Setting `kenMarkdown.diff.layout`.
 
+### Changed
+
+- Lists that end up directly next to each other become one list: a list made between two others (or right after one), or two lists left touching when the text between them is deleted. Bulleted lists and checklists join each other; a numbered list stays apart from a bulleted one. Touching lists already in a file are left as they are.
+
 ### Fixed
 
 - A `<br>` line break in a table cell is no longer dropped when the file is edited.

@@ -86,3 +86,43 @@ describe("blocks in table cells", () => {
     });
   });
 });
+
+describe("header and total rows", () => {
+  it("removes the header (an empty one is saved) and restores it", async () => {
+    await withEditor("| a | b |\n| - | - |\n| 1 | 2 |\n", (view, out, run) => {
+      caretAfter(view, "a");
+      run("table-header");
+      expect(view.state.doc.firstChild!.firstChild!.type.name).toBe("table_row");
+      expect(out()).toBe("<!-- ken:table noheader -->\n|   |   |\n| - | - |\n| a | b |\n| 1 | 2 |\n");
+      run("table-header");
+      expect(out()).toBe("| a | b |\n| - | - |\n| 1 | 2 |\n");
+    });
+  });
+
+  it("loads a headerless table without its empty header", async () => {
+    await withEditor("<!-- ken:table noheader -->\n|   |   |\n| - | - |\n| a | b |\n| 1 | 2 |\n", (view, out) => {
+      const table = view.state.doc.firstChild!;
+      expect(table.childCount).toBe(2);
+      expect(table.firstChild!.type.name).toBe("table_row");
+      expect(out()).toBe("<!-- ken:table noheader -->\n|   |   |\n| - | - |\n| a | b |\n| 1 | 2 |\n");
+    });
+  });
+
+  it("keeps a header that has text even with the noheader flag", async () => {
+    await withEditor("<!-- ken:table noheader -->\n| h |\n| - |\n| a |\n", (view) => {
+      expect(view.state.doc.firstChild!.firstChild!.type.name).toBe("table_header_row");
+    });
+  });
+
+  it("adds a total row with column sums, and marks it", async () => {
+    await withEditor("| Item | Cost | Qty |\n| - | - | - |\n| a | $1,200.50 | 2 |\n| b | $3 | x |\n", (view, out, run) => {
+      caretAfter(view, "Item");
+      run("table-total");
+      const md = out();
+      expect(md.split("\n")[0]).toBe("<!-- ken:table total -->");
+      expect(md).toMatch(/\| Total +\| \$1,203\.50 +\| +\|/);
+      run("table-total");
+      expect(out()).not.toContain("ken:table");
+    });
+  });
+});

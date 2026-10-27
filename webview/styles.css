@@ -364,6 +364,13 @@ body {
     background: var(--sunken);
     border-bottom-color: var(--ink-tertiary);
   }
+  /* A total row (markdown/tableFullWidth.ts: `total`): set apart like a
+     spreadsheet's, with a double rule above and bold figures. */
+  .measure .milkdown .milkdown-table-block[data-total-row="true"] tr:last-child td {
+    border-top: 3px double var(--ink-tertiary);
+    font-weight: 600;
+    background: var(--sunken);
+  }
 
   /* Hover-only, like the mermaid toolbar: the width toggle sits just above the
      table's top-right corner so it never covers a cell. */

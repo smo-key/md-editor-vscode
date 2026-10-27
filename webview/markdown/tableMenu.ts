@@ -35,7 +35,7 @@ const SECTIONS = [
   ["row-above", "row-below", "col-left", "col-right"],
   ["row-up", "row-down", "col-left-move", "col-right-move"],
   ["align-left", "align-center", "align-right"],
-  ["table-width"],
+  ["table-width", "table-header", "table-total"],
   ["delete-row", "delete-col", "delete-table"],
 ];
 
@@ -45,7 +45,7 @@ export function tableMenuItems(ctx: Ctx, view: EditorView): MenuEntry[] {
     if (i > 0) entries.push("separator");
     for (const id of ids) {
       const cmd = COMMANDS.find((c) => c.id === id)!;
-      const label = cmd.id === "table-width" && cmd.isActive?.(view.state) ? "Fit to text column" : cmd.label;
+      const label = cmd.menuLabel?.(view.state) ?? cmd.label;
       entries.push({
         label,
         icon: cmd.icon,

@@ -23,6 +23,12 @@
  * GFM everywhere, and everyone opening it in this editor sees the widths the
  * author set.
  *
+ * Two more flags: `noheader` (the table has no header row: GFM needs one, so
+ * an empty one is written and dropped again on load) and `total` (the last
+ * row is a total row, shown set apart).
+ *
+ *     <!-- ken:table noheader total -->
+ *
  * Three pieces make that work: a remark plugin that swallows the comment on
  * parse and re-emits it on serialize, an extension of the GFM `table` schema
  * carrying the flag as a node attribute, and a ProseMirror plugin that mirrors
@@ -46,13 +52,17 @@ import { $command, $prose, $remark } from "@milkdown/kit/utils";
 export const TABLE_FULL_WIDTH_COMMENT = "<!-- ken:table full -->";
 
 /** Tolerant of spacing, so a hand-edited file still round trips. */
-const MARKER_RE = /^<!--\s*ken:table((?:\s+(?:full|widths=[\d.,]*))+)\s*-->$/;
+const MARKER_RE = /^<!--\s*ken:table((?:\s+(?:full|noheader|total|widths=[\d.,]*))+)\s*-->$/;
 
 export type ColumnWidths = (number | null)[];
 
 export interface TableMarker {
   full: boolean;
   widths: ColumnWidths | null;
+  /** No header row: the empty one GFM requires is not shown. */
+  noHeader?: boolean;
+  /** The last row is a total row. */
+  total?: boolean;
 }
 
 /** The table settings a marker comment carries, or null if it is not one. */
@@ -69,16 +79,27 @@ export function parseTableMarker(value: unknown): TableMarker | null {
         .split(",")
         .map((x) => (x.trim() === "" || !(Number(x) > 0) ? null : Math.round(Number(x))))
     : null;
-  return { full, widths: widths && widths.some((x) => x !== null) ? widths : null };
+  return {
+    full,
+    widths: widths && widths.some((x) => x !== null) ? widths : null,
+    noHeader: tokens.includes("noheader"),
+    total: tokens.includes("total"),
+  };
 }
 
 /** The marker comment for these settings, or null when there is nothing to record. */
-export function formatTableMarker(full: boolean, widths: ColumnWidths | null | undefined): string | null {
+export function formatTableMarker(
+  full: boolean,
+  widths: ColumnWidths | null | undefined,
+  flags: { noHeader?: boolean; total?: boolean } = {},
+): string | null {
   const hasWidths = !!widths && widths.some((w) => typeof w === "number");
-  if (!full && !hasWidths) return null;
-  if (full && !hasWidths) return TABLE_FULL_WIDTH_COMMENT;
-  const list = widths!.map((w) => (typeof w === "number" ? String(Math.round(w)) : "")).join(",");
-  return `<!-- ken:table${full ? " full" : ""} widths=${list} -->`;
+  const tokens: string[] = [];
+  if (full) tokens.push("full");
+  if (flags.noHeader) tokens.push("noheader");
+  if (flags.total) tokens.push("total");
+  if (hasWidths) tokens.push(`widths=${widths!.map((w) => (typeof w === "number" ? String(Math.round(w)) : "")).join(",")}`);
+  return tokens.length ? `<!-- ken:table ${tokens.join(" ")} -->` : null;
 }
 
 /** Does this mdast `html` node carry the full-width marker? */
@@ -133,6 +154,14 @@ function transformTree(node: MdastNode): void {
     if (next?.type !== "table") continue;
     next.fullWidth = marker.full;
     next.colWidths = marker.widths;
+    next.total = marker.total === true;
+    // The empty header row GFM needs is dropped; one with text in it (edited
+    // elsewhere) is a real header after all.
+    const rows = (next.children ?? []) as MdastNode[];
+    const head = rows[0];
+    if (marker.noHeader && rows.length > 1 && head && !head.children?.some((c) => (c.children?.length ?? 0) > 0)) {
+      next.noHeader = true;
+    }
     children.splice(i, 1);
   }
 }
@@ -182,7 +211,14 @@ export const fullWidthTableSchema = tableSchema.extendSchema((prev) => (ctx) => 
   const baseSerialize = base.toMarkdown;
   return {
     ...base,
-    attrs: { ...(base.attrs ?? {}), fullWidth: { default: false }, colWidths: { default: null } },
+    // A header row is optional: without one, the first row is an ordinary row.
+    content: "table_header_row? table_row+",
+    attrs: {
+      ...(base.attrs ?? {}),
+      fullWidth: { default: false },
+      colWidths: { default: null },
+      totalRow: { default: false },
+    },
     parseMarkdown: {
       match: baseParse.match,
       // Mirrors the preset's own runner (it tags the first row as the header
@@ -190,14 +226,17 @@ export const fullWidthTableSchema = tableSchema.extendSchema((prev) => (ctx) => 
       // the remark transform left on the mdast node.
       runner: (state: ParserState, node: MarkdownNode, type: NodeType) => {
         const align = node.align;
-        const children = (node.children ?? []).map((child, i) => ({
+        const noHeader = node.noHeader === true;
+        const rows = noHeader ? (node.children ?? []).slice(1) : (node.children ?? []);
+        const children = rows.map((child, i) => ({
           ...child,
           align,
-          isHeader: i === 0,
+          isHeader: !noHeader && i === 0,
         }));
         state.openNode(type, {
           fullWidth: node.fullWidth === true,
           colWidths: Array.isArray(node.colWidths) ? node.colWidths : null,
+          totalRow: node.total === true,
         });
         state.next(children);
         state.closeNode();
@@ -206,9 +245,25 @@ export const fullWidthTableSchema = tableSchema.extendSchema((prev) => (ctx) => 
     toMarkdown: {
       match: baseSerialize.match,
       runner: (state: SerializerState, node: ProseNode) => {
-        const marker = formatTableMarker(node.attrs.fullWidth === true, node.attrs.colWidths as ColumnWidths | null);
+        const noHeader = node.firstChild?.type.name !== "table_header_row";
+        const marker = formatTableMarker(node.attrs.fullWidth === true, node.attrs.colWidths as ColumnWidths | null, {
+          noHeader,
+          total: node.attrs.totalRow === true,
+        });
         if (marker) state.addNode("html", undefined, marker);
-        baseSerialize.runner(state, node);
+        if (!noHeader) {
+          baseSerialize.runner(state, node);
+          return;
+        }
+        // GFM needs a header row: an empty one, dropped again on load.
+        const align: (string | null)[] = [];
+        node.firstChild?.forEach((cell) => align.push(cell.attrs.alignment as string | null));
+        state.openNode("table", undefined, { align });
+        state.openNode("tableRow", undefined, { isHeader: true });
+        for (let i = 0; i < align.length; i++) state.openNode("tableCell").closeNode();
+        state.closeNode();
+        state.next(node.content);
+        state.closeNode();
       },
     },
   };
@@ -269,11 +324,11 @@ function decorate(doc: ProseNode): DecorationSet {
   const decorations: Decoration[] = [];
   doc.descendants((node, pos) => {
     if (node.type.name !== "table") return true;
-    if (node.attrs.fullWidth) {
-      decorations.push(
-        Decoration.node(pos, pos + node.nodeSize, { "data-full-width": "true" }),
-      );
-    }
+    const attrs: Record<string, string> = {};
+    if (node.attrs.fullWidth) attrs["data-full-width"] = "true";
+    if (node.firstChild?.type.name !== "table_header_row") attrs["data-no-header"] = "true";
+    if (node.attrs.totalRow) attrs["data-total-row"] = "true";
+    if (Object.keys(attrs).length) decorations.push(Decoration.node(pos, pos + node.nodeSize, attrs));
     return false;
   });
   return DecorationSet.create(doc, decorations);

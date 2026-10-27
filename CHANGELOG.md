@@ -7,6 +7,7 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 ### Added
 
 - Table cells can hold several lines, bulleted, numbered and checklist items. Shift+Enter (or Alt+Enter) starts a new line in a cell; the list buttons, slash commands and shortcuts now work in tables, with Enter and Tab working the list. They are saved as `<br>` and inline `<ul>`/`<ol>` HTML, which GitHub renders.
+- Tables: **Header row** (toolbar, right-click menu, command) turns the header into an ordinary row and back; a table without a header is saved with the empty header row GFM requires. **Total row** adds a row of column totals, set apart with a double rule.
 
 ### Fixed
 

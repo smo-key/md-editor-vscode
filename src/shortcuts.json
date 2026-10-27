@@ -302,6 +302,16 @@
       "title": "Table: Toggle Full Width"
     },
     {
+      "command": "kenMarkdown.table.toggleHeaderRow",
+      "editor": "table-header",
+      "title": "Table: Toggle Header Row"
+    },
+    {
+      "command": "kenMarkdown.table.toggleTotalRow",
+      "editor": "table-total",
+      "title": "Table: Toggle Total Row"
+    },
+    {
       "command": "kenMarkdown.table.deleteRow",
       "editor": "delete-row",
       "title": "Table: Delete Row"

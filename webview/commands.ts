@@ -95,6 +95,8 @@ import {
   Workflow,
   Sigma,
   Radical,
+  PanelTop,
+  PanelBottom,
   type IconNode,
 } from "lucide";
 
@@ -131,6 +133,8 @@ export interface EditorCommand {
   run(ctx: Ctx, view: EditorView): void;
   isActive?(state: EditorState): boolean;
   isEnabled?(state: EditorState): boolean;
+  /** The label in the table menu when it depends on the state (e.g. "Remove header row"). */
+  menuLabel?(state: EditorState): string;
 }
 
 // --- Shortcut labels ----------------------------------------------------------
@@ -366,8 +370,123 @@ export function focusCell(view: EditorView, tableStart: number, row: number, col
 
 const inTable = (state: EditorState) => currentCell(state) !== null;
 
-/** The header row is GFM's: it stays first and cannot be deleted on its own. */
-const inBodyRow = (state: EditorState) => (currentCell(state)?.row ?? 0) > 0;
+/** The table holding the selection, and its position. */
+function currentTable(state: EditorState): { node: ProseNode; pos: number } | null {
+  const c = currentCell(state);
+  if (!c) return null;
+  const node = state.doc.nodeAt(c.tableStart - 1);
+  return node ? { node, pos: c.tableStart - 1 } : null;
+}
+
+/** 1 when the selection's table has a header row, else 0. */
+function headerRows(state: EditorState): number {
+  return currentTable(state)?.node.firstChild?.type.name === "table_header_row" ? 1 : 0;
+}
+
+/** The header row (when there is one) stays first and cannot be deleted on its own. */
+const inBodyRow = (state: EditorState) => {
+  const c = currentCell(state);
+  return !!c && c.row >= headerRows(state);
+};
+
+/** Rebuild a row as `rowType` with `cellType` cells, content and attributes kept. */
+function retypeRow(row: ProseNode, rowType: string, cellType: string, state: EditorState): ProseNode {
+  const { nodes } = state.schema;
+  const cells: ProseNode[] = [];
+  row.forEach((cell) => cells.push(nodes[cellType]!.create(cell.attrs, cell.content, cell.marks)));
+  return nodes[rowType]!.create(row.attrs, cells);
+}
+
+/** Header row → first ordinary row, or the first row → header row. */
+function toggleHeaderRow(view: EditorView) {
+  const c = currentCell(view.state);
+  const table = currentTable(view.state);
+  if (!c || !table) return;
+  const first = table.node.firstChild!;
+  const has = first.type.name === "table_header_row";
+  const row = has ? retypeRow(first, "table_row", "table_cell", view.state) : retypeRow(first, "table_header_row", "table_header", view.state);
+  const from = table.pos + 1;
+  view.dispatch(view.state.tr.replaceWith(from, from + first.nodeSize, row));
+  focusCell(view, c.tableStart, c.row, c.col);
+  view.focus();
+}
+
+const NUMBER = /^([-+]?)([$€£¥]?)\s*([\d,]*\.?\d+)(%?)$/;
+
+/**
+ * Column totals for a new total row: the sum of a column whose filled cells
+ * are all numbers (currency, thousands separators and percentages kept), else
+ * nothing. The first column is labelled "Total" instead when it isn't numeric.
+ */
+export function columnTotals(rows: string[][]): string[] {
+  const width = Math.max(0, ...rows.map((r) => r.length));
+  const out: string[] = [];
+  for (let col = 0; col < width; col++) {
+    const values = rows.map((r) => (r[col] ?? "").trim()).filter((v) => v !== "");
+    const parsed = values.map((v) => NUMBER.exec(v));
+    if (values.length === 0 || parsed.some((m) => !m)) {
+      out.push("");
+      continue;
+    }
+    let sum = 0;
+    let decimals = 0;
+    let commas = false;
+    const units = new Set<string>();
+    const percents = new Set<string>();
+    for (const m of parsed as RegExpExecArray[]) {
+      const digits = m[3]!;
+      commas ||= digits.includes(",");
+      decimals = Math.max(decimals, digits.includes(".") ? digits.split(".")[1]!.length : 0);
+      units.add(m[2]!);
+      percents.add(m[4]!);
+      sum += (m[1] === "-" ? -1 : 1) * Number(digits.replace(/,/g, ""));
+    }
+    const unit = units.size === 1 ? [...units][0]! : "";
+    const percent = percents.size === 1 ? [...percents][0]! : "";
+    const fixed = Math.abs(sum).toFixed(decimals);
+    const [int, frac] = fixed.split(".");
+    const grouped = commas ? int!.replace(/\B(?=(\d{3})+(?!\d))/g, ",") : int!;
+    out.push(`${sum < 0 ? "-" : ""}${unit}${grouped}${frac ? "." + frac : ""}${percent}`);
+  }
+  if (width > 0 && out[0] === "") out[0] = "Total";
+  return out;
+}
+
+/** Turn the total row on (adding a row of column totals) or off (the row stays). */
+function toggleTotalRow(view: EditorView) {
+  const c = currentCell(view.state);
+  const table = currentTable(view.state);
+  if (!c || !table) return;
+  const { node, pos } = table;
+  if (node.attrs.totalRow) {
+    view.dispatch(view.state.tr.setNodeMarkup(pos, undefined, { ...node.attrs, totalRow: false }));
+    focusCell(view, c.tableStart, c.row, c.col);
+    view.focus();
+    return;
+  }
+  const { schema } = view.state;
+  const body: string[][] = [];
+  node.forEach((row) => {
+    if (row.type.name !== "table_row") return;
+    const texts: string[] = [];
+    row.forEach((cell) => texts.push(cell.textContent));
+    body.push(texts);
+  });
+  const totals = columnTotals(body);
+  const last = node.lastChild!;
+  const cells: ProseNode[] = [];
+  last.forEach((cell, _o, i) => {
+    const text = totals[i] ?? "";
+    cells.push(schema.nodes.table_cell!.create({ alignment: cell.attrs.alignment }, schema.nodes.paragraph!.create(null, text ? schema.text(text) : null)));
+  });
+  const row = schema.nodes.table_row!.create(null, cells);
+  const end = pos + node.nodeSize - 1;
+  const tr = view.state.tr.insert(end, row);
+  tr.setNodeMarkup(pos, undefined, { ...node.attrs, totalRow: true });
+  view.dispatch(tr);
+  focusCell(view, c.tableStart, c.rows, 0);
+  view.focus();
+}
 
 function tableAction(view: EditorView, act: (cell: CellInfo) => void, after?: (cell: CellInfo) => [number, number]) {
   const cell = currentCell(view.state);
@@ -852,7 +971,7 @@ export const COMMANDS: EditorCommand[] = [
     icon: ArrowUp,
     group: "table",
     run: (_ctx, view) => moveRow(view, -1),
-    isEnabled: (state) => (currentCell(state)?.row ?? 0) > 1,
+    isEnabled: (state) => (currentCell(state)?.row ?? 0) > headerRows(state),
   },
   {
     id: "row-down",
@@ -862,7 +981,7 @@ export const COMMANDS: EditorCommand[] = [
     run: (_ctx, view) => moveRow(view, 1),
     isEnabled: (state) => {
       const c = currentCell(state);
-      return !!c && c.row > 0 && c.row < c.rows - 1;
+      return !!c && c.row >= headerRows(state) && c.row < c.rows - 1;
     },
   },
   {
@@ -927,6 +1046,33 @@ export const COMMANDS: EditorCommand[] = [
       const c = currentCell(state);
       return !!c && !!tableAt(state, c.tableStart)?.node.attrs.fullWidth;
     },
+    menuLabel: (state) => (currentTable(state)?.node.attrs.fullWidth ? "Fit to text column" : "Full width"),
+    isEnabled: inTable,
+  },
+  {
+    id: "table-header",
+    label: "Header row",
+    icon: PanelTop,
+    group: "table",
+    keywords: ["header", "heading row"],
+    run: (_ctx, view) => toggleHeaderRow(view),
+    isActive: (state) => inTable(state) && headerRows(state) === 1,
+    menuLabel: (state) => (headerRows(state) ? "Remove header row" : "Make first row the header"),
+    // A table keeps at least one ordinary row.
+    isEnabled: (state) => {
+      const c = currentCell(state);
+      return !!c && c.rows > 1;
+    },
+  },
+  {
+    id: "table-total",
+    label: "Total row",
+    icon: PanelBottom,
+    group: "table",
+    keywords: ["total", "sum"],
+    run: (_ctx, view) => toggleTotalRow(view),
+    isActive: (state) => !!currentTable(state)?.node.attrs.totalRow,
+    menuLabel: (state) => (currentTable(state)?.node.attrs.totalRow ? "Remove total row styling" : "Add total row"),
     isEnabled: inTable,
   },
   {
@@ -938,7 +1084,7 @@ export const COMMANDS: EditorCommand[] = [
     run: (_ctx, view) => tableAction(view, () => run(view, deleteRow), (c) => [Math.min(c.row, c.rows - 2), c.col]),
     isEnabled: (state) => {
       const c = currentCell(state);
-      return !!c && c.row > 0 && c.rows > 2;
+      return !!c && c.row >= headerRows(state) && c.rows - headerRows(state) > 1;
     },
   },
   {

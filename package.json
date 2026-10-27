@@ -364,6 +364,16 @@
         "category": "Ken Markdown"
       },
       {
+        "command": "kenMarkdown.table.toggleHeaderRow",
+        "title": "Table: Toggle Header Row",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.table.toggleTotalRow",
+        "title": "Table: Toggle Total Row",
+        "category": "Ken Markdown"
+      },
+      {
         "command": "kenMarkdown.table.deleteRow",
         "title": "Table: Delete Row",
         "category": "Ken Markdown"
@@ -619,6 +629,14 @@
         },
         {
           "command": "kenMarkdown.table.toggleFullWidth",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.table.toggleHeaderRow",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.table.toggleTotalRow",
           "when": "activeCustomEditorId == 'kenMarkdown.editor'"
         },
         {

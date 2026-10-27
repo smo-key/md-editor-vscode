@@ -33,7 +33,7 @@ const TABLE = [
   ["bold", "italic", "underline", "strike", "inline-code", "link"],
   ["row-above", "row-below", "col-left", "col-right"],
   ["row-up", "row-down", "col-left-move", "col-right-move"],
-  ["align-left", "align-center", "align-right", "table-width"],
+  ["align-left", "align-center", "align-right", "table-width", "table-header", "table-total"],
   ["delete-row", "delete-col", "delete-table"],
   ["comment-add", "comments"],
 ];

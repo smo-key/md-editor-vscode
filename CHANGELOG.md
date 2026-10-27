@@ -4,6 +4,8 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-27
+
 ### Added
 
 - Table cells can hold several lines, bulleted, numbered and checklist items. Shift+Enter (or Alt+Enter) starts a new line in a cell; the list buttons, slash commands and shortcuts now work in tables, with Enter and Tab working the list. They are saved as `<br>` and inline `<ul>`/`<ol>` HTML, which GitHub renders.

@@ -7,6 +7,8 @@ import type { EditorView } from "@milkdown/kit/prose/view";
 
 import { command, execute } from "../../webview/commands";
 import { cellBlocks } from "../../webview/markdown/tableCellBlocks";
+import { parseDelimited, textGrid } from "../../webview/markdown/tablePaste";
+import { CellSelection } from "@milkdown/kit/prose/tables";
 import { normalizeTrailingNewlines } from "../../webview/markdown/gfmFidelity";
 import { mountEditor, stubLayout } from "./editorEnv";
 
@@ -123,6 +125,79 @@ describe("header and total rows", () => {
       expect(md).toMatch(/\| Total +\| \$1,203\.50 +\| +\|/);
       run("table-total");
       expect(out()).not.toContain("ken:table");
+    });
+  });
+});
+
+function paste(view: EditorView, data: Record<string, string>): boolean {
+  const event = new Event("paste", { bubbles: true, cancelable: true });
+  const dt = { types: Object.keys(data), files: [], items: [], getData: (t: string) => data[t] ?? "" };
+  Object.defineProperty(event, "clipboardData", { value: dt });
+  view.dom.dispatchEvent(event);
+  return event.defaultPrevented;
+}
+
+/** Select the cells from the one holding `a` to the one holding `b`. */
+function selectCells(view: EditorView, a: string, b: string) {
+  const cellPos = (text: string) => {
+    caretAfter(view, text);
+    const $p = view.state.selection.$from;
+    for (let d = $p.depth; d > 0; d--) if ($p.node(d).type.spec.tableRole?.includes("cell")) return $p.before(d);
+    throw new Error("not in a cell");
+  };
+  view.dispatch(view.state.tr.setSelection(CellSelection.create(view.state.doc, cellPos(a), cellPos(b))));
+}
+
+const TABLE = "| h1 | h2 | h3 |\n| - | - | - |\n| a | b | c |\n| d | e | f |\n";
+
+describe("pasting into and as tables", () => {
+  it("parses spreadsheet TSV and CSV, quoting included", () => {
+    expect(parseDelimited('a\t"x\ny"\n"q""t"\tz\n', "\t")).toEqual([["a", "x\ny"], ['q"t', "z"]]);
+    expect(textGrid("1,2\n3,4")).toEqual([["1", "2"], ["3", "4"]]);
+    expect(textGrid("Hello, world")).toBeNull();
+    expect(textGrid("just text")).toBeNull();
+  });
+
+  it("one value fills every selected cell", async () => {
+    await withEditor(TABLE, (view, out) => {
+      selectCells(view, "a", "e");
+      expect(paste(view, { "text/plain": "X" })).toBe(true);
+      expect(out()).toContain("| X  | X  | c  |\n| X  | X  | f  |");
+    });
+  });
+
+  it("a block of cells pastes in sequence from the caret, growing the table", async () => {
+    await withEditor(TABLE, (view, out) => {
+      caretAfter(view, "e");
+      expect(paste(view, { "text/plain": "1\t2\n3\t4\n" })).toBe(true);
+      const md = out();
+      expect(md).toMatch(/\| d +\| 1 +\| 2 +\|/);
+      expect(md).toMatch(/\| +\| 3 +\| 4 +\|/);
+    });
+  });
+
+  it("a block of cells copied from a table pastes over the header row as header cells", async () => {
+    await withEditor(TABLE, (view, out) => {
+      caretAfter(view, "h1");
+      paste(view, { "text/html": "<table><tr><td><strong>B</strong></td><td>C</td></tr></table>", "text/plain": "B\tC" });
+      expect(view.state.doc.firstChild!.firstChild!.firstChild!.type.name).toBe("table_header");
+      expect(out().split("\n")[0]).toMatch(/^\| B +\| C +\| h3 \|$/);
+    });
+  });
+
+  it("spreadsheet or CSV text pastes as a new table outside tables", async () => {
+    await withEditor("Intro\n", (view, out) => {
+      caretAfter(view, "Intro");
+      expect(paste(view, { "text/plain": "Name,Qty\nApple,3\n" })).toBe(true);
+      expect(out()).toMatch(/Intro\n\n\| Name +\| Qty \|\n\| -+ \| -+ \|\n\| Apple \| 3 +\|/);
+    });
+  });
+
+  it("ordinary text pastes as usual", async () => {
+    await withEditor("Intro\n", (view, out) => {
+      caretAfter(view, "Intro");
+      paste(view, { "text/plain": " a, b\nand c" });
+      expect(out()).not.toContain("|");
     });
   });
 });

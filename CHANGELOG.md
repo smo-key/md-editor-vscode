@@ -8,6 +8,7 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 
 - Table cells can hold several lines, bulleted, numbered and checklist items. Shift+Enter (or Alt+Enter) starts a new line in a cell; the list buttons, slash commands and shortcuts now work in tables, with Enter and Tab working the list. They are saved as `<br>` and inline `<ul>`/`<ol>` HTML, which GitHub renders.
 - Tables: **Header row** (toolbar, right-click menu, command) turns the header into an ordinary row and back; a table without a header is saved with the empty header row GFM requires. **Total row** adds a row of column totals, set apart with a double rule.
+- Pasting into tables: one value pasted over several selected cells goes into each of them; a block of cells (from this or another table, Excel, Google Sheets, or CSV/TSV text) fills the cells from the caret onward, adding rows and columns as needed. Spreadsheet and CSV data pasted outside a table becomes a new table.
 
 ### Fixed
 

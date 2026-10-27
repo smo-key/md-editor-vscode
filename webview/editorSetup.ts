@@ -44,6 +44,7 @@ import { blockSelectionKeys, blockSelectionPlugin, stableTableView } from "./mar
 import { keySelectionSync } from "./keySelectionSync";
 import { configureTabIndent } from "./markdown/plainTab";
 import { codePasteExtension, codePastePlugin } from "./markdown/codePaste";
+import { tablePastePlugin } from "./markdown/tablePaste";
 
 export interface EditorOptions {
   root: HTMLElement;
@@ -117,6 +118,8 @@ export function buildEditor(options: EditorOptions): Crepe {
   // Code and inline code get the clipboard's plain text, ahead of Milkdown's
   // Markdown parsing of pastes (its handlePaste runs after DOM handlers).
   crepe.editor.use(codePastePlugin);
+  // Spreadsheet/CSV data and cell blocks paste as cells (markdown/tablePaste.ts).
+  crepe.editor.use(tablePastePlugin);
   const onLink = options.onLink ?? (() => false);
   crepe.editor.use(githubAlertPlugins);
   crepe.editor.use(underlinePlugins);

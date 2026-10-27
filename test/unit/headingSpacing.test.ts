@@ -3,7 +3,7 @@ import { join } from "path";
 import { describe, expect, it } from "vitest";
 
 // kenMarkdown.headingSpacingBefore/After are declared in package.json, read in
-// src/provider.ts, applied by webview/main.ts and defaulted in
+// src/provider.ts, applied by webview/theme.ts and defaulted in
 // webview/styles.css; they must agree.
 const root = join(__dirname, "../..");
 const read = (file: string) => readFileSync(join(root, file), "utf8");
@@ -30,7 +30,7 @@ describe.each([
   });
 
   it("is applied live as a CSS variable, falling back to the stylesheet", () => {
-    const main = read("webview/main.ts");
+    const main = read("webview/theme.ts");
     expect(main).toContain(`root.setProperty("${variable}", \`\${config.${name}}em\`)`);
     expect(main).toContain(`root.removeProperty("${variable}")`);
     expect(read("src/protocol.ts")).toMatch(new RegExp(`${name}: number;`));

@@ -1,0 +1,126 @@
+/* The diff view (diff.ts): VS Code's own diff colours, so every theme works. */
+:root {
+  --diff-added-bg: var(--vscode-diffEditor-insertedLineBackground, var(--vscode-diffEditor-insertedTextBackground));
+  --diff-removed-bg: var(--vscode-diffEditor-removedLineBackground, var(--vscode-diffEditor-removedTextBackground));
+  --diff-added-text: var(--vscode-diffEditor-insertedTextBackground);
+  --diff-removed-text: var(--vscode-diffEditor-removedTextBackground);
+  --diff-added-edge: var(--vscode-gitDecoration-addedResourceForeground, var(--vscode-editorGutter-addedBackground));
+  --diff-removed-edge: var(--vscode-gitDecoration-deletedResourceForeground, var(--vscode-editorGutter-deletedBackground));
+}
+
+.ken-diff-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--vscode-editorWidget-background, var(--surface));
+  font-size: 12px;
+  color: var(--ink-secondary);
+}
+.ken-diff-title {
+  color: var(--ink);
+  font-weight: 600;
+}
+.ken-diff-spacer {
+  flex: 1;
+}
+.ken-diff-bar button {
+  font: inherit;
+  color: var(--vscode-button-secondaryForeground, var(--ink));
+  background: var(--vscode-button-secondaryBackground, transparent);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-control);
+  padding: 2px 10px;
+  cursor: pointer;
+}
+.ken-diff-bar button:hover {
+  background: var(--vscode-button-secondaryHoverBackground, var(--sunken));
+}
+.ken-diff-toggle {
+  display: inline-flex;
+}
+.ken-diff-toggle button:first-child {
+  border-radius: var(--radius-control) 0 0 var(--radius-control);
+}
+.ken-diff-toggle button:last-child {
+  border-radius: 0 var(--radius-control) var(--radius-control) 0;
+  border-left: none;
+}
+.ken-diff-toggle button[aria-pressed="true"] {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+
+.ken-diff-panes {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.ken-diff-pane {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.ken-diff-pane + .ken-diff-pane {
+  border-left: 1px solid var(--border);
+}
+.ken-diff-pane-label {
+  padding: 4px 16px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-secondary);
+  border-bottom: 1px solid var(--border);
+}
+.ken-diff-pane .editor-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  container-type: inline-size;
+}
+
+/* Changed blocks: a tinted band with a bar in the margin, as in VS Code's diff editor. */
+.milkdown .ProseMirror .ken-diff-added,
+.milkdown .ProseMirror .ken-diff-removed {
+  position: relative;
+  border-radius: 3px;
+  box-shadow: -10px 0 0 0 var(--diff-added-bg), 10px 0 0 0 var(--diff-added-bg);
+  background: var(--diff-added-bg);
+}
+.milkdown .ProseMirror .ken-diff-removed {
+  box-shadow: -10px 0 0 0 var(--diff-removed-bg), 10px 0 0 0 var(--diff-removed-bg);
+  background: var(--diff-removed-bg);
+}
+.milkdown .ProseMirror .ken-diff-added::before,
+.milkdown .ProseMirror .ken-diff-removed::before {
+  content: "";
+  position: absolute;
+  left: -14px;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--diff-added-edge);
+}
+.milkdown .ProseMirror .ken-diff-removed::before {
+  background: var(--diff-removed-edge);
+}
+/* An edited block's own changes stand out more than the band. */
+.milkdown .ProseMirror .ken-diff-added-text {
+  background: var(--diff-added-text);
+  border-radius: 2px;
+}
+.milkdown .ProseMirror .ken-diff-removed-text {
+  background: var(--diff-removed-text);
+  border-radius: 2px;
+  text-decoration: line-through;
+}
+/* In one column, the removed version reads as gone. */
+.ken-diff-pane[data-side="combined"] .milkdown .ProseMirror .ken-diff-removed:not(.ken-diff-edited) {
+  text-decoration: line-through;
+  opacity: 0.8;
+}
+.ken-diff-stats[data-empty="false"] {
+  font-variant-numeric: tabular-nums;
+}

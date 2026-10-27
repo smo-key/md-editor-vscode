@@ -118,7 +118,7 @@ export type TestAction =
   | { kind: "undo" }
   /** Collaboration state: whether shared, writing, and who else is here. */
   | { kind: "collab" }
-  | { kind: "key"; key: string; code: string; meta?: boolean; ctrl?: boolean; shift?: boolean };
+  | { kind: "key"; key: string; code: string; meta?: boolean; ctrl?: boolean; shift?: boolean; alt?: boolean };
 
 /** Choices the editor remembers across editors and sessions. */
 export interface EditorPrefs {
@@ -167,4 +167,28 @@ export type WebviewMessage =
   /** The editor left the session; a non-writer wants the file's text back. */
   | { type: "collabStopped"; writer: boolean }
   | { type: "testResult"; id: number; result: unknown }
+  | { type: "error"; message: string };
+
+// --- The diff view (src/diffPanel.ts ↔ webview/diff.ts) -----------------------------
+
+export type DiffLayoutMode = "combined" | "split";
+
+export interface DiffContent {
+  /** The earlier version (e.g. HEAD), "" when the file is new. */
+  oldText: string;
+  newText: string;
+  /** Labels for the two versions, e.g. "HEAD" and "Working Tree". */
+  oldLabel: string;
+  newLabel: string;
+}
+
+export type DiffHostMessage =
+  | ({ type: "diffInit"; config: EditorConfig; layout: DiffLayoutMode; base: string } & DiffContent)
+  | ({ type: "diffUpdate" } & DiffContent)
+  | { type: "config"; config: EditorConfig };
+
+export type DiffWebviewMessage =
+  | { type: "diffReady" }
+  | { type: "diffLayout"; layout: DiffLayoutMode }
+  | { type: "openFile" }
   | { type: "error"; message: string };

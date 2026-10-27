@@ -355,6 +355,29 @@ describe("Ken Markdown Editor", function () {
       await until("checklist", () => doc.getText(), (t) => t.includes("- [ ] Second line."));
     });
 
+    it("claims bound keys such as Alt+Up where the command acts, and pastes plain text from the host's clipboard", async () => {
+      const uri = fixture("move.md");
+      const doc = await openEditor(uri);
+      assert.ok(await webview(uri, { kind: "caretAfter", text: "two" }));
+      const r = (await webview(uri, { kind: "key", key: "ArrowUp", code: "ArrowUp", alt: true })) as { leftToVsCode: boolean; editorChanged: boolean };
+      assert.deepStrictEqual(r, { leftToVsCode: true, editorChanged: false }, "Alt+Up is left to VS Code");
+      await vscode.commands.executeCommand("kenMarkdown.moveUp");
+      await until("moved", () => doc.getText(), (t) => t.startsWith("- two\n- one\n"));
+      await vscode.env.clipboard.writeText("**x**");
+      assert.ok(await webview(uri, { kind: "caretAfter", text: "Plain" }));
+      await vscode.commands.executeCommand("kenMarkdown.pastePlain");
+      await until("pasted", () => doc.getText(), (t) => t.includes("Plain\\*\\*x\\*\\*"));
+    });
+
+    it("opens a file's changes in the diff view", async () => {
+      const uri = fixture("move.md");
+      await openEditor(uri);
+      await vscode.commands.executeCommand("kenMarkdown.openDiff", uri);
+      await until("diff view", () => vscode.commands.executeCommand<number>("kenMarkdown._testDiffs"), (n) => n === 1);
+      await vscode.commands.executeCommand("kenMarkdown.openDiff", uri);
+      assert.strictEqual(await vscode.commands.executeCommand<number>("kenMarkdown._testDiffs"), 1, "reuses the open view");
+    });
+
     it("leaves Cmd/Ctrl+letter keys to VS Code instead of handling them twice", async () => {
       const uri = fixture("attach.md");
       const doc = await openEditor(uri);

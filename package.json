@@ -83,6 +83,12 @@
         "icon": "$(go-to-file)"
       },
       {
+        "command": "kenMarkdown.openDiff",
+        "title": "Open Changes in Ken Markdown",
+        "category": "Ken Markdown",
+        "icon": "$(git-compare)"
+      },
+      {
         "command": "kenMarkdown.collaboration.start",
         "title": "Start Collaboration Session",
         "category": "Ken Markdown",
@@ -432,8 +438,18 @@
           "group": "navigation"
         },
         {
+          "command": "kenMarkdown.openDiff",
+          "when": "activeCustomEditorId == kenMarkdown.editor",
+          "group": "navigation"
+        },
+        {
           "command": "kenMarkdown.openEditor",
           "when": "editorLangId == markdown && activeCustomEditorId != kenMarkdown.editor",
+          "group": "navigation"
+        },
+        {
+          "command": "kenMarkdown.openDiff",
+          "when": "isInDiffEditor && resourceLangId == markdown",
           "group": "navigation"
         }
       ],
@@ -452,6 +468,10 @@
         {
           "command": "kenMarkdown.openSource",
           "when": "activeCustomEditorId == kenMarkdown.editor"
+        },
+        {
+          "command": "kenMarkdown.openDiff",
+          "when": "editorLangId == markdown || activeCustomEditorId == kenMarkdown.editor"
         },
         {
           "command": "kenMarkdown.collaboration.copyInvite",
@@ -709,6 +729,13 @@
           "command": "kenMarkdown.showShortcuts",
           "when": "activeCustomEditorId == 'kenMarkdown.editor'"
         }
+      ],
+      "scm/resourceState/context": [
+        {
+          "command": "kenMarkdown.openDiff",
+          "when": "scmProvider == git && (resourceExtname == .md || resourceExtname == .markdown)",
+          "group": "navigation"
+        }
       ]
     },
     "configuration": {
@@ -775,6 +802,19 @@
           "minimum": 320,
           "maximum": 2400,
           "markdownDescription": "Maximum width of the text column, in pixels."
+        },
+        "kenMarkdown.diff.layout": {
+          "type": "string",
+          "enum": [
+            "combined",
+            "split"
+          ],
+          "enumDescriptions": [
+            "Both versions in one column: removed blocks in red, added in green.",
+            "The earlier version on the left and the current one on the right, scrolled together."
+          ],
+          "default": "combined",
+          "markdownDescription": "How **Open Changes in Ken Markdown** shows a file's changes since the last commit. Either can be switched in the view itself."
         },
         "kenMarkdown.headingNumbers.enabled": {
           "type": "boolean",

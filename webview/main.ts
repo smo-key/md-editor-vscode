@@ -32,7 +32,6 @@ import {
 } from "../src/headingNumbers";
 import { openHeadingNumberingDialog } from "./headingNumberingDialog";
 import { lucidPreviewMode, type LucidPreviewMode } from "../src/lucidUrl";
-import { tabSizeValue } from "../src/tabSize";
 import { carriesFiles, handleFileDrop, type FileDropOptions } from "./fileDrop";
 import { normalizeTrailingNewlines } from "./markdown/gfmFidelity";
 import {
@@ -65,6 +64,7 @@ import type { EditorConfig, HostMessage, TestAction, WebviewMessage } from "../s
 import "@milkdown/crepe/theme/common/style.css";
 import "katex/dist/katex.min.css";
 import { isHostMessage } from "./hostMessage";
+import { applyTypography } from "./theme";
 import "@milkdown/crepe/theme/frame.css";
 import "./markdown/githubAlert.css";
 import "./styles.css";
@@ -285,24 +285,7 @@ let lucidPreview: LucidPreviewMode = "auto";
 let headingNumbers: HeadingNumbersConfig = headingNumbersConfig(undefined);
 
 function applyConfig(config: EditorConfig) {
-  const root = document.documentElement.style;
-  // An empty setting falls back to the stylesheet's default (the bundled fonts).
-  const font = (prop: string, value: string) => (value.trim() ? root.setProperty(prop, value) : root.removeProperty(prop));
-  font("--font-sans", config.bodyFontFamily ?? "");
-  font("--font-serif", config.headingFontFamily ?? "");
-  font("--font-mono", config.codeFontFamily ?? "");
-  font("--font-quote", config.quoteFontFamily ?? "");
-  root.setProperty("--md-font-size", `${config.fontSize}px`);
-  root.setProperty("--md-line-height", String(config.lineHeight));
-  if (typeof config.paragraphSpacing === "number") root.setProperty("--md-paragraph-spacing", `${config.paragraphSpacing}em`);
-  else root.removeProperty("--md-paragraph-spacing");
-  if (typeof config.headingSpacingBefore === "number") root.setProperty("--md-heading-spacing-before", `${config.headingSpacingBefore}em`);
-  else root.removeProperty("--md-heading-spacing-before");
-  if (typeof config.headingSpacingAfter === "number") root.setProperty("--md-heading-spacing-after", `${config.headingSpacingAfter}em`);
-  else root.removeProperty("--md-heading-spacing-after");
-  root.setProperty("--md-max-width", `${config.maxWidth}px`);
-  // Tabs typed in paragraphs (markdown/plainTab.ts) are editor.tabSize wide.
-  root.setProperty("--md-tab-size", String(tabSizeValue(config.tabSize)));
+  applyTypography(config);
   const position = config.toolbar === "bottom" || config.toolbar === "hidden" ? config.toolbar : "top";
   document.body.dataset.toolbar = position;
   frontmatterPanel.setAlwaysShow(config.alwaysShowProperties === true);
@@ -801,6 +784,7 @@ function runTest(action: TestAction): unknown {
         metaKey: !!action.meta,
         ctrlKey: !!action.ctrl,
         shiftKey: !!action.shift,
+        altKey: !!action.alt,
         bubbles: true,
         cancelable: true,
       };

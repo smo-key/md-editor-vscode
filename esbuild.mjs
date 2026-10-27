@@ -26,7 +26,7 @@ const contexts = await Promise.all([
   }),
   esbuild.context({
     ...shared,
-    entryPoints: { main: "webview/main.ts" },
+    entryPoints: { main: "webview/main.ts", diff: "webview/diff.ts" },
     outdir: "dist/webview",
     platform: "browser",
     format: "esm",

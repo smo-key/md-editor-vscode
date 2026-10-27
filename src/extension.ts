@@ -6,10 +6,12 @@ import type { TestAction } from "./protocol";
 import { KenMarkdownEditorProvider, VIEW_TYPE } from "./provider";
 import { CollabManager } from "./collab/manager";
 import { checkWhatsNew, showWhatsNew } from "./whatsNewPanel";
+import { DiffPanels } from "./diffPanel";
 
 export function activate(context: vscode.ExtensionContext) {
   const collab = new CollabManager();
   const provider = new KenMarkdownEditorProvider(context, collab);
+  const diffs = new DiffPanels(context);
   const collabContext = () =>
     void vscode.commands.executeCommand("setContext", "kenMarkdown.collaboration", collab.role ?? false);
   collabContext();
@@ -32,6 +34,8 @@ export function activate(context: vscode.ExtensionContext) {
       if (target) await vscode.commands.executeCommand("vscode.openWith", target, VIEW_TYPE);
     }),
     vscode.commands.registerCommand("kenMarkdown.showWhatsNew", () => void showWhatsNew(context)),
+    diffs,
+    vscode.commands.registerCommand("kenMarkdown.openDiff", (arg?: unknown) => diffs.show(arg)),
     vscode.commands.registerCommand("kenMarkdown.openSource", async (uri?: vscode.Uri) => {
       const target = uri ?? activeUri();
       if (target) await vscode.commands.executeCommand("vscode.openWith", target, "default");
@@ -74,6 +78,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
       vscode.commands.registerCommand("kenMarkdown._testKeybindingsFile", () => keybindingsFile),
       vscode.commands.registerCommand("kenMarkdown._testCollab", () => collab.stats()),
+      vscode.commands.registerCommand("kenMarkdown._testDiffs", () => diffs.count),
       // URLs the host would have opened in the browser (openExternal is stubbed in tests).
       vscode.commands.registerCommand("kenMarkdown._testExternalOpened", () => [...provider.externalOpened]),
       vscode.commands.registerCommand("kenMarkdown._testEditors", (uri: string) => provider.sessionsFor(uri).length),

@@ -21,8 +21,9 @@ import { tableContextMenu } from "./markdown/tableMenu";
 import { tableFullWidthPlugins } from "./markdown/tableFullWidth";
 import { tocPlugins } from "./markdown/toc";
 import { tableLayoutPlugin } from "./markdown/tableLayout";
+import { tableCellBlockSchemas } from "./markdown/tableCellBlocks";
 import { configureListDelimiter, listStylePlugins } from "./markdown/listStyles";
-import { emptyTableCellSchemas, imageBlockAltSchema, tightListJoin } from "./markdown/gfmFidelity";
+import { imageBlockAltSchema, tightListJoin } from "./markdown/gfmFidelity";
 import { configureLinkText, linkFidelityPlugins } from "./markdown/linkFidelity";
 import { markRunPlugins } from "./markdown/markRuns";
 import { htmlViewPlugin, inlineHtmlPlugin } from "./markdown/htmlView";
@@ -152,7 +153,8 @@ export function buildEditor(options: EditorOptions): Crepe {
   crepe.editor.use(tableContextMenu);
   // After Crepe's image block feature: replaces its schema by name.
   crepe.editor.use(imageBlockAltSchema);
-  crepe.editor.use(emptyTableCellSchemas);
+  // Cells hold paragraphs and lists, written as `<br>` and inline HTML lists.
+  crepe.editor.use(tableCellBlockSchemas);
   crepe.editor.use(linkFidelityPlugins);
   crepe.editor.config(configureLinkText);
   // One emphasis span stays one span around a link, code or nested mark.

@@ -571,7 +571,7 @@ export const COMMANDS: EditorCommand[] = [
     toolbar: true,
     run: (ctx, view) => toggleList(view, ctx, "bullet"),
     isActive: (state) => listKind(state) === "bullet",
-    isEnabled: (state) => !inCodeBlock(state) && !inTable(state),
+    isEnabled: (state) => !inCodeBlock(state),
   },
   {
     id: "ordered-list",
@@ -583,7 +583,7 @@ export const COMMANDS: EditorCommand[] = [
     toolbar: true,
     run: (ctx, view) => toggleList(view, ctx, "ordered"),
     isActive: (state) => listKind(state) === "ordered",
-    isEnabled: (state) => !inCodeBlock(state) && !inTable(state),
+    isEnabled: (state) => !inCodeBlock(state),
   },
   {
     id: "task-list",
@@ -595,7 +595,7 @@ export const COMMANDS: EditorCommand[] = [
     toolbar: true,
     run: (ctx, view) => toggleList(view, ctx, "task"),
     isActive: (state) => listKind(state) === "task",
-    isEnabled: (state) => !inCodeBlock(state) && !inTable(state),
+    isEnabled: (state) => !inCodeBlock(state),
   },
 
   {

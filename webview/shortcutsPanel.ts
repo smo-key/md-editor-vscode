@@ -18,6 +18,7 @@ export function initShortcutsPanel(poster: Post): void {
 const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
 const MOD = isMac ? "⌘" : "Ctrl+";
 const SHIFT = isMac ? "⇧" : "Shift+";
+const ALT = isMac ? "⌥" : "Alt+";
 
 const GROUPS: [string, CommandGroup[]][] = [
   ["Formatting", ["format"]],
@@ -33,6 +34,7 @@ const BUILT_IN: [string, string][] = [
   ["Next / previous table cell", `Tab / ${SHIFT}Tab`],
   ["New row (in the last cell)", "Tab"],
   ["Cell below; leave table from the last row", "Enter"],
+  ["New line in a table cell", `${SHIFT}Enter / ${ALT}Enter`],
   ["Leave table", `${MOD}Enter`],
   ["Indent / outdent list item", `Tab / ${SHIFT}Tab`],
   ["Heading one level smaller / larger", `Tab / ${SHIFT}Tab`],

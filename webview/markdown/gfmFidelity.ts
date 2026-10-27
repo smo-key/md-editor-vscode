@@ -12,13 +12,10 @@
  *   `![1.00](x.png)`. The extended schema keeps the alt text in its own
  *   attribute and only falls back to writing the ratio for an image that has
  *   no alt text and was actually resized.
- * - Empty table cells stay empty. Milkdown writes an empty paragraph as
- *   `<br />` to preserve blank lines, which inside a table cell put a literal
- *   `<br />` into every empty cell.
+ * - Empty table cells stay empty (see tableCellBlocks.ts).
  */
 import type { Node as ProseNode, NodeType } from "@milkdown/kit/prose/model";
 import { imageBlockSchema } from "@milkdown/kit/component/image-block";
-import { tableCellSchema, tableHeaderSchema } from "@milkdown/kit/preset/gfm";
 import type { MarkdownNode, ParserState, SerializerState } from "@milkdown/kit/transformer";
 
 interface JoinNode {
@@ -83,35 +80,6 @@ export const imageBlockAltSchema = imageBlockSchema.extendSchema((prev) => (ctx)
   };
 });
 
-/** A cell with no text and no inline atoms (images, HTML) serializes as empty. */
-function emptyCellSerializer<T extends typeof tableCellSchema | typeof tableHeaderSchema>(schema: T) {
-  return schema.extendSchema((prev) => (ctx) => {
-    const base = prev(ctx);
-    return {
-      ...base,
-      toMarkdown: {
-        match: base.toMarkdown.match,
-        runner: (state: SerializerState, node: ProseNode) => {
-          let empty = true;
-          node.descendants((child) => {
-            if (child.isInline) empty = false;
-            return empty;
-          });
-          if (!empty) {
-            base.toMarkdown.runner(state, node);
-            return;
-          }
-          state.openNode("tableCell").closeNode();
-        },
-      },
-    };
-  });
-}
-
-export const emptyTableCellSchemas = [
-  emptyCellSerializer(tableCellSchema),
-  emptyCellSerializer(tableHeaderSchema),
-].flat();
 
 /**
  * One newline at the end of the file. Crepe keeps an empty paragraph after a

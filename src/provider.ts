@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import * as os from "os";
+import { WorkspaceFiles } from "./fileSearch";
 import * as path from "path";
 import type {
   EditorConfig,
@@ -114,7 +115,7 @@ interface GitApi {
  * Which of these files git ignores, as normalized file system paths. Empty when
  * the Git extension is off or the files are not in a repository.
  */
-async function gitIgnored(uris: vscode.Uri[]): Promise<Set<string>> {
+export async function gitIgnored(uris: vscode.Uri[]): Promise<Set<string>> {
   if (uris.length === 0) return new Set();
   try {
     const ext = vscode.extensions.getExtension<{ getAPI(version: 1): GitApi }>("vscode.git");
@@ -284,6 +285,9 @@ class EditorSession {
       }
       case "print":
         await this.print(m.html, m.name);
+        return;
+      case "findFiles":
+        this.post({ type: "filesFound", id: m.id, items: await this.host.files.find(m.query, this.document.uri) });
         return;
       case "readClipboard":
         this.post({ type: "clipboardText", id: m.id, text: await vscode.env.clipboard.readText() });
@@ -767,6 +771,8 @@ interface SessionHost {
   readonly collab: CollabManager;
   shortcutLabels(): ShortcutLabels;
   shortcutKeys(): ShortcutKeys;
+  /** The workspace's files, for the @ menu. */
+  readonly files: WorkspaceFiles;
   prefs(): EditorPrefs;
   setPrefs(prefs: EditorPrefs): void;
   focusChanged(): void;
@@ -780,6 +786,7 @@ export class KenMarkdownEditorProvider implements vscode.CustomTextEditorProvide
   private readonly all = new Set<EditorSession>();
   private labels: ShortcutLabels = {};
   private keys: ShortcutKeys = {};
+  readonly files = new WorkspaceFiles(gitIgnored);
   /** URLs `openExternal` would have opened, in test mode only (no browser is launched). */
   readonly externalOpened: string[] = [];
 

@@ -23,6 +23,7 @@ export function activate(context: vscode.ExtensionContext) {
     void vscode.commands.executeCommand("setContext", "kenMarkdown.collaboration", collab.role ?? false);
   collabContext();
   context.subscriptions.push(
+    provider.files,
     collab,
     collab.onDidChange(collabContext),
     vscode.commands.registerCommand("kenMarkdown.collaboration.start", () => collab.start()),

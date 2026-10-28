@@ -601,6 +601,10 @@ async function createEditor(text: string) {
       openLink: (href) => post({ type: "openLink", href }),
     },
     headingNumbers: () => effectiveNumbering(),
+    fileMention: {
+      search: async (query) =>
+        (await request<Extract<HostMessage, { type: "filesFound" }>>((id) => ({ type: "findFiles", id, query }))).items,
+    },
     imageMenu: {
       isLocal: (src) => resolveSrc(docPath, src) !== null,
       reveal: (src, where) => {
@@ -904,6 +908,7 @@ window.addEventListener("message", async (event: MessageEvent<HostMessage>) => {
     case "fileWritten":
     case "diagramCreated":
     case "clipboardText":
+    case "filesFound":
       waiting.get(m.id)?.(m);
       waiting.delete(m.id);
       return;

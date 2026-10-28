@@ -408,6 +408,17 @@ describe("Ken Markdown Editor", function () {
       await vscode.commands.executeCommand("workbench.action.closeAllEditors");
     });
 
+    it("links a project file picked from the @ menu by its relative path", async () => {
+      const uri = fixture("move.md");
+      const doc = await openEditor(uri);
+      assert.ok(await webview(uri, { kind: "caretAfter", text: "Plain" }));
+      await webview(uri, { kind: "insertText", text: " @undo-by", at: "caret" });
+      await until("menu", () => webview(uri, { kind: "count", selector: ".ken-mention-menu:not([hidden]) .ken-slash-item" }), (n) => Number(n) > 0);
+      assert.strictEqual(await webview(uri, { kind: "getText", selector: ".ken-mention-menu .ken-slash-item .ken-slash-label" }), "undo-bytes.md");
+      await webview(uri, { kind: "key", key: "Enter", code: "Enter" });
+      await until("linked", () => doc.getText(), (t) => t.includes("[undo-bytes.md](undo-bytes.md)"));
+    });
+
     it("opens a file's changes in the diff view", async () => {
       const uri = fixture("move.md");
       await openEditor(uri);

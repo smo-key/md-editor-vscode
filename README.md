@@ -53,6 +53,9 @@ A slim toolbar (bottom by default; move it to the top or hide it with `kenMarkdo
 
 Typing Markdown works as you'd expect: `# `, `- `, `1. `, `[ ] `, `> `, `` ``` ``, `---`, `**bold**`, `*italic*`, `~~strike~~`, `` `code` ``, `$x^2$` and `$$ ` (an equation block) convert as you type.
 
+
+Type `@` and part of a file name to link to any file in the open workspace: pick it from the list and it's inserted as a link by its path relative to the document (nothing is copied). Excluded, git-ignored and `node_modules` files aren't offered.
+
 ### Tables
 
 With the caret in a table the toolbar switches to table actions, and right-clicking a cell offers the same list: insert, move and delete rows and columns, align columns, toggle full width, remove or restore the header row, and add a total row (column sums, set apart). <kbd>Tab</kbd> moves between cells and adds a row from the last one. Drag a column's border to resize it; widths are saved in a comment that GitHub and other renderers hide.

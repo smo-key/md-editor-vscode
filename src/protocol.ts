@@ -51,6 +51,14 @@ export interface LucidchartConfig {
  * A file dropped from VS Code's Explorer, as the document should reference it:
  * linked where it is when in the document's workspace folder, else a copy.
  */
+/** A file the @ menu offers: its path relative to the document, unencoded. */
+export interface FileHit {
+  path: string;
+  name: string;
+  /** Its folder, relative to the workspace ("" at the top). */
+  dir: string;
+}
+
 export interface LinkedUri {
   /** Path relative to the document (unencoded), or the URI when not relative. */
   path: string;
@@ -84,6 +92,8 @@ export type HostMessage =
   | { type: "diagramCreated"; id: number; path?: string; error?: string }
   /** The clipboard's text, for Paste as Plain Text. */
   | { type: "clipboardText"; id: number; text: string }
+  /** Files for the @ menu, best match first. */
+  | { type: "filesFound"; id: number; items: FileHit[] }
   | { type: "flush"; id: number }
   /** A collaboration session began for this editor (collab.ts): `seed` fills the empty shared document. */
   | { type: "collabStart"; seed: boolean; state: Uint8Array; awareness: Uint8Array; name: string }
@@ -152,6 +162,8 @@ export type WebviewMessage =
   | { type: "createDiagram"; id: number }
   /** Read the clipboard's text (a webview can't read it itself). */
   | { type: "readClipboard"; id: number }
+  /** Search the workspace's files by name for the @ menu (webview/fileMention.ts). */
+  | { type: "findFiles"; id: number; query: string }
   /** Open this standalone page of the document in the browser, to print it. */
   | { type: "print"; html: string; name: string }
   | { type: "openFile"; path: string }

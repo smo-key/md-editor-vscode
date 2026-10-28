@@ -33,6 +33,7 @@ import { htmlViewPlugin, inlineHtmlPlugin } from "./markdown/htmlView";
 import { vscodeCodeTheme } from "./codeTheme";
 import { fileDropPlugin, type FileDropOptions } from "./fileDrop";
 import { slashMenuPlugin } from "./slashMenu";
+import { fileMentionPlugin, type FileMentionOptions } from "./fileMention";
 import { useTaskHandle } from "./taskHandle";
 import { headingLevelKeys, tableCellClickFix, tableKeys } from "./tableKeys";
 import { columnResizePlugin } from "./tableResize";
@@ -68,6 +69,8 @@ export interface EditorOptions {
   lucid?: LucidOptions;
   /** Heading numbers (markdown/headingNumbers.ts): the current setting, read at each rebuild. */
   headingNumbers?: () => HeadingNumbersConfig | undefined;
+  /** The @ menu's file search (fileMention.ts); no @ menu without it. */
+  fileMention?: FileMentionOptions;
   /** The image context menu's Show in Finder / Explorer (markdown/imageMenu.ts); left out without it. */
   imageMenu?: ImageMenuOptions;
   /** "Heading numbering…" in a heading's context menu; the item is left out without it. */
@@ -174,6 +177,7 @@ export function buildEditor(options: EditorOptions): Crepe {
   crepe.editor.use(htmlViewPlugin(options.proxyDomURL));
   crepe.editor.use(inlineHtmlPlugin);
   crepe.editor.use(slashMenuPlugin);
+  if (options.fileMention) crepe.editor.use(fileMentionPlugin(options.fileMention));
   // After the menu: while it is open, Enter runs its highlighted item.
   crepe.editor.use(slashShortcutKeys);
   crepe.editor.use(tableKeys);

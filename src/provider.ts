@@ -314,6 +314,13 @@ class EditorSession {
           this.post({ type: "diagramCreated", id: m.id, error: String(err) });
         }
         return;
+      case "revealFile":
+        try {
+          await vscode.commands.executeCommand(m.where === "os" ? "revealFileInOS" : "revealInExplorer", this.inRoot(m.path));
+        } catch (err) {
+          void vscode.window.showWarningMessage(`Ken Markdown: cannot show ${m.path}: ${err}`);
+        }
+        return;
       case "openFile":
         try {
           await openFile(this.inRoot(m.path));

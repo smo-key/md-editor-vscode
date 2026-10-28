@@ -155,6 +155,8 @@ export type WebviewMessage =
   /** Open this standalone page of the document in the browser, to print it. */
   | { type: "print"; html: string; name: string }
   | { type: "openFile"; path: string }
+  /** Show a file (root-relative, as `openFile`) in the OS file manager or VS Code's Explorer. */
+  | { type: "revealFile"; path: string; where: "os" | "explorer" }
   | { type: "openLink"; href: string }
   | { type: "openWikiLink"; target: string }
   /**

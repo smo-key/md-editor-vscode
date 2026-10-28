@@ -65,7 +65,7 @@ import type { EditorConfig, HostMessage, TestAction, WebviewMessage } from "../s
 import "@milkdown/crepe/theme/common/style.css";
 import "katex/dist/katex.min.css";
 import { isHostMessage } from "./hostMessage";
-import { applyTypography } from "./theme";
+import { applyTypography, trackScreenHeight } from "./theme";
 import "@milkdown/crepe/theme/frame.css";
 import "./markdown/githubAlert.css";
 import "./styles.css";
@@ -601,6 +601,13 @@ async function createEditor(text: string) {
       openLink: (href) => post({ type: "openLink", href }),
     },
     headingNumbers: () => effectiveNumbering(),
+    imageMenu: {
+      isLocal: (src) => resolveSrc(docPath, src) !== null,
+      reveal: (src, where) => {
+        const path = resolveSrc(docPath, src);
+        if (path) post({ type: "revealFile", path, where });
+      },
+    },
     onHeadingNumbering: () => openNumberingDialog(),
   });
   crepe.editor.use(changePlugin);
@@ -812,6 +819,7 @@ function runTest(action: TestAction): unknown {
 
 // Keys VS Code owns (see keys.ts), and focus, which scopes those keybindings
 // to this editor (`kenMarkdown.editorFocused`).
+trackScreenHeight();
 installKeyRouting(window, (id) => {
   const cmd = COMMANDS.find((c) => c.id === id);
   return !!cmd && !!view && (cmd.isEnabled ? cmd.isEnabled(view.state) : true);

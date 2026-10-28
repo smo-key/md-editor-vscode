@@ -18,6 +18,7 @@ import { wikiLinkPlugin, type LinkClick } from "./markdown/wikiLinks";
 import { lucidPlugin, type LucidOptions } from "./markdown/lucid";
 import type { HeadingNumbersConfig } from "../src/headingNumbers";
 import { tableContextMenu } from "./markdown/tableMenu";
+import { imageContextMenu, type ImageMenuOptions } from "./markdown/imageMenu";
 import { tableFullWidthPlugins } from "./markdown/tableFullWidth";
 import { tocPlugins } from "./markdown/toc";
 import { tableLayoutPlugin } from "./markdown/tableLayout";
@@ -66,6 +67,8 @@ export interface EditorOptions {
   lucid?: LucidOptions;
   /** Heading numbers (markdown/headingNumbers.ts): the current setting, read at each rebuild. */
   headingNumbers?: () => HeadingNumbersConfig | undefined;
+  /** The image context menu's Show in Finder / Explorer (markdown/imageMenu.ts); left out without it. */
+  imageMenu?: ImageMenuOptions;
   /** "Heading numbering…" in a heading's context menu; the item is left out without it. */
   onHeadingNumbering?: () => void;
 }
@@ -157,6 +160,7 @@ export function buildEditor(options: EditorOptions): Crepe {
   crepe.editor.use(blockExitPlugin);
   crepe.editor.use(drawioPlugin);
   crepe.editor.use(tableContextMenu);
+  crepe.editor.use(imageContextMenu(options.imageMenu));
   // After Crepe's image block feature: replaces its schema by name.
   crepe.editor.use(imageBlockAltSchema);
   // Cells hold paragraphs and lists, written as `<br>` and inline HTML lists.

@@ -25,3 +25,14 @@ export function applyTypography(config: EditorConfig): void {
   // Tabs typed in paragraphs (markdown/plainTab.ts) are editor.tabSize wide.
   root.setProperty("--md-tab-size", String(tabSizeValue(config.tabSize)));
 }
+
+/**
+ * `--ken-screen-height`: the height of the screen the window is on (not the
+ * window's), which images in the document are capped at half of. Re-read on
+ * resize, which also fires when the window moves to another screen.
+ */
+export function trackScreenHeight(win: Window = window): void {
+  const set = () => win.document.documentElement.style.setProperty("--ken-screen-height", `${win.screen.height}px`);
+  set();
+  win.addEventListener("resize", set);
+}

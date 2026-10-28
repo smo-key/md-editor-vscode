@@ -6,9 +6,14 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 
 ### Added
 
-- Zoom in on images and Mermaid diagrams: clicking one opens it fitted to the window; pinch or scroll to zoom around the pointer (+, − and 0 work too), drag to pan, and click the picture to switch between fitted and 100%. A clear × in the top right corner (or Esc, or a click outside the picture) closes it.
+- Zoom in on images and Mermaid diagrams: clicking one opens it fitted to the window, over a darkened page; pinch or scroll to zoom around the pointer (+, − and 0 work too), drag to pan, and click the picture to switch between fitted and 100%. A clear × in the top right corner (or Esc, or a click outside the picture) closes it.
 - **Print** (toolbar, the editor's title bar, or the command palette): opens the document in your default browser exactly as the editor shows it (theme, fonts, diagrams, math and images included) and brings up the print dialog, so you can print it or save it as a PDF.
+- Right-click an image for **Add caption** / **Remove caption**, **Show in Finder** (File Explorer on Windows), **Show in Explorer**, and **Delete image**.
 - **Compare in Ken Markdown**: any two Markdown files rendered side by side or in one column, in red and green (select two files in the Explorer, or run it from the command palette and pick the second). Diffs of Markdown files that VS Code opens (Source Control, Compare Selected, the Timeline) now open rendered here too, with a **Text diff** button for the source; set `kenMarkdown.diff.openMarkdownDiffs` to `text` to keep VS Code's text diffs.
+
+### Changed
+
+- Images in the document are at most half as tall as your screen, keeping their proportions, and are centred.
 
 ## [0.7.0] - 2026-10-27
 

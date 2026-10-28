@@ -30,7 +30,9 @@ import { buildEditor } from "./editorSetup";
 import { splitDocument } from "./frontmatterModel";
 import { splitThreads } from "./comments/store";
 import { diffBlocks, layoutDiff, type DiffMark, type DiffSide } from "./diffModel";
-import { applyTypography } from "./theme";
+import { applyTypography, trackScreenHeight } from "./theme";
+
+trackScreenHeight();
 import { isHostMessage } from "./hostMessage";
 import type { DiffContent, DiffHostMessage, DiffLayoutMode, DiffWebviewMessage } from "../src/protocol";
 

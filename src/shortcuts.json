@@ -262,6 +262,12 @@
       "alias": true
     },
     {
+      "command": "kenMarkdown.print",
+      "editor": "print",
+      "title": "Print",
+      "icon": "$(print)"
+    },
+    {
       "command": "kenMarkdown.pastePlain",
       "editor": "paste-plain",
       "title": "Paste as Plain Text",

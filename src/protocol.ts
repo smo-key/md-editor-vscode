@@ -152,6 +152,8 @@ export type WebviewMessage =
   | { type: "createDiagram"; id: number }
   /** Read the clipboard's text (a webview can't read it itself). */
   | { type: "readClipboard"; id: number }
+  /** Open this standalone page of the document in the browser, to print it. */
+  | { type: "print"; html: string; name: string }
   | { type: "openFile"; path: string }
   | { type: "openLink"; href: string }
   | { type: "openWikiLink"; target: string }

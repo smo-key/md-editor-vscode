@@ -7,6 +7,7 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 ### Added
 
 - Zoom in on images and Mermaid diagrams: clicking one opens it fitted to the window; pinch or scroll to zoom around the pointer (+, − and 0 work too), drag to pan, and click the picture to switch between fitted and 100%. A clear × in the top right corner (or Esc, or a click outside the picture) closes it.
+- **Print** (toolbar, the editor's title bar, or the command palette): opens the document in your default browser exactly as the editor shows it (theme, fonts, diagrams, math and images included) and brings up the print dialog, so you can print it or save it as a PDF.
 
 ## [0.7.0] - 2026-10-27
 

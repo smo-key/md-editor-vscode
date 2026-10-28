@@ -58,7 +58,8 @@ import { CommentsPanel } from "./comments/panel";
 import { joinDocument, propertyValue, splitDocument } from "./frontmatterModel";
 import { inEditorText, installKeyRouting, setBoundKeys } from "./keys";
 import { onLastHeadingLevel, setLastHeadingLevel } from "./headingControl";
-import { COMMANDS, command, execute, setClipboardReader, setShortcutLabels } from "./commands";
+import { COMMANDS, command, execute, setClipboardReader, setPrintHandler, setShortcutLabels } from "./commands";
+import { printablePage } from "./print";
 import { closeShortcutsPanel, initShortcutsPanel, isShortcutsPanelOpen, toggleShortcutsPanel } from "./shortcutsPanel";
 import type { EditorConfig, HostMessage, TestAction, WebviewMessage } from "../src/protocol";
 import "@milkdown/crepe/theme/common/style.css";
@@ -347,6 +348,14 @@ function request<T extends HostMessage>(build: (id: number) => WebviewMessage): 
 setClipboardReader(async () =>
   (await request<Extract<HostMessage, { type: "clipboardText" }>>((id) => ({ type: "readClipboard", id }))).text,
 );
+
+setPrintHandler(() => {
+  const name = docPath.slice(docPath.lastIndexOf("/") + 1) || "Document";
+  void printablePage(host, name).then(
+    (html) => post({ type: "print", html, name }),
+    (err) => post({ type: "error", message: `print: ${err}` }),
+  );
+});
 
 // --- Attachments -----------------------------------------------------------------
 // Pasted or dropped files are written beside the document by the host and

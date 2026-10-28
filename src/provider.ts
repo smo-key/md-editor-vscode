@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import * as os from "os";
 import * as path from "path";
 import type {
   EditorConfig,
@@ -281,6 +282,9 @@ class EditorSession {
         this.post({ type: "resolved", id: m.id, url: this.panel.webview.asWebviewUri(uri).toString() });
         return;
       }
+      case "print":
+        await this.print(m.html, m.name);
+        return;
       case "readClipboard":
         this.post({ type: "clipboardText", id: m.id, text: await vscode.env.clipboard.readText() });
         return;
@@ -644,6 +648,18 @@ class EditorSession {
         change.text,
       ),
     ];
+  }
+
+  /** Write the page to a temporary file and open it in the default browser, which prints it. */
+  private async print(html: string, name: string): Promise<void> {
+    const safe = name.replace(/\.(md|markdown)$/i, "").replace(/[^\w.-]+/g, "-").slice(0, 60) || "document";
+    const file = vscode.Uri.file(path.join(os.tmpdir(), `ken-print-${safe}-${Date.now()}.html`));
+    try {
+      await vscode.workspace.fs.writeFile(file, Buffer.from(html, "utf8"));
+      await this.host.openExternal(file.toString());
+    } catch (err) {
+      void vscode.window.showErrorMessage(`Ken Markdown: could not open the page to print: ${err}`);
+    }
   }
 
   private setFocused(focused: boolean) {

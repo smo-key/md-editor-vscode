@@ -12,7 +12,7 @@ export function contributions(shortcuts) {
   for (const s of shortcuts) {
     if (!seen.has(s.command)) {
       seen.add(s.command);
-      commands.push({ command: s.command, title: s.title, category: "Ken Markdown" });
+      commands.push({ command: s.command, title: s.title, category: "Ken Markdown", ...(s.icon ? { icon: s.icon } : {}) });
     }
     if (s.key) keybindings.push({ command: s.command, key: s.key, mac: s.mac ?? s.key, when: FOCUS_WHEN });
   }

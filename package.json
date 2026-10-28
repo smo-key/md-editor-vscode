@@ -320,6 +320,12 @@
         "category": "Ken Markdown"
       },
       {
+        "command": "kenMarkdown.print",
+        "title": "Print",
+        "category": "Ken Markdown",
+        "icon": "$(print)"
+      },
+      {
         "command": "kenMarkdown.pastePlain",
         "title": "Paste as Plain Text",
         "category": "Ken Markdown"
@@ -439,6 +445,11 @@
         },
         {
           "command": "kenMarkdown.openDiff",
+          "when": "activeCustomEditorId == kenMarkdown.editor",
+          "group": "navigation"
+        },
+        {
+          "command": "kenMarkdown.print",
           "when": "activeCustomEditorId == kenMarkdown.editor",
           "group": "navigation"
         },
@@ -639,6 +650,10 @@
         },
         {
           "command": "kenMarkdown.redo",
+          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+        },
+        {
+          "command": "kenMarkdown.print",
           "when": "activeCustomEditorId == 'kenMarkdown.editor'"
         },
         {

@@ -369,6 +369,24 @@ describe("Ken Markdown Editor", function () {
       await until("pasted", () => doc.getText(), (t) => t.includes("Plain\\*\\*x\\*\\*"));
     });
 
+    it("prints: opens a standalone page of the document in the browser", async () => {
+      const uri = fixture("move.md");
+      await openEditor(uri);
+      const before = ((await vscode.commands.executeCommand<string[]>("kenMarkdown._testExternalOpened")) ?? []).length;
+      await vscode.commands.executeCommand("kenMarkdown.print");
+      const opened = await until(
+        "page opened",
+        () => vscode.commands.executeCommand<string[]>("kenMarkdown._testExternalOpened"),
+        (urls) => urls.length > before,
+      );
+      const page = vscode.Uri.parse(opened[opened.length - 1]!);
+      assert.match(page.path, /ken-print-move-\d+\.html$/);
+      const html = Buffer.from(await vscode.workspace.fs.readFile(page)).toString("utf8");
+      assert.ok(html.includes("window.print()"), "brings up the print dialog");
+      assert.ok(/>two</.test(html), "has the document's text");
+      assert.ok(!/<[^>]*\scontenteditable="/.test(html), "is not editable");
+    });
+
     it("opens a file's changes in the diff view", async () => {
       const uri = fixture("move.md");
       await openEditor(uri);

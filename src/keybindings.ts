@@ -14,6 +14,8 @@ export interface ShortcutDef {
   key?: string;
   mac?: string;
   alias?: boolean;
+  /** Codicon for menus, e.g. "$(print)". */
+  icon?: string;
 }
 
 export const SHORTCUTS = (shortcutsJson as { shortcuts: ShortcutDef[] }).shortcuts;

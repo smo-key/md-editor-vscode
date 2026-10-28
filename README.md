@@ -121,6 +121,10 @@ How guests reach you:
 
 Your own VS Code writes the file. One editor per copy of the file saves the shared text, so Live Share guests editing your files don't write them twice, and people in their own checkout keep their own copy up to date. <kbd>⌘Z</kbd> undoes only your own changes. **Ken Markdown: Leave Collaboration Session** (or the *Collaborating* status bar item) ends it, and everyone keeps editing on their own.
 
+### Print
+
+**Print** (the printer button in the toolbar or the editor's title bar, or the command palette) opens the document in your default browser exactly as the editor shows it, theme, fonts, diagrams, math and images included, and brings up the print dialog. Print it, or choose *Save as PDF*.
+
 ### See what changed
 
 **Open Changes in Ken Markdown** (the compare icon in the editor's title bar, a Markdown file's context menu in Source Control, the title bar of a text diff, or the command palette) shows a file's changes since the last commit rendered, not as Markdown source: added blocks in green, removed ones in red, and the words that changed inside an edited block highlighted. Switch between **Combined** (both versions in one column) and **Split** (side by side, scrolled together) at the top, and step through the changes with ↑/↓ (or Alt+↑/↓). The view follows your edits, unsaved ones included. Set the default with `kenMarkdown.diff.layout`.

@@ -98,6 +98,7 @@ import {
   PanelTop,
   PanelBottom,
   ClipboardPaste,
+  Printer,
   ChevronsUp,
   ChevronsDown,
   CopyPlus,
@@ -334,6 +335,15 @@ function insertLink(view: EditorView, ctx: Ctx) {
     view.dispatch(tr.setSelection(TextSelection.create(tr.doc, from, from + text.length)));
   }
   call(ctx, toggleLinkCommand.key);
+}
+
+// --- Print ----------------------------------------------------------------------------
+
+let printHandler: () => void = () => window.print();
+
+/** What Print does (main.ts: a page for the browser, through the host). */
+export function setPrintHandler(handler: () => void): void {
+  printHandler = handler;
 }
 
 // --- Paste as plain text ---------------------------------------------------------
@@ -810,6 +820,17 @@ export const COMMANDS: EditorCommand[] = [
       if (tr) view.dispatch(tr);
     },
     isEnabled: (state) => !!duplicateUnitTr(state),
+  },
+
+  {
+    id: "print",
+    label: "Print",
+    icon: Printer,
+    group: "edit",
+    keywords: ["print", "pdf", "export"],
+    toolbar: true,
+    keepFocus: true,
+    run: () => printHandler(),
   },
 
   // Block types

@@ -61,6 +61,10 @@ Cells can hold several lines and lists: <kbd>Shift+Enter</kbd> (or <kbd>Alt+Ente
 
 Paste a block of cells (from a table, Excel, Google Sheets, or CSV/TSV text) and it fills the cells from the caret onward, growing the table as needed; one value pasted over several selected cells goes into each. Spreadsheet or CSV data pasted outside a table becomes a new table. <kbd>⇧⌘V</kbd> (<kbd>Ctrl+Shift+V</kbd>) pastes plain text in the formatting at the caret.
 
+### Images and diagrams up close
+
+Click an image or a Mermaid diagram to open it over the page, fitted to the window. Pinch or scroll to zoom around the pointer (or press <kbd>+</kbd> / <kbd>−</kbd>, and <kbd>0</kbd> to fit again), drag to move around, and click the picture to switch between fitted and 100%. Close it with the × in the top right corner, <kbd>Esc</kbd>, or a click outside the picture.
+
 ### Diagrams
 
 - **Mermaid** diagrams render live from ` ```mermaid ` fences, themed to match your editor. Click one to zoom.

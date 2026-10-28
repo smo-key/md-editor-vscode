@@ -23,6 +23,7 @@ import { tableFullWidthPlugins } from "./markdown/tableFullWidth";
 import { tocPlugins } from "./markdown/toc";
 import { tableLayoutPlugin } from "./markdown/tableLayout";
 import { tableCellBlockSchemas } from "./markdown/tableCellBlocks";
+import { autolinkEnter, autolinkInputPlugin } from "./markdown/autolink";
 import { configureListDelimiter, listStylePlugins } from "./markdown/listStyles";
 import { listJoinPlugin } from "./markdown/listJoin";
 import { imageBlockAltSchema, tightListJoin } from "./markdown/gfmFidelity";
@@ -182,6 +183,9 @@ export function buildEditor(options: EditorOptions): Crepe {
   crepe.editor.use(blockSelectionPlugin);
   crepe.editor.use(stableTableView);
   crepe.editor.config(blockSelectionKeys);
+  // Typed URLs become links when finished (markdown/autolink.ts).
+  crepe.editor.use(autolinkInputPlugin);
+  crepe.editor.config(autolinkEnter);
   // After every other view-level key handler, so it wraps them and runs first.
   crepe.editor.config(keySelectionSync);
   useTaskHandle(crepe.editor);

@@ -89,6 +89,12 @@
         "icon": "$(git-compare)"
       },
       {
+        "command": "kenMarkdown.compare",
+        "title": "Compare in Ken Markdown",
+        "category": "Ken Markdown",
+        "icon": "$(diff)"
+      },
+      {
         "command": "kenMarkdown.collaboration.start",
         "title": "Start Collaboration Session",
         "category": "Ken Markdown",
@@ -459,7 +465,7 @@
           "group": "navigation"
         },
         {
-          "command": "kenMarkdown.openDiff",
+          "command": "kenMarkdown.compare",
           "when": "isInDiffEditor && resourceLangId == markdown",
           "group": "navigation"
         }
@@ -469,6 +475,11 @@
           "command": "kenMarkdown.openEditor",
           "when": "resourceExtname == .md || resourceExtname == .markdown",
           "group": "navigation"
+        },
+        {
+          "command": "kenMarkdown.compare",
+          "when": "listDoubleSelection && (resourceExtname == .md || resourceExtname == .markdown)",
+          "group": "3_compare"
         }
       ],
       "commandPalette": [
@@ -483,6 +494,10 @@
         {
           "command": "kenMarkdown.openDiff",
           "when": "editorLangId == markdown || activeCustomEditorId == kenMarkdown.editor"
+        },
+        {
+          "command": "kenMarkdown.compare",
+          "when": "editorLangId == markdown || activeCustomEditorId == kenMarkdown.editor || isInDiffEditor"
         },
         {
           "command": "kenMarkdown.collaboration.copyInvite",
@@ -830,6 +845,19 @@
           ],
           "default": "combined",
           "markdownDescription": "How **Open Changes in Ken Markdown** shows a file's changes since the last commit. Either can be switched in the view itself."
+        },
+        "kenMarkdown.diff.openMarkdownDiffs": {
+          "type": "string",
+          "enum": [
+            "ken",
+            "text"
+          ],
+          "enumDescriptions": [
+            "Diffs of Markdown files (Source Control, Compare Selected, the Timeline) open rendered in the Ken Markdown diff view.",
+            "They open in VS Code's text diff editor; the Ken view is one click away in its title bar."
+          ],
+          "default": "ken",
+          "markdownDescription": "Where diffs of two Markdown files open. The rendered view has a **Text diff** button for the source."
         },
         "kenMarkdown.headingNumbers.enabled": {
           "type": "boolean",

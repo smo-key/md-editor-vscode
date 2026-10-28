@@ -88,10 +88,11 @@ const next = button("↓", "Next change", () => step(1));
 const combinedBtn = button("Combined", "Both versions in one column", () => setLayout("combined"));
 const splitBtn = button("Split", "The two versions side by side", () => setLayout("split"));
 const openBtn = button("Open file", "Open the file in the editor", () => post({ type: "openFile" }));
+const textBtn = button("Text diff", "Compare the Markdown source in VS Code's diff editor", () => post({ type: "openTextDiff" }));
 const toggle = document.createElement("span");
 toggle.className = "ken-diff-toggle";
 toggle.append(combinedBtn, splitBtn);
-bar.append(title, stats, spacer, prev, next, toggle, openBtn);
+bar.append(title, stats, spacer, prev, next, toggle, textBtn, openBtn);
 
 const panes = document.createElement("div");
 panes.className = "ken-diff-panes";

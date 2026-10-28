@@ -129,6 +129,8 @@ Your own VS Code writes the file. One editor per copy of the file saves the shar
 
 **Open Changes in Ken Markdown** (the compare icon in the editor's title bar, a Markdown file's context menu in Source Control, the title bar of a text diff, or the command palette) shows a file's changes since the last commit rendered, not as Markdown source: added blocks in green, removed ones in red, and the words that changed inside an edited block highlighted. Switch between **Combined** (both versions in one column) and **Split** (side by side, scrolled together) at the top, and step through the changes with ↑/↓ (or Alt+↑/↓). The view follows your edits, unsaved ones included. Set the default with `kenMarkdown.diff.layout`.
 
+To compare any two Markdown files, select both in the Explorer and choose **Compare in Ken Markdown**, or run it from the command palette and pick the second file. Diffs of Markdown files that VS Code opens (Source Control, **Compare Selected**, the Timeline) open here too, rendered; **Text diff** at the top shows the source in VS Code's diff editor instead. To keep VS Code's text diffs, set `kenMarkdown.diff.openMarkdownDiffs` to `text`.
+
 ### Looks the way you want
 
 Typography is set for long-form reading, with Hanken Grotesk, Newsreader and JetBrains Mono bundled. Every font, the text size, line height and column width are adjustable in settings.
@@ -175,6 +177,7 @@ Every editing action is a VS Code command, so you can change, remove or add keys
 | `kenMarkdown.headingSpacingAfter` | `0.55` | Space below headings, in em of each heading's own size. |
 | `kenMarkdown.maxWidth` | `720` | Width of the text column in px. |
 | `kenMarkdown.diff.layout` | `combined` | How **Open Changes in Ken Markdown** shows changes: `combined` (one column) or `split` (side by side). |
+| `kenMarkdown.diff.openMarkdownDiffs` | `ken` | Where diffs of two Markdown files open: rendered in the Ken Markdown diff view (`ken`) or in VS Code's text diff editor (`text`). |
 | `kenMarkdown.headingNumbers.enabled` | `false` | Show a grey number inline before each heading's text (`1`, `1.a`, `Section 1.01`…) and before each table of contents entry. Display only: it can't be selected, edited or copied, and is never written to the file. Headings inside quotes, alerts, lists and tables aren't numbered; a skipped level (H2 then H4) is left out, not shown as 0. |
 | `kenMarkdown.headingNumbers.preset` | `custom` | `outline` (1, 1.a, 1.a.i…), `decimal` (1, 1.1, 1.1.1…), `legal` (1.1.1, then (a), (i), (A)), `legal-full` (1.1.1, then 1.1.1(a), 1.1.1(a)(i), 1.1.1(a)(i)(A)), `legal-article` (Article I, Section 1.01, (a), (i), (A), (1)), `legal-article-full` (Article I, Section 1.01, then 1.01(a), 1.01(a)(i), 1.01(a)(i)(A), 1.01(a)(i)(A)(1)), or `custom` for the per-level settings below. A preset other than `custom` overrides them. |
 | `kenMarkdown.headingNumbers.h1` … `h6` | `decimal`, `lower-alpha`, `lower-roman`, `decimal`, `lower-alpha`, `lower-roman` | Style per level: `decimal` (1), `decimal-leading-zero` (01), `lower-alpha` (a), `upper-alpha` (A), `lower-roman` (i), `upper-roman` (I), parenthesized `parenthesized-decimal` (1) … `parenthesized-upper-roman` (I), right-paren `decimal-paren` 1) … `upper-roman-paren` I), or `none` (not numbered, and left out of deeper headings' numbers). |

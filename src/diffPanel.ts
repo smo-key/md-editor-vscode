@@ -1,9 +1,16 @@
 /**
- * "Open Changes in Ken Markdown": a Markdown file's changes since the last
- * commit, rendered (webview/diff.ts) instead of as a text diff. Opened from
- * the editor's title bar, a text diff of a Markdown file, the Source Control
- * view, or the command palette. The view follows the document as it is edited
- * (unsaved changes included) and the repository as commits move HEAD.
+ * The rendered diff view (webview/diff.ts), for two kinds of comparison:
+ *
+ * - "Open Changes in Ken Markdown": a Markdown file's changes since the last
+ *   commit. Opened from the editor's title bar, the Source Control view, or
+ *   the command palette; follows the repository as commits move HEAD.
+ * - "Compare in Ken Markdown": any two Markdown files (or versions of one,
+ *   such as the two sides of a text diff, which can be `git:` documents).
+ *   Opened from a text diff's title bar, two files selected in the Explorer,
+ *   or the command palette (which asks for the second file).
+ *
+ * Either way the view follows the documents as they are edited, unsaved
+ * changes included.
  */
 import * as vscode from "vscode";
 import * as path from "path";
@@ -28,6 +35,60 @@ async function gitRepository(uri: vscode.Uri): Promise<Repository | null> {
   } catch {
     return null;
   }
+}
+
+/** What to compare: a file against its last commit, or two documents. */
+export type DiffSource = { kind: "head"; uri: vscode.Uri } | { kind: "pair"; old: vscode.Uri; new: vscode.Uri };
+
+const isMarkdown = (uri: vscode.Uri) => /\.(md|markdown)$/i.test(uri.path);
+
+/** A short name for a document in labels: its workspace-relative path, plus the ref for a `git:` one. */
+function describe(uri: vscode.Uri): string {
+  if (uri.scheme === "git") {
+    try {
+      const q = JSON.parse(uri.query) as { path?: string; ref?: string };
+      const file = q.path ? vscode.workspace.asRelativePath(vscode.Uri.file(q.path)) : uri.path;
+      const ref = q.ref === "~" ? "Index" : q.ref === "" || q.ref === undefined ? "HEAD" : q.ref.length > 12 ? q.ref.slice(0, 7) : q.ref;
+      return `${file} (${ref})`;
+    } catch {
+      // Fall through.
+    }
+  }
+  return vscode.workspace.asRelativePath(uri);
+}
+
+/**
+ * What a "Compare in Ken Markdown" invocation compares: the two files selected
+ * in the Explorer (`uris`), or the two sides of the active text diff.
+ */
+export function pairFrom(arg: unknown, uris: unknown): { old: vscode.Uri; new: vscode.Uri } | undefined {
+  if (Array.isArray(uris) && uris.length === 2 && uris.every((u) => u instanceof vscode.Uri)) {
+    return { old: uris[0] as vscode.Uri, new: uris[1] as vscode.Uri };
+  }
+  const tab = vscode.window.tabGroups.activeTabGroup.activeTab?.input;
+  if (tab instanceof vscode.TabInputTextDiff && (!(arg instanceof vscode.Uri) || arg.toString() === tab.modified.toString())) {
+    return { old: tab.original, new: tab.modified };
+  }
+  return undefined;
+}
+
+/**
+ * A text diff this view can show instead: both sides Markdown files or their
+ * versions in git (Source Control, Compare Selected, Timeline). Diffs other
+ * tools open with their own schemes (e.g. AI edit reviews) are left alone.
+ */
+export function isReplaceableDiff(original: vscode.Uri, modified: vscode.Uri): boolean {
+  const ok = (u: vscode.Uri) => {
+    if (u.scheme === "git") {
+      try {
+        return isMarkdown(vscode.Uri.file((JSON.parse(u.query) as { path?: string }).path ?? u.path));
+      } catch {
+        return isMarkdown(u);
+      }
+    }
+    return (u.scheme === "file" || u.scheme === "untitled" || u.scheme === "vscode-remote") && isMarkdown(u);
+  };
+  return ok(original) && ok(modified);
 }
 
 /** The file a command argument (or, without one, the active tab) is about. */
@@ -67,22 +128,27 @@ class DiffPanel {
   private oldText = "";
   private ready = false;
   private timer: ReturnType<typeof setTimeout> | undefined;
+  /** The document shown as the newer version (opened by "Open file", relative images). */
+  private readonly uri: vscode.Uri;
 
   constructor(
-    readonly uri: vscode.Uri,
+    private readonly source: DiffSource,
     readonly panel: vscode.WebviewPanel,
     private readonly extensionUri: vscode.Uri,
     private layout: DiffLayoutMode,
     onDispose: () => void,
+    private readonly openTextDiff: (old: vscode.Uri, uri: vscode.Uri, title: string) => void,
   ) {
-    const dir = vscode.Uri.joinPath(uri, "..");
-    const roots = [vscode.Uri.joinPath(extensionUri, "dist"), dir, ...(vscode.workspace.workspaceFolders ?? []).map((f) => f.uri)];
+    const uri = (this.uri = source.kind === "head" ? source.uri : source.new);
+    const watched = source.kind === "head" ? [uri] : [source.old, source.new];
+    const dirs = watched.filter((u) => u.scheme === "file").map((u) => vscode.Uri.joinPath(u, ".."));
+    const roots = [vscode.Uri.joinPath(extensionUri, "dist"), ...dirs, ...(vscode.workspace.workspaceFolders ?? []).map((f) => f.uri)];
     panel.webview.options = { enableScripts: true, localResourceRoots: roots };
     panel.webview.html = this.html();
     this.disposables.push(
       panel.webview.onDidReceiveMessage((m: DiffWebviewMessage) => this.onMessage(m)),
       vscode.workspace.onDidChangeTextDocument((e) => {
-        if (e.document.uri.toString() === uri.toString()) this.schedule(false);
+        if (watched.some((w) => w.toString() === e.document.uri.toString())) this.schedule(false);
       }),
       vscode.workspace.onDidChangeConfiguration((e) => {
         if (e.affectsConfiguration("kenMarkdown", uri)) this.post({ type: "config", config: readConfig(uri) });
@@ -106,6 +172,17 @@ class DiffPanel {
   }
 
   private async content(head: boolean): Promise<DiffContent> {
+    if (this.source.kind === "pair") {
+      const read = async (u: vscode.Uri) => {
+        try {
+          return (await vscode.workspace.openTextDocument(u)).getText();
+        } catch {
+          return "";
+        }
+      };
+      const [oldText, newText] = await Promise.all([read(this.source.old), read(this.source.new)]);
+      return { oldText, newText, oldLabel: describe(this.source.old), newLabel: describe(this.source.new) };
+    }
     if (head || !this.repo) {
       this.repo ??= await gitRepository(this.uri);
       try {
@@ -135,7 +212,7 @@ class DiffPanel {
       case "diffReady": {
         const content = await this.content(true);
         this.ready = true;
-        if (this.repo) this.disposables.push(this.repo.state.onDidChange(() => this.schedule(true)));
+        if (this.repo && this.source.kind === "head") this.disposables.push(this.repo.state.onDidChange(() => this.schedule(true)));
         const base = this.panel.webview.asWebviewUri(vscode.Uri.joinPath(this.uri, "..")).toString() + "/";
         this.post({ type: "diffInit", config: readConfig(this.uri), layout: this.layout, base, ...content });
         return;
@@ -143,6 +220,14 @@ class DiffPanel {
       case "diffLayout":
         this.layout = m.layout;
         return;
+      case "openTextDiff": {
+        const old =
+          this.source.kind === "pair"
+            ? this.source.old
+            : this.uri.with({ scheme: "git", query: JSON.stringify({ path: this.uri.fsPath, ref: "HEAD" }) });
+        this.openTextDiff(old, this.uri, this.panel.title);
+        return;
+      }
       case "openFile":
         await vscode.commands.executeCommand("vscode.open", this.uri);
         return;
@@ -186,28 +271,95 @@ class DiffPanel {
 export class DiffPanels implements vscode.Disposable {
   private readonly open = new Map<string, DiffPanel>();
 
-  constructor(private readonly context: vscode.ExtensionContext) {}
+  /** Text diffs opened on purpose ("Text diff" in the view), not to be replaced. */
+  private readonly keepText = new Set<string>();
 
+  constructor(private readonly context: vscode.ExtensionContext) {
+    // Markdown diffs open here instead of as text (kenMarkdown.diff.openMarkdownDiffs).
+    context.subscriptions.push(
+      vscode.window.tabGroups.onDidChangeTabs((e) => {
+        for (const tab of e.closed) {
+          if (tab.input instanceof vscode.TabInputTextDiff) this.keepText.delete(`${tab.input.original}|${tab.input.modified}`);
+        }
+        void this.takeOver([...e.opened, ...e.changed]);
+      }),
+    );
+  }
+
+  /** Replace text diffs of two Markdown documents with this view. */
+  private async takeOver(tabs: readonly vscode.Tab[]): Promise<void> {
+    for (const tab of tabs) {
+      const input = tab.input;
+      if (!(input instanceof vscode.TabInputTextDiff) || !isReplaceableDiff(input.original, input.modified)) continue;
+      const key = `${input.original}|${input.modified}`;
+      if (this.keepText.has(key)) continue;
+      const setting = vscode.workspace.getConfiguration("kenMarkdown", input.modified).get<string>("diff.openMarkdownDiffs", "ken");
+      if (setting !== "ken") continue;
+      const column = tab.group.viewColumn;
+      await vscode.window.tabGroups.close(tab, true);
+      this.open_({ kind: "pair", old: input.original, new: input.modified }, column);
+    }
+  }
+
+  private openTextDiff(old: vscode.Uri, uri: vscode.Uri, title: string) {
+    const key = `${old}|${uri}`;
+    this.keepText.add(key);
+    void vscode.commands.executeCommand("vscode.diff", old, uri, `${title} (Text)`);
+  }
+
+  /** A file's changes since the last commit. */
   async show(arg?: unknown): Promise<void> {
     const uri = targetUri(arg);
-    if (!uri || !/\.(md|markdown)$/i.test(uri.path)) {
+    if (!uri || !isMarkdown(uri)) {
       void vscode.window.showInformationMessage("Ken Markdown: open a Markdown file to see its changes.");
       return;
     }
-    const key = uri.toString();
+    this.open_({ kind: "head", uri });
+  }
+
+  /**
+   * Two documents side by side: the Explorer's two selected files, the active
+   * text diff's sides, or the given (or active) file and one picked now.
+   */
+  async compare(arg?: unknown, uris?: unknown): Promise<void> {
+    let pair = pairFrom(arg, uris);
+    if (!pair) {
+      const first = targetUri(arg);
+      if (!first) {
+        void vscode.window.showInformationMessage("Ken Markdown: open a Markdown file to compare it with another.");
+        return;
+      }
+      const picked = await vscode.window.showOpenDialog({
+        title: `Compare ${path.basename(first.path)} with…`,
+        openLabel: "Compare",
+        canSelectMany: false,
+        defaultUri: vscode.Uri.joinPath(first, ".."),
+        filters: { Markdown: ["md", "markdown"] },
+      });
+      if (!picked?.[0]) return;
+      pair = { old: picked[0], new: first };
+    }
+    this.open_({ kind: "pair", ...pair });
+  }
+
+  private open_(source: DiffSource, column: vscode.ViewColumn = vscode.ViewColumn.Active): void {
+    const key = source.kind === "head" ? `head:${source.uri}` : `pair:${source.old}|${source.new}`;
     const existing = this.open.get(key);
     if (existing) {
       existing.panel.reveal();
       return;
     }
+    const uri = source.kind === "head" ? source.uri : source.new;
     const layout = vscode.workspace.getConfiguration("kenMarkdown", uri).get<DiffLayoutMode>("diff.layout", "combined");
-    const panel = vscode.window.createWebviewPanel(
-      "kenMarkdown.diff",
-      `${path.basename(uri.path)} (Changes)`,
-      vscode.ViewColumn.Active,
-      { retainContextWhenHidden: true, enableFindWidget: true },
-    );
-    this.open.set(key, new DiffPanel(uri, panel, this.context.extensionUri, layout === "split" ? "split" : "combined", () => this.open.delete(key)));
+    const title =
+      source.kind === "head"
+        ? `${path.basename(uri.path)} (Changes)`
+        : `${path.basename(source.old.path)} ↔ ${path.basename(source.new.path)}`;
+    const panel = vscode.window.createWebviewPanel("kenMarkdown.diff", title, column, {
+      retainContextWhenHidden: true,
+      enableFindWidget: true,
+    });
+    this.open.set(key, new DiffPanel(source, panel, this.context.extensionUri, layout === "split" ? "split" : "combined", () => this.open.delete(key), (o, n, t) => this.openTextDiff(o, n, t)));
   }
 
   /** Open diff views (tests). */

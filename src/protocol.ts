@@ -193,4 +193,6 @@ export type DiffWebviewMessage =
   | { type: "diffReady" }
   | { type: "diffLayout"; layout: DiffLayoutMode }
   | { type: "openFile" }
+  /** Show the same comparison in VS Code's text diff editor. */
+  | { type: "openTextDiff" }
   | { type: "error"; message: string };

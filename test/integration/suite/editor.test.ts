@@ -387,6 +387,23 @@ describe("Ken Markdown Editor", function () {
       assert.ok(!/<[^>]*\scontenteditable="/.test(html), "is not editable");
     });
 
+    it("opens a text diff of two Markdown files, or two selected files, in the diff view", async () => {
+      const a = fixture("move.md");
+      const b = fixture("undo.md");
+      await openEditor(a);
+      await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+      const before = await vscode.commands.executeCommand<number>("kenMarkdown._testDiffs");
+      await vscode.commands.executeCommand("vscode.diff", a, b, "two files");
+      await until("diff view", () => vscode.commands.executeCommand<number>("kenMarkdown._testDiffs"), (n) => n === before + 1);
+      const textDiffs = () =>
+        vscode.window.tabGroups.all.flatMap((g) => g.tabs).filter((t) => t.input instanceof vscode.TabInputTextDiff).length;
+      await until("text diff replaced", () => textDiffs(), (n) => n === 0);
+      // The same pair from the Explorer's two selected files reuses the view.
+      await vscode.commands.executeCommand("kenMarkdown.compare", b, [a, b]);
+      assert.strictEqual(await vscode.commands.executeCommand<number>("kenMarkdown._testDiffs"), before + 1);
+      await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+    });
+
     it("opens a file's changes in the diff view", async () => {
       const uri = fixture("move.md");
       await openEditor(uri);

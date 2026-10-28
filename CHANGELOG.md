@@ -4,6 +4,8 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-10-28
+
 ### Added
 
 - Zoom in on images and Mermaid diagrams: clicking one opens it fitted to the window, over a darkened page; pinch or scroll to zoom around the pointer (+, − and 0 work too), drag to pan, and click the picture to switch between fitted and 100%. A clear × in the top right corner (or Esc, or a click outside the picture) closes it.

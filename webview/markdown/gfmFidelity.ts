@@ -45,6 +45,15 @@ export const imageBlockAltSchema = imageBlockSchema.extendSchema((prev) => (ctx)
   return {
     ...base,
     attrs: { ...(base.attrs ?? {}), alt: { default: "", validate: "string" } },
+    // Copied and pasted (as HTML), the alt text comes along too.
+    parseDOM: (base.parseDOM ?? []).map((rule) => ({
+      ...rule,
+      getAttrs: (dom: HTMLElement | string) => {
+        const attrs = rule.getAttrs ? rule.getAttrs(dom as never) : {};
+        if (!attrs || typeof dom === "string") return attrs;
+        return { ...attrs, alt: dom.getAttribute("alt") ?? "" };
+      },
+    })),
     parseMarkdown: {
       match: base.parseMarkdown.match,
       runner: (state: ParserState, node: MarkdownNode, type: NodeType) => {

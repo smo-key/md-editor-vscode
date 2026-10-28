@@ -34,7 +34,7 @@ async function withImage(markdown: string, fn: (open: () => string[], pick: (lab
 describe("image context menu", () => {
   it("offers caption, show-in and delete; deletes the image", async () => {
     await withImage("Before\n\n![](pics/a.png)\n\nAfter\n", (open, pick, md) => {
-      expect(open()).toEqual(["Add caption", `Show in ${OS_FILE_MANAGER}`, "Show in Explorer", "Delete image"]);
+      expect(open()).toEqual(["Cut", "Copy", "Add caption", `Show in ${OS_FILE_MANAGER}`, "Show in Explorer", "Delete image"]);
       pick("Delete image");
       expect(md()).toBe("Before\n\nAfter\n");
     });
@@ -42,7 +42,7 @@ describe("image context menu", () => {
 
   it("removes a caption", async () => {
     await withImage('![](a.png "A caption")\n', (open, pick, md) => {
-      expect(open()[0]).toBe("Remove caption");
+      expect(open()[2]).toBe("Remove caption");
       pick("Remove caption");
       expect(md()).not.toContain("A caption");
     });
@@ -57,4 +57,28 @@ describe("image context menu", () => {
       expect(revealed).toEqual([["pics/a.png", "os"], ["pics/a.png", "explorer"]]);
     });
   });
+
+  it("copies and cuts the image (Markdown on the clipboard when the browser's copy isn't available)", async () => {
+    const written: string[] = [];
+    const exec = document.execCommand;
+    const clipboard = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+    document.execCommand = () => false;
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async (t: string) => void written.push(t) } });
+    try {
+      await withImage('Before\n\n![A chart](pics/a.png "Cap")\n\nAfter\n', (open, pick, md) => {
+        open();
+        pick("Copy");
+        expect(written).toEqual(['![A chart](pics/a.png "Cap")']);
+        expect(md()).toContain("pics/a.png");
+        open();
+        pick("Cut");
+        expect(written).toHaveLength(2);
+        expect(md()).toBe("Before\n\nAfter\n");
+      });
+    } finally {
+      document.execCommand = exec;
+      if (clipboard) Object.defineProperty(navigator, "clipboard", clipboard);
+    }
+  });
 });
+

@@ -1,6 +1,11 @@
 /**
- * Right-click menu for images: add or remove the caption, show the file in
- * the OS file manager or VS Code's Explorer, and delete the image.
+ * Right-click menu for images: cut or copy the image, add or remove the
+ * caption, show the file in the OS file manager or VS Code's Explorer, and
+ * delete the image.
+ *
+ * Cut and Copy go through the editor's own clipboard handling (the image is
+ * selected), so pasting gives the same image back, here or in another
+ * Markdown document, and other apps get its HTML and Markdown text.
  *
  * The caption belongs to Crepe's image block view, which keeps "is the
  * caption field shown" to itself; the menu flips it with the view's own
@@ -10,7 +15,7 @@ import type { Node as ProseNode } from "@milkdown/kit/prose/model";
 import { NodeSelection, Plugin, PluginKey } from "@milkdown/kit/prose/state";
 import type { EditorView } from "@milkdown/kit/prose/view";
 import { $prose } from "@milkdown/kit/utils";
-import { Captions, CaptionsOff, FolderOpen, FolderSearch, Trash2 } from "lucide";
+import { Captions, CaptionsOff, Copy, FolderOpen, FolderSearch, Scissors, Trash2 } from "lucide";
 
 import { openContextMenu, type MenuEntry } from "../contextMenu";
 
@@ -42,6 +47,31 @@ function imageAt(view: EditorView, target: Element): { pos: number; node: ProseN
   return found;
 }
 
+/** The image as Markdown, for a clipboard the editor's own copy can't reach. */
+function imageMarkdown(node: ProseNode): string {
+  const src = String(node.attrs.src ?? "");
+  const alt = String(node.attrs.alt ?? "").replace(/[[\]]/g, "\\$&");
+  const title = String((node.type.name === "image-block" ? node.attrs.caption : node.attrs.title) ?? "");
+  return `![${alt}](${src}${title ? ` "${title.replace(/"/g, '\\"')}"` : ""})`;
+}
+
+/** Cut or copy the image at `pos`: selected, then the browser's own command, which ProseMirror serializes. */
+export function clipboardImage(view: EditorView, pos: number, cut: boolean): void {
+  const node = view.state.doc.nodeAt(pos);
+  if (!node) return;
+  view.focus();
+  view.dispatch(view.state.tr.setSelection(NodeSelection.create(view.state.doc, pos)));
+  let done = false;
+  try {
+    done = document.execCommand(cut ? "cut" : "copy");
+  } catch {
+    done = false;
+  }
+  if (done) return;
+  void navigator.clipboard?.writeText(imageMarkdown(node)).catch(() => undefined);
+  if (cut) view.dispatch(view.state.tr.delete(pos, pos + node.nodeSize).scrollIntoView());
+}
+
 /** Show or hide the image block's caption field, through its own caption button. */
 function toggleCaptionField(block: Element) {
   const button = block.querySelector(".operation > .operation-item");
@@ -49,7 +79,11 @@ function toggleCaptionField(block: Element) {
 }
 
 export function imageMenuItems(view: EditorView, at: { pos: number; node: ProseNode; dom: Element }, options: ImageMenuOptions): MenuEntry[] {
-  const entries: MenuEntry[] = [];
+  const entries: MenuEntry[] = [
+    { label: "Cut", icon: Scissors, onSelect: () => clipboardImage(view, at.pos, true) },
+    { label: "Copy", icon: Copy, onSelect: () => clipboardImage(view, at.pos, false) },
+    "separator",
+  ];
   const src = String(at.node.attrs.src ?? "");
   if (at.node.type.name === "image-block") {
     const shown = !!at.dom.querySelector(".caption-input") || !!at.node.attrs.caption;
@@ -76,7 +110,7 @@ export function imageMenuItems(view: EditorView, at: { pos: number; node: ProseN
   }
   if (options.reveal) {
     const local = !!src && (options.isLocal?.(src) ?? true);
-    if (entries.length) entries.push("separator");
+    if (entries[entries.length - 1] !== "separator") entries.push("separator");
     entries.push(
       { label: `Show in ${OS_FILE_MANAGER}`, icon: FolderOpen, disabled: !local, onSelect: () => options.reveal!(src, "os") },
       {
@@ -87,7 +121,7 @@ export function imageMenuItems(view: EditorView, at: { pos: number; node: ProseN
       },
     );
   }
-  if (entries.length) entries.push("separator");
+  if (entries[entries.length - 1] !== "separator") entries.push("separator");
   entries.push({
     label: "Delete image",
     icon: Trash2,

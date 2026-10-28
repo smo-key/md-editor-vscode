@@ -8,7 +8,7 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 
 - Zoom in on images and Mermaid diagrams: clicking one opens it fitted to the window, over a darkened page; pinch or scroll to zoom around the pointer (+, − and 0 work too), drag to pan, and click the picture to switch between fitted and 100%. A clear × in the top right corner (or Esc, or a click outside the picture) closes it.
 - **Print** (toolbar, the editor's title bar, or the command palette): opens the document in your default browser exactly as the editor shows it (theme, fonts, diagrams, math and images included) and brings up the print dialog, so you can print it or save it as a PDF.
-- Right-click an image for **Add caption** / **Remove caption**, **Show in Finder** (File Explorer on Windows), **Show in Explorer**, and **Delete image**.
+- Right-click an image for **Cut**, **Copy**, **Add caption** / **Remove caption**, **Show in Finder** (File Explorer on Windows), **Show in Explorer**, and **Delete image**.
 - **Link to a project file with @**: type `@` and a few letters of a file name to pick any file in the open workspace (excluded, git-ignored and `node_modules` files left out); it's inserted as a link by its path relative to the document. Nothing is copied.
 - Typed web addresses (`https://…`, `www.…`) and email addresses become links as soon as you finish them with a space, a new line or a new sentence, the way GitHub finds them: a full stop or other trailing punctuation stays outside the link. They are saved bare, just as typed.
 - **Compare in Ken Markdown**: any two Markdown files rendered side by side or in one column, in red and green (select two files in the Explorer, or run it from the command palette and pick the second). Diffs of Markdown files that VS Code opens (Source Control, Compare Selected, the Timeline) now open rendered here too, with a **Switch to Text** button for the source; set `kenMarkdown.diff.openMarkdownDiffs` to `text` to keep VS Code's text diffs.
@@ -17,6 +17,10 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 
 - The diff view is editable: in **Split** both versions can be edited (a version from git stays read-only), and **Combined** is the current document, editable, with the removed blocks shown where they were. Highlights follow every edit. The view has the editor's toolbar and keyboard shortcuts, with **Combined**, **Split** and **Switch to Text** at its end; the title, counts, change navigation and **Open file** are gone. Edited blocks are now paired by how alike they are, so a removed paragraph no longer shows as an edit of an unrelated new one.
 - Images in the document are at most half as tall as your screen, keeping their proportions, and are centred.
+
+### Fixed
+
+- An image copied and pasted in the editor keeps its alt text.
 
 ## [0.7.0] - 2026-10-27
 

@@ -68,7 +68,7 @@ Paste a block of cells (from a table, Excel, Google Sheets, or CSV/TSV text) and
 
 Click an image or a Mermaid diagram to open it over the page, fitted to the window. Pinch or scroll to zoom around the pointer (or press <kbd>+</kbd> / <kbd>−</kbd>, and <kbd>0</kbd> to fit again), drag to move around, and click the picture to switch between fitted and 100%. Close it with the × in the top right corner, <kbd>Esc</kbd>, or a click outside the picture.
 
-In the document, images are centred and at most half as tall as your screen. Right-click one to add or remove its caption, show the file in Finder (File Explorer on Windows) or VS Code's Explorer, or delete it.
+In the document, images are centred and at most half as tall as your screen. Right-click one to cut or copy it, add or remove its caption, show the file in Finder (File Explorer on Windows) or VS Code's Explorer, or delete it.
 
 ### Diagrams
 

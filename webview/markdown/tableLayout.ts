@@ -477,6 +477,21 @@ function tableBlocks(
  * font landing and the first mount change every measurement, so those force a
  * full pass.
  */
+/**
+ * The width a table's layout depends on: the text column for an ordinary
+ * table, but the block's own width for a full-width one, which follows the
+ * pane (`100cqw`) rather than the text column.
+ */
+export function layoutWidth(block: HTMLElement): number {
+  if (block.getAttribute("data-full-width") === "true") return block.clientWidth;
+  return block.parentElement?.clientWidth ?? 0;
+}
+
+/** The scrolling pane the editor sits in: full-width tables size against it. */
+function paneOf(view: EditorView): HTMLElement {
+  return view.dom.closest<HTMLElement>(".editor-scroll") ?? document.documentElement;
+}
+
 export const tableLayoutPlugin = $prose(
   () =>
     new Plugin({
@@ -502,7 +517,7 @@ export const tableLayoutPlugin = $prose(
           // layout between them however many tables there are.
           const current: TableMark[] = tables.map(({ block, node }) => ({
             node,
-            width: block.parentElement?.clientWidth ?? 0,
+            width: layoutWidth(block),
           }));
           const dirty = tablesNeedingLayout(
             current,
@@ -543,14 +558,23 @@ export const tableLayoutPlugin = $prose(
         // Only a change of *width* invalidates a measurement. Height changes
         // constantly while typing — and are mostly our own doing — so taking
         // them for resizes would force a full pass on every keystroke.
-        let width = -1;
+        // The text column is capped (kenMarkdown.maxWidth), so on a wide pane
+        // it stops changing while the pane, which full-width tables fill,
+        // still does: both are watched.
+        const pane = paneOf(view);
+        const widths = new Map<Element, number>();
         const observer = new ResizeObserver((entries) => {
-          const now = entries[0]?.contentRect.width ?? view.dom.clientWidth;
-          if (now === width) return;
-          width = now;
-          if (!running) schedule(true);
+          let changed = false;
+          for (const entry of entries) {
+            const now = entry.contentRect.width;
+            if (widths.get(entry.target) === now) continue;
+            widths.set(entry.target, now);
+            changed = true;
+          }
+          if (changed && !running) schedule(true);
         });
         observer.observe(view.dom);
+        if (pane !== view.dom) observer.observe(pane);
         // Web fonts land after the first layout and change every measurement.
         document.fonts?.ready.then(() => schedule(true)).catch(() => {});
         schedule(true);

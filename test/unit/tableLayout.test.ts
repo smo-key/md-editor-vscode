@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { columnWidths, tablesNeedingLayout } from "../../webview/markdown/tableLayout";
+import { columnWidths, tablesNeedingLayout, layoutWidth } from "../../webview/markdown/tableLayout";
 import type { TableMark } from "../../webview/markdown/tableLayout";
 
 const total = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
@@ -120,5 +120,18 @@ describe("tablesNeedingLayout", () => {
 
   it("has nothing to do in a document without tables", () => {
     expect(tablesNeedingLayout([], [], true)).toEqual([]);
+  });
+});
+
+describe("layoutWidth", () => {
+  it("is the text column for an ordinary table and the block's own width for a full-width one", () => {
+    const column = document.createElement("div");
+    const block = document.createElement("div");
+    column.append(block);
+    Object.defineProperty(column, "clientWidth", { value: 720 });
+    Object.defineProperty(block, "clientWidth", { value: 1100 });
+    expect(layoutWidth(block)).toBe(720);
+    block.setAttribute("data-full-width", "true");
+    expect(layoutWidth(block)).toBe(1100);
   });
 });

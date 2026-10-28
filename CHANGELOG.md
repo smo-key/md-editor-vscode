@@ -20,6 +20,7 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 
 ### Fixed
 
+- Full-width tables resize their columns when the editor pane gets wider or narrower, instead of keeping the column widths they opened with.
 - An image copied and pasted in the editor keeps its alt text.
 
 ## [0.7.0] - 2026-10-27

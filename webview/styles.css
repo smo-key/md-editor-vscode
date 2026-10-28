@@ -790,7 +790,190 @@ body {
     margin-right: 0.5em;
   }
 
-  /* --- Lightbox (lightbox.ts) -------------------------------------------------- */
+  /* --- Lightbox affordance ------------------------------------------------ */
+  .measure .milkdown .mermaid-preview,
+  .measure .milkdown .milkdown-image-block img,
+  .measure .milkdown .milkdown-image-block .image-wrapper {
+    cursor: zoom-in;
+  }
+
+/* ------------------------------------------------------------------------ */
+/* VS Code integration                                                       */
+/* ------------------------------------------------------------------------ */
+
+/* Floating popups use VS Code's widget surfaces rather than the page colour,
+   so they read as above the document, like VS Code's own hovers and menus. */
+.measure .milkdown .milkdown-slash-menu,
+.measure .milkdown .milkdown-toolbar,
+.measure .milkdown .milkdown-link-preview,
+.measure .milkdown .milkdown-link-edit,
+.measure .milkdown .milkdown-code-block .list-wrapper,
+.measure .milkdown .milkdown-table-block .cell-handle .button-group {
+  --crepe-color-surface: var(--vscode-editorWidget-background);
+  --crepe-color-surface-low: var(--vscode-editorWidget-background);
+  --crepe-color-on-surface: var(--vscode-editorWidget-foreground, var(--vscode-editor-foreground));
+  --crepe-color-hover: var(--vscode-list-hoverBackground);
+  --crepe-color-selected: var(--vscode-list-activeSelectionBackground);
+}
+.measure .milkdown .milkdown-slash-menu,
+.measure .milkdown .milkdown-toolbar,
+.measure .milkdown .milkdown-link-preview > .link-preview,
+.measure .milkdown .milkdown-link-edit > .link-edit,
+.measure .milkdown .milkdown-code-block .list-wrapper,
+.measure .milkdown .milkdown-table-block .cell-handle .button-group {
+  border-color: var(--vscode-editorWidget-border, var(--vscode-widget-border, var(--border-strong)));
+}
+
+.measure .milkdown {
+  --crepe-color-inline-code: var(--vscode-textPreformat-foreground, var(--ink));
+  --crepe-color-inline-area: var(--vscode-textCodeBlock-background, var(--sunken));
+  --crepe-color-secondary: var(--vscode-list-hoverBackground);
+  --crepe-color-on-secondary: var(--vscode-editor-foreground);
+  --crepe-color-inverse: var(--vscode-editor-foreground);
+  --crepe-color-on-inverse: var(--vscode-editor-background);
+  --crepe-color-hover: var(--vscode-list-hoverBackground);
+}
+
+.measure .milkdown .ProseMirror ::selection {
+  background: var(--vscode-editor-selectionBackground);
+}
+.measure .milkdown .ProseMirror {
+  caret-color: var(--vscode-editorCursor-foreground, var(--ink));
+}
+
+/* Block quotes: no fill, just the bar, in the same gray as the quote's text
+   rather than Crepe's selection colour or the theme's (often blue) quote border. */
+.measure .milkdown .ProseMirror blockquote {
+  background: transparent;
+  padding-left: 18px;
+  color: color-mix(in srgb, var(--vscode-editor-foreground) 74%, var(--vscode-editor-background));
+  font-family: var(--font-quote);
+  font-style: italic;
+}
+/* The quote font (by default the heading serif) runs small next to body text. */
+.measure .milkdown .ProseMirror blockquote p {
+  font-size: 1.06em;
+}
+.measure .milkdown .ProseMirror blockquote code,
+.measure .milkdown .ProseMirror blockquote .milkdown-code-block {
+  font-style: normal;
+}
+.measure .milkdown .ProseMirror blockquote::before {
+  background: currentColor;
+}
+
+/* Code blocks: the theme's code background, scaled from the base font size,
+   with the same padding above and below the code. */
+.measure .milkdown .milkdown-code-block {
+  background: var(--vscode-textCodeBlock-background, var(--sunken));
+  padding: 12px 20px;
+}
+/* The language picker and copy buttons float just above the block, and only
+   while it is hovered, has the caret, or is selected — they take no room in
+   the block itself. The bottom padding (not a margin) keeps the pointer inside
+   the block's hover area on its way up to the buttons. */
+.measure .milkdown .milkdown-code-block .tools {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  z-index: 2;
+  padding-bottom: 4px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+.measure .milkdown .milkdown-code-block:hover .tools,
+.measure .milkdown .milkdown-code-block:focus-within .tools,
+.measure .milkdown .milkdown-code-block.selected .tools {
+  opacity: 1;
+  pointer-events: auto;
+}
+.measure .milkdown .milkdown-code-block .tools .language-button,
+.measure .milkdown .milkdown-code-block .tools .tools-button-group > button {
+  opacity: 1;
+  margin: 0;
+  background: var(--vscode-editorWidget-background, var(--surface));
+  border: 1px solid var(--vscode-editorWidget-border, var(--vscode-widget-border, var(--border-strong)));
+}
+.measure .milkdown .milkdown-code-block .tools .language-button:hover,
+.measure .milkdown .milkdown-code-block .tools .tools-button-group > button:hover {
+  background: var(--vscode-list-hoverBackground, var(--crepe-color-hover));
+}
+.measure .milkdown .milkdown-code-block .cm-editor {
+  font-size: 0.875em;
+}
+.measure .milkdown hr {
+  border-color: var(--vscode-textSeparator-foreground, var(--border-strong));
+}
+
+/* Scrollbars in VS Code's style. */
+.editor-scroll::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.editor-scroll::-webkit-scrollbar-thumb {
+  background: var(--vscode-scrollbarSlider-background);
+}
+.editor-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--vscode-scrollbarSlider-hoverBackground);
+}
+.editor-scroll::-webkit-scrollbar-thumb:active {
+  background: var(--vscode-scrollbarSlider-activeBackground);
+}
+
+/* --- Context menu (tables) -------------------------------------------------- */
+.ken-context-menu {
+  position: fixed;
+  z-index: 1000;
+  min-width: 200px;
+  padding: 4px;
+  border: 1px solid var(--vscode-menu-border, var(--vscode-editorWidget-border, transparent));
+  border-radius: 6px;
+  background: var(--vscode-menu-background, var(--vscode-editorWidget-background));
+  color: var(--vscode-menu-foreground, var(--vscode-editor-foreground));
+  box-shadow: 0 2px 8px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.3));
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size, 13px);
+}
+.ken-context-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 4px 10px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.ken-context-menu-item:hover,
+.ken-context-menu-item:focus-visible {
+  outline: none;
+  background: var(--vscode-menu-selectionBackground, var(--vscode-list-hoverBackground));
+  color: var(--vscode-menu-selectionForeground, inherit);
+}
+.ken-context-menu-item.danger {
+  color: var(--vscode-errorForeground);
+}
+.ken-context-menu-item:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.ken-context-menu-icon {
+  flex: none;
+  opacity: 0.85;
+}
+.ken-context-menu-separator {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--vscode-menu-separatorBackground, var(--vscode-editorWidget-border));
+}
+
+/* --- Lightbox (lightbox.ts) -------------------------------------------------- */
 .ken-lightbox {
   position: fixed;
   inset: 0;

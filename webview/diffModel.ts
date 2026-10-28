@@ -54,26 +54,98 @@ function blocksOf(doc: ProseNode): ProseNode[] {
   return out;
 }
 
-const keyOf = (n: ProseNode) => JSON.stringify(n.toJSON());
+/**
+ * Attributes the editor derives from the content (heading anchors, list
+ * labels) rather than reads from the file: a block that differs only in
+ * those is unchanged.
+ */
+const DERIVED: Record<string, string[]> = { heading: ["id"], list_item: ["label", "listType"] };
 
-/** Pair removed and added blocks of the same type, in order; the rest stay alone. */
+function keyJson(n: ProseNode): unknown {
+  const json = n.toJSON() as { attrs?: Record<string, unknown>; content?: unknown[] };
+  const drop = DERIVED[n.type.name];
+  if (drop && json.attrs) json.attrs = Object.fromEntries(Object.entries(json.attrs).filter(([k]) => !drop.includes(k)));
+  if (n.content.size) {
+    const children: unknown[] = [];
+    n.forEach((c) => children.push(keyJson(c)));
+    json.content = children;
+  }
+  return json;
+}
+
+const keyOf = (n: ProseNode) => JSON.stringify(keyJson(n));
+
+/** How alike two blocks' text is: shared words over all words (0…1). */
+function similarity(a: ProseNode, b: ProseNode): number {
+  const words = (n: ProseNode) => n.textContent.toLowerCase().split(/\s+/).filter(Boolean);
+  const wa = words(a);
+  const wb = words(b);
+  if (!wa.length && !wb.length) return 1;
+  const counts = new Map<string, number>();
+  for (const w of wa) counts.set(w, (counts.get(w) ?? 0) + 1);
+  let shared = 0;
+  for (const w of wb) {
+    const c = counts.get(w) ?? 0;
+    if (c > 0) {
+      shared++;
+      counts.set(w, c - 1);
+    }
+  }
+  return (2 * shared) / (wa.length + wb.length);
+}
+
+/** Blocks this alike (and of the same type) are shown as one block edited. */
+const EDIT_THRESHOLD = 0.3;
+
+/**
+ * Pair removed and added blocks that are edits of each other: the same type
+ * and alike enough, matched in order to make the pairs as alike as possible
+ * overall. The rest are wholly removed or added.
+ */
 function pairRun(removed: ProseNode[], added: ProseNode[], out: BlockEntry[]) {
+  const n = removed.length;
+  const m = added.length;
+  // A huge rewrite: no pairing (each pair costs a word comparison).
+  if (n * m > 10_000) {
+    for (const node of removed) out.push({ kind: "removed", node });
+    for (const node of added) out.push({ kind: "added", node });
+    return;
+  }
+  const score = (i: number, j: number) => {
+    const r = removed[i]!;
+    const a = added[j]!;
+    if (r.type !== a.type) return -1;
+    const sim = similarity(r, a);
+    return sim >= EDIT_THRESHOLD ? sim : -1;
+  };
+  // best[i][j]: the best total over removed[i..] and added[j..].
+  const best: Float64Array[] = Array.from({ length: n + 1 }, () => new Float64Array(m + 1));
+  for (let i = n - 1; i >= 0; i--) {
+    for (let j = m - 1; j >= 0; j--) {
+      const s = score(i, j);
+      best[i]![j] = Math.max(best[i + 1]![j]!, best[i]![j + 1]!, s >= 0 ? s + best[i + 1]![j + 1]! : -Infinity);
+    }
+  }
   let i = 0;
   let j = 0;
-  while (i < removed.length || j < added.length) {
-    const r = removed[i];
-    const a = added[j];
-    if (r && a && r.type === a.type) {
-      out.push({ kind: "removed", node: r, pair: a }, { kind: "added", node: a, pair: r });
-      i++;
-      j++;
-    } else if (r && (!a || removed.length - i >= added.length - j)) {
-      out.push({ kind: "removed", node: r });
-      i++;
-    } else {
-      out.push({ kind: "added", node: a! });
-      j++;
+  while (i < n || j < m) {
+    if (i < n && j < m) {
+      const s = score(i, j);
+      if (s >= 0 && best[i]![j] === s + best[i + 1]![j + 1]!) {
+        out.push({ kind: "removed", node: removed[i]!, pair: added[j]! }, { kind: "added", node: added[j]!, pair: removed[i]! });
+        i++;
+        j++;
+        continue;
+      }
+      if (best[i]![j] === best[i + 1]![j]) {
+        out.push({ kind: "removed", node: removed[i++]! });
+        continue;
+      }
+      out.push({ kind: "added", node: added[j++]! });
+      continue;
     }
+    if (i < n) out.push({ kind: "removed", node: removed[i++]! });
+    else out.push({ kind: "added", node: added[j++]! });
   }
 }
 
@@ -148,13 +220,13 @@ export function diffBlocks(oldDoc: ProseNode, newDoc: ProseNode): BlockEntry[] {
 }
 
 /** The changed runs inside an edited block, in its own coordinates (0 = before the block). */
-function innerChanges(entry: BlockEntry): { from: number; to: number }[] {
+export function innerChanges(entry: BlockEntry): { from: number; to: number }[] {
   if (!entry.pair) return [];
   const docType = entry.node.type.schema.topNodeType;
   const [oldNode, newNode] = entry.kind === "removed" ? [entry.node, entry.pair] : [entry.pair, entry.node];
   let changes;
   try {
-    changes = computeDocDiff(docType.create(null, oldNode), docType.create(null, newNode));
+    changes = computeDocDiff(docType.create(null, oldNode), docType.create(null, newNode), { ignoreAttrs: DERIVED });
   } catch {
     return [];
   }
@@ -195,4 +267,31 @@ export function layoutDiff(entries: BlockEntry[], side: DiffSide): DiffLayout {
     pos += entry.node.nodeSize;
   });
   return { nodes, marks, added, removed, edited };
+}
+
+/** A removed block shown, in the combined view, as a widget before position `pos` of the new document. */
+export interface RemovedWidget {
+  pos: number;
+  entry: BlockEntry;
+  /** Text offsets (in the block's text) of the words removed from an edited block. */
+  words: [number, number][];
+}
+
+/**
+ * The combined view: the new document as it is (editable), with the removed
+ * blocks shown before the block that follows them.
+ */
+export function combinedWidgets(entries: BlockEntry[]): RemovedWidget[] {
+  const out: RemovedWidget[] = [];
+  let pos = 0;
+  for (const entry of entries) {
+    if (entry.kind === "removed") {
+      const doc = entry.node.type.schema.topNodeType.create(null, entry.node);
+      const words = innerChanges(entry).map(
+        (r) => [doc.textBetween(0, r.from, "", ""), doc.textBetween(0, r.to, "", "")].map((t) => t.length) as [number, number],
+      );
+      out.push({ pos, entry, words });
+    } else pos += entry.node.nodeSize;
+  }
+  return out;
 }

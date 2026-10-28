@@ -12,7 +12,10 @@ const types = { ".js": "text/javascript", ".css": "text/css", ".woff2": "font/wo
 const init = {
   type: "diffInit",
   layout,
-  base: "",
+  base: { old: "", new: "" },
+  readOnly: { old: process.env.KEN_OLD_READONLY === "1", new: false },
+  shortcuts: {},
+  keys: {},
   oldText: readFileSync(oldFile, "utf8"),
   newText: readFileSync(newFile, "utf8"),
   oldLabel: "HEAD (abc1234)",
@@ -23,7 +26,9 @@ const html = `<!doctype html><html style='${theme.style.replace(/'/g, "&#39;")}'
 <link rel="stylesheet" href="/dist/webview/diff.css"></head>
 <body class="${theme.bodyClass.replace(/\bready\b/, "")}">
 <script>
+  window.__sent = [];
   window.acquireVsCodeApi = () => ({ postMessage(m) {
+    window.__sent.push(m);
     if (m.type === "diffReady") setTimeout(() => window.postMessage(${JSON.stringify(init)}, "*"));
   }});
 </script>
@@ -52,8 +57,16 @@ const height = await page.evaluate(() => Math.max(...[...document.querySelectorA
 await page.setViewportSize({ width: Number(width), height: Math.min(height + 120, 5000) });
 await page.waitForTimeout(300);
 await page.screenshot({ path: out });
+// Edit the newer version (the last pane) and check the edit is posted.
+const last = (process.env.KEN_EDIT_PANE === "first" ? page.locator(".ken-diff-pane").first() : page.locator(".ken-diff-pane").last()).locator(".ProseMirror > p").first();
+await last.click();
+await page.keyboard.press("End");
+await page.keyboard.type(" EDITED");
+await page.waitForTimeout(600);
+const edit = await page.evaluate(() => window.__sent.filter((m) => m.type === "diffEdit").pop());
+console.log("edit", edit ? edit.side + " " + JSON.stringify(edit.text.slice(0, 120)) : "none");
+await page.screenshot({ path: out.replace(/\.png$/, "-edited.png") });
 const counts = await page.evaluate(() => ({
-  stats: document.querySelector(".ken-diff-stats")?.textContent,
   added: document.querySelectorAll(".ken-diff-added").length,
   removed: document.querySelectorAll(".ken-diff-removed").length,
   words: document.querySelectorAll(".ken-diff-added-text, .ken-diff-removed-text").length,

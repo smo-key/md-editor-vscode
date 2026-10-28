@@ -657,16 +657,8 @@ class EditorSession {
     ];
   }
 
-  /** Write the page to a temporary file and open it in the default browser, which prints it. */
   private async print(html: string, name: string): Promise<void> {
-    const safe = name.replace(/\.(md|markdown)$/i, "").replace(/[^\w.-]+/g, "-").slice(0, 60) || "document";
-    const file = vscode.Uri.file(path.join(os.tmpdir(), `ken-print-${safe}-${Date.now()}.html`));
-    try {
-      await vscode.workspace.fs.writeFile(file, Buffer.from(html, "utf8"));
-      await this.host.openExternal(file.toString());
-    } catch (err) {
-      void vscode.window.showErrorMessage(`Ken Markdown: could not open the page to print: ${err}`);
-    }
+    await openPrintPage(html, name, (url) => this.host.openExternal(url));
   }
 
   private setFocused(focused: boolean) {
@@ -736,6 +728,18 @@ class EditorSession {
     this.leaveCollab(true, false);
     this.setFocused(false);
     for (const d of this.disposables.splice(0)) d.dispose();
+  }
+}
+
+/** Write a print page to a temporary file and open it in the default browser, which prints it. */
+export async function openPrintPage(html: string, name: string, openExternal: (url: string) => Thenable<boolean>): Promise<void> {
+  const safe = name.replace(/\.(md|markdown)$/i, "").replace(/[^\w.-]+/g, "-").slice(0, 60) || "document";
+  const file = vscode.Uri.file(path.join(os.tmpdir(), `ken-print-${safe}-${Date.now()}.html`));
+  try {
+    await vscode.workspace.fs.writeFile(file, Buffer.from(html, "utf8"));
+    await openExternal(file.toString());
+  } catch (err) {
+    void vscode.window.showErrorMessage(`Ken Markdown: could not open the page to print: ${err}`);
   }
 }
 
@@ -832,8 +836,11 @@ export class KenMarkdownEditorProvider implements vscode.CustomTextEditorProvide
     for (const s of this.all) s.send({ type: "shortcuts", labels, keys });
   }
 
+  /** Whether a diff view (diffPanel.ts) has focus: its keys are the editor's too. */
+  diffFocused = false;
+
   focusChanged() {
-    const focused = [...this.all].some((s) => s.focused);
+    const focused = this.diffFocused || [...this.all].some((s) => s.focused);
     void vscode.commands.executeCommand("setContext", "kenMarkdown.editorFocused", focused);
   }
 

@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { editorViewCtx, parserCtx } from "@milkdown/kit/core";
 import type { Node as ProseNode } from "@milkdown/kit/prose/model";
 
-import { diffBlocks, layoutDiff } from "../../webview/diffModel";
+import { combinedWidgets, diffBlocks, layoutDiff } from "../../webview/diffModel";
 import { mountEditor, stubLayout } from "./editorEnv";
 
 stubLayout();
@@ -63,4 +63,28 @@ describe("diff model", () => {
       expect(result.added + result.removed + result.edited).toBe(0);
     });
   });
+
+  it("places removed blocks before the block that follows them in the new document", async () => {
+    await withParser((parse) => {
+      const oldDoc = parse("a\n\ngone\n\nthe old word\n\nz\n");
+      const newDoc = parse("a\n\nthe new word\n\nz\n");
+      const widgets = combinedWidgets(diffBlocks(oldDoc, newDoc));
+      expect(widgets.map((w) => [w.entry.node.textContent, newDoc.resolve(w.pos).index()])).toEqual([
+        ["gone", 1],
+        ["the old word", 1],
+      ]);
+      // The edited block's removed word, as text offsets.
+      const edited = widgets[1]!;
+      expect(edited.words.map(([a, b]) => "the old word".slice(a, b))).toEqual(["old"]);
+    });
+  });
+
+  it("treats blocks that differ only in attributes the editor derives as unchanged", async () => {
+    await withParser((parse) => {
+      const doc = parse("# Title\n");
+      const relabelled = doc.type.create(null, doc.firstChild!.type.create({ ...doc.firstChild!.attrs, id: "other" }, doc.firstChild!.content));
+      expect(diffBlocks(doc, relabelled).map((e) => e.kind)).toEqual(["same"]);
+    });
+  });
 });
+

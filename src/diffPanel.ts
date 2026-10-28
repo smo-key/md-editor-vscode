@@ -15,8 +15,9 @@
 import * as vscode from "vscode";
 import * as path from "path";
 
-import { readConfig } from "./provider";
-import type { DiffContent, DiffHostMessage, DiffLayoutMode, DiffWebviewMessage } from "./protocol";
+import { openPrintPage, readConfig } from "./provider";
+import { minimalChange, toEOL, toLF } from "./sync";
+import type { DiffContent, DiffHostMessage, DiffLayoutMode, DiffReadOnly, DiffSideName, DiffWebviewMessage, ShortcutKeys, ShortcutLabels } from "./protocol";
 
 interface Repository {
   show(ref: string, path: string): Promise<string>;
@@ -122,14 +123,30 @@ function makeNonce(): string {
   return out;
 }
 
+/** What diff views need from the extension. */
+export interface DiffHost {
+  shortcuts(): { labels: ShortcutLabels; keys: ShortcutKeys };
+  /** Whether a diff view has keyboard focus (part of `kenMarkdown.editorFocused`). */
+  focusChanged(focused: boolean): void;
+  openExternal(url: string): Thenable<boolean>;
+}
+
+/** Whether a document can be edited here (a version in git can't). */
+function writable(uri: vscode.Uri): boolean {
+  return uri.scheme !== "git" && vscode.workspace.fs.isWritableFileSystem(uri.scheme) !== false;
+}
+
 class DiffPanel {
   private readonly disposables: vscode.Disposable[] = [];
   private repo: Repository | null = null;
   private oldText = "";
   private ready = false;
   private timer: ReturnType<typeof setTimeout> | undefined;
-  /** The document shown as the newer version (opened by "Open file", relative images). */
+  /** The document shown as the newer version. */
   private readonly uri: vscode.Uri;
+  /** Edits from the view, applied one after another. */
+  private editChain: Promise<unknown> = Promise.resolve();
+  focused = false;
 
   constructor(
     private readonly source: DiffSource,
@@ -138,6 +155,7 @@ class DiffPanel {
     private layout: DiffLayoutMode,
     onDispose: () => void,
     private readonly openTextDiff: (old: vscode.Uri, uri: vscode.Uri, title: string) => void,
+    private readonly host: DiffHost,
   ) {
     const uri = (this.uri = source.kind === "head" ? source.uri : source.new);
     const watched = source.kind === "head" ? [uri] : [source.old, source.new];
@@ -156,9 +174,42 @@ class DiffPanel {
     );
     panel.onDidDispose(() => {
       clearTimeout(this.timer);
+      if (this.focused) {
+        this.focused = false;
+        this.host.focusChanged(false);
+      }
       for (const d of this.disposables.splice(0)) d.dispose();
       onDispose();
     });
+  }
+
+  send(m: DiffHostMessage) {
+    if (this.ready) this.post(m);
+  }
+
+  /** The document behind a side, when it can be written. */
+  private sideUri(side: DiffSideName): vscode.Uri | null {
+    if (side === "new") return this.uri;
+    return this.source.kind === "pair" ? this.source.old : null;
+  }
+
+  private get readOnly(): DiffReadOnly {
+    const ro = (side: DiffSideName) => {
+      const uri = this.sideUri(side);
+      return !uri || !writable(uri);
+    };
+    return { old: ro("old"), new: ro("new") };
+  }
+
+  private async applyEdit(side: DiffSideName, text: string): Promise<void> {
+    const uri = this.sideUri(side);
+    if (!uri || !writable(uri)) return;
+    const doc = await vscode.workspace.openTextDocument(uri);
+    const change = minimalChange(doc.getText(), toEOL(text, doc.eol === vscode.EndOfLine.CRLF));
+    if (!change) return;
+    const edit = new vscode.WorkspaceEdit();
+    edit.replace(uri, new vscode.Range(doc.positionAt(change.start), doc.positionAt(change.end)), change.text);
+    await vscode.workspace.applyEdit(edit);
   }
 
   private post(m: DiffHostMessage) {
@@ -181,7 +232,7 @@ class DiffPanel {
         }
       };
       const [oldText, newText] = await Promise.all([read(this.source.old), read(this.source.new)]);
-      return { oldText, newText, oldLabel: describe(this.source.old), newLabel: describe(this.source.new) };
+      return { oldText: toLF(oldText), newText: toLF(newText), oldLabel: describe(this.source.old), newLabel: describe(this.source.new) };
     }
     if (head || !this.repo) {
       this.repo ??= await gitRepository(this.uri);
@@ -199,7 +250,7 @@ class DiffPanel {
       // Deleted: everything was removed.
     }
     const commit = this.repo?.state.HEAD?.commit?.slice(0, 7);
-    return { oldText: this.oldText, newText, oldLabel: commit ? `HEAD (${commit})` : "HEAD", newLabel: "Working Tree" };
+    return { oldText: toLF(this.oldText), newText: toLF(newText), oldLabel: commit ? `HEAD (${commit})` : "HEAD", newLabel: "Working Tree" };
   }
 
   private async refresh(head: boolean) {
@@ -207,16 +258,45 @@ class DiffPanel {
     this.post({ type: "diffUpdate", ...(await this.content(head)) });
   }
 
-  private async onMessage(m: DiffWebviewMessage) {
+  async onMessage(m: DiffWebviewMessage) {
     switch (m.type) {
       case "diffReady": {
         const content = await this.content(true);
         this.ready = true;
         if (this.repo && this.source.kind === "head") this.disposables.push(this.repo.state.onDidChange(() => this.schedule(true)));
-        const base = this.panel.webview.asWebviewUri(vscode.Uri.joinPath(this.uri, "..")).toString() + "/";
-        this.post({ type: "diffInit", config: readConfig(this.uri), layout: this.layout, base, ...content });
+        const dir = (u: vscode.Uri | null) => (u && u.scheme !== "git" ? this.panel.webview.asWebviewUri(vscode.Uri.joinPath(u, "..")).toString() + "/" : "");
+        const newBase = dir(this.uri);
+        const base = { old: dir(this.sideUri("old")) || newBase, new: newBase };
+        const { labels, keys } = this.host.shortcuts();
+        this.post({
+          type: "diffInit",
+          config: readConfig(this.uri),
+          layout: this.layout,
+          base,
+          readOnly: this.readOnly,
+          shortcuts: labels,
+          keys,
+          ...content,
+        });
         return;
       }
+      case "diffEdit":
+        this.editChain = this.editChain
+          .then(() => this.applyEdit(m.side, m.text))
+          .catch((err) => void vscode.window.showErrorMessage(`Ken Markdown: could not apply edit: ${err}`));
+        return;
+      case "focus":
+        if (this.focused !== m.focused) {
+          this.focused = m.focused;
+          this.host.focusChanged(m.focused);
+        }
+        return;
+      case "readClipboard":
+        this.post({ type: "clipboardText", id: m.id, text: await vscode.env.clipboard.readText() });
+        return;
+      case "print":
+        await openPrintPage(m.html, path.basename(this.uri.path), (url) => this.host.openExternal(url));
+        return;
       case "diffLayout":
         this.layout = m.layout;
         return;
@@ -228,9 +308,6 @@ class DiffPanel {
         this.openTextDiff(old, this.uri, this.panel.title);
         return;
       }
-      case "openFile":
-        await vscode.commands.executeCommand("vscode.open", this.uri);
-        return;
       case "error":
         console.error(`Ken Markdown diff: ${m.message}`);
         return;
@@ -274,7 +351,10 @@ export class DiffPanels implements vscode.Disposable {
   /** Text diffs opened on purpose ("Text diff" in the view), not to be replaced. */
   private readonly keepText = new Set<string>();
 
-  constructor(private readonly context: vscode.ExtensionContext) {
+  constructor(
+    private readonly context: vscode.ExtensionContext,
+    private readonly host: DiffHost,
+  ) {
     // Markdown diffs open here instead of as text (kenMarkdown.diff.openMarkdownDiffs).
     context.subscriptions.push(
       vscode.window.tabGroups.onDidChangeTabs((e) => {
@@ -359,7 +439,23 @@ export class DiffPanels implements vscode.Disposable {
       retainContextWhenHidden: true,
       enableFindWidget: true,
     });
-    this.open.set(key, new DiffPanel(source, panel, this.context.extensionUri, layout === "split" ? "split" : "combined", () => this.open.delete(key), (o, n, t) => this.openTextDiff(o, n, t)));
+    this.open.set(key, new DiffPanel(source, panel, this.context.extensionUri, layout === "split" ? "split" : "combined", () => this.open.delete(key), (o, n, t) => this.openTextDiff(o, n, t), this.host));
+  }
+
+  /** The diff view a command applies to: the focused one, else the active one. */
+  target(): DiffPanel | undefined {
+    const all = [...this.open.values()];
+    return all.find((p) => p.focused) ?? all.find((p) => p.panel.active);
+  }
+
+  /** New effective keybindings: refresh every view's hints and claimed keys. */
+  setShortcuts(labels: ShortcutLabels, keys: ShortcutKeys): void {
+    for (const p of this.open.values()) p.send({ type: "shortcuts", labels, keys });
+  }
+
+  /** Tests: handle `m` as if the newest diff view had posted it. */
+  async testMessage(m: DiffWebviewMessage): Promise<void> {
+    await [...this.open.values()].pop()?.onMessage(m);
   }
 
   /** Open diff views (tests). */

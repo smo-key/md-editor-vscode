@@ -509,255 +509,255 @@
         },
         {
           "command": "kenMarkdown.bold",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.italic",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.underline",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.strikethrough",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.inlineCode",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.link",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.clearFormatting",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.paragraph",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.heading1",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.heading2",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.heading3",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.heading4",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.heading5",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.heading6",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.numberedList",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.bulletedList",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.checklist",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.toggleChecked",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.outdentListItem",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.indentListItem",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.quote",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.codeBlock",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.insertTable",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.insertDivider",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.insertImage",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.insertDiagram",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.insertEquation",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.insertInlineEquation",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.insertDrawioDiagram",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.insertTableOfContents",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.editProperties",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.addComment",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.toggleComments",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.alertNote",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.alertTip",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.alertImportant",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.alertWarning",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.alertCaution",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.undo",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.redo",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.print",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.pastePlain",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.moveUp",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.moveDown",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.duplicate",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.table.insertRowAbove",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.table.insertRowBelow",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.table.insertColumnLeft",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.table.insertColumnRight",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.table.moveRowUp",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.table.moveRowDown",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.table.moveColumnLeft",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.table.moveColumnRight",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.table.alignLeft",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.table.alignCenter",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.table.alignRight",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.table.toggleFullWidth",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.table.toggleHeaderRow",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.table.toggleTotalRow",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.table.deleteRow",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.table.deleteColumn",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.table.deleteTable",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
           "command": "kenMarkdown.showShortcuts",
-          "when": "activeCustomEditorId == 'kenMarkdown.editor'"
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         }
       ],
       "scm/resourceState/context": [
@@ -1359,247 +1359,247 @@
         "command": "kenMarkdown.bold",
         "key": "ctrl+b",
         "mac": "cmd+b",
-        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+        "when": "kenMarkdown.editorFocused && (activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
       },
       {
         "command": "kenMarkdown.italic",
         "key": "ctrl+i",
         "mac": "cmd+i",
-        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+        "when": "kenMarkdown.editorFocused && (activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
       },
       {
         "command": "kenMarkdown.underline",
         "key": "ctrl+u",
         "mac": "cmd+u",
-        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+        "when": "kenMarkdown.editorFocused && (activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
       },
       {
         "command": "kenMarkdown.strikethrough",
         "key": "ctrl+alt+x",
         "mac": "cmd+alt+x",
-        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+        "when": "kenMarkdown.editorFocused && (activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
       },
       {
         "command": "kenMarkdown.inlineCode",
         "key": "ctrl+e",
         "mac": "cmd+e",
-        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+        "when": "kenMarkdown.editorFocused && (activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
       },
       {
         "command": "kenMarkdown.link",
         "key": "ctrl+k",
         "mac": "cmd+k",
-        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+        "when": "kenMarkdown.editorFocused && (activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
       },
       {
         "command": "kenMarkdown.clearFormatting",
         "key": "ctrl+\\",
         "mac": "cmd+\\",
-        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+        "when": "kenMarkdown.editorFocused && (activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
       },
       {
         "command": "kenMarkdown.paragraph",
         "key": "ctrl+alt+0",
         "mac": "cmd+alt+0",
-        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+        "when": "kenMarkdown.editorFocused && (activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
       },
       {
         "command": "kenMarkdown.heading1",
         "key": "ctrl+alt+1",
         "mac": "cmd+alt+1",
-        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+        "when": "kenMarkdown.editorFocused && (activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
       },
       {
         "command": "kenMarkdown.heading2",
         "key": "ctrl+alt+2",
         "mac": "cmd+alt+2",
-        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+        "when": "kenMarkdown.editorFocused && (activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
       },
       {
         "command": "kenMarkdown.heading3",
         "key": "ctrl+alt+3",
         "mac": "cmd+alt+3",
-        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+        "when": "kenMarkdown.editorFocused && (activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
       },
       {
         "command": "kenMarkdown.heading4",
         "key": "ctrl+alt+4",
         "mac": "cmd+alt+4",
-        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+        "when": "kenMarkdown.editorFocused && (activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
       },
       {
         "command": "kenMarkdown.heading5",
         "key": "ctrl+alt+5",
         "mac": "cmd+alt+5",
-        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+        "when": "kenMarkdown.editorFocused && (activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
       },
       {
         "command": "kenMarkdown.heading6",
         "key": "ctrl+alt+6",
         "mac": "cmd+alt+6",
-        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+        "when": "kenMarkdown.editorFocused && (activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
       },
       {
         "command": "kenMarkdown.numberedList",
         "key": "ctrl+alt+7",
         "mac": "cmd+alt+7",
-        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+        "when": "kenMarkdown.editorFocused && (activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
       },
       {
         "command": "kenMarkdown.bulletedList",
         "key": "ctrl+alt+8",
         "mac": "cmd+alt+8",
-        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+        "when": "kenMarkdown.editorFocused && (activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
       },
       {
         "command": "kenMarkdown.checklist",
         "key": "ctrl+alt+9",
         "mac": "cmd+alt+9",
-        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+        "when": "kenMarkdown.editorFocused && (activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
       },
       {
         "command": "kenMarkdown.toggleChecked",
         "key": "ctrl+enter",
         "mac": "cmd+enter",
-        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+        "when": "kenMarkdown.editorFocused && (activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
       },
       {
         "command": "kenMarkdown.outdentListItem",
         "key": "ctrl+[",
         "mac": "cmd+[",
-        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+        "when": "kenMarkdown.editorFocused && (activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
       },
       {
         "command": "kenMarkdown.indentListItem",
         "key": "ctrl+]",
         "mac": "cmd+]",
-        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+        "when": "kenMarkdown.editorFocused && (activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
       },
       {
         "command": "kenMarkdown.quote",
         "key": "ctrl+shift+b",
         "mac": "cmd+shift+b",
-        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+        "when": "kenMarkdown.editorFocused && (activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
       },
       {
         "command": "kenMarkdown.codeBlock",
         "key": "ctrl+alt+c",
         "mac": "cmd+alt+c",
-        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+        "when": "kenMarkdown.editorFocused && (activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
       },
       {
         "command": "kenMarkdown.insertTable",
         "key": "ctrl+alt+t",
         "mac": "cmd+alt+t",
-        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+        "when": "kenMarkdown.editorFocused && (activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
       },
       {
         "command": "kenMarkdown.addComment",
         "key": "ctrl+alt+m",
         "mac": "cmd+alt+m",
-        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+        "when": "kenMarkdown.editorFocused && (activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
       },
       {
         "command": "kenMarkdown.undo",
         "key": "ctrl+z",
         "mac": "cmd+z",
-        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+        "when": "kenMarkdown.editorFocused && (activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
       },
       {
         "command": "kenMarkdown.redo",
         "key": "ctrl+y",
         "mac": "cmd+shift+z",
-        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+        "when": "kenMarkdown.editorFocused && (activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
       },
       {
         "command": "kenMarkdown.redo",
         "key": "ctrl+shift+z",
         "mac": "cmd+shift+z",
-        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+        "when": "kenMarkdown.editorFocused && (activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
       },
       {
         "command": "kenMarkdown.pastePlain",
         "key": "ctrl+shift+v",
         "mac": "cmd+shift+v",
-        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+        "when": "kenMarkdown.editorFocused && (activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
       },
       {
         "command": "kenMarkdown.moveUp",
         "key": "alt+up",
         "mac": "alt+up",
-        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+        "when": "kenMarkdown.editorFocused && (activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
       },
       {
         "command": "kenMarkdown.moveDown",
         "key": "alt+down",
         "mac": "alt+down",
-        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+        "when": "kenMarkdown.editorFocused && (activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
       },
       {
         "command": "kenMarkdown.duplicate",
         "key": "shift+alt+down",
         "mac": "shift+alt+down",
-        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+        "when": "kenMarkdown.editorFocused && (activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
       },
       {
         "command": "kenMarkdown.duplicate",
         "key": "shift+alt+up",
         "mac": "shift+alt+up",
-        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+        "when": "kenMarkdown.editorFocused && (activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
       },
       {
         "command": "kenMarkdown.table.insertRowAbove",
         "key": "ctrl+alt+up",
         "mac": "ctrl+alt+up",
-        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+        "when": "kenMarkdown.editorFocused && (activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
       },
       {
         "command": "kenMarkdown.table.insertRowBelow",
         "key": "ctrl+alt+down",
         "mac": "ctrl+alt+down",
-        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+        "when": "kenMarkdown.editorFocused && (activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
       },
       {
         "command": "kenMarkdown.table.insertColumnLeft",
         "key": "ctrl+alt+shift+left",
         "mac": "ctrl+alt+shift+left",
-        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+        "when": "kenMarkdown.editorFocused && (activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
       },
       {
         "command": "kenMarkdown.table.insertColumnRight",
         "key": "ctrl+alt+shift+right",
         "mac": "ctrl+alt+shift+right",
-        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+        "when": "kenMarkdown.editorFocused && (activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
       },
       {
         "command": "kenMarkdown.table.moveColumnLeft",
         "key": "ctrl+alt+left",
         "mac": "ctrl+alt+left",
-        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+        "when": "kenMarkdown.editorFocused && (activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
       },
       {
         "command": "kenMarkdown.table.moveColumnRight",
         "key": "ctrl+alt+right",
         "mac": "ctrl+alt+right",
-        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+        "when": "kenMarkdown.editorFocused && (activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
       },
       {
         "command": "kenMarkdown.table.deleteRow",
         "key": "ctrl+alt+backspace",
         "mac": "ctrl+alt+backspace",
-        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+        "when": "kenMarkdown.editorFocused && (activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
       },
       {
         "command": "kenMarkdown.table.deleteColumn",
         "key": "ctrl+alt+shift+backspace",
         "mac": "ctrl+alt+shift+backspace",
-        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+        "when": "kenMarkdown.editorFocused && (activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
       },
       {
         "command": "kenMarkdown.showShortcuts",
         "key": "ctrl+/",
         "mac": "cmd+/",
-        "when": "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'"
+        "when": "kenMarkdown.editorFocused && (activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
       }
     ]
   },

@@ -401,6 +401,10 @@ describe("Ken Markdown Editor", function () {
       // The same pair from the Explorer's two selected files reuses the view.
       await vscode.commands.executeCommand("kenMarkdown.compare", b, [a, b]);
       assert.strictEqual(await vscode.commands.executeCommand<number>("kenMarkdown._testDiffs"), before + 1);
+      // Both sides are editable: an edit in the view is written to its file.
+      const docA = await vscode.workspace.openTextDocument(a);
+      await vscode.commands.executeCommand("kenMarkdown._testDiffMessage", { type: "diffEdit", side: "old", text: docA.getText().replace("Plain", "Plain edited") });
+      await until("old side written", () => docA.getText(), (t) => t.includes("Plain edited"));
       await vscode.commands.executeCommand("workbench.action.closeAllEditors");
     });
 

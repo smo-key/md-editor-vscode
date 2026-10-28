@@ -12,20 +12,30 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 12px;
-  border-bottom: 1px solid var(--border);
-  background: var(--vscode-editorWidget-background, var(--surface));
+  padding-right: 10px;
+  border-bottom: 1px solid var(--vscode-editorGroup-border, var(--vscode-panel-border, transparent));
+  background: var(--vscode-editor-background);
   font-size: 12px;
-  color: var(--ink-secondary);
 }
-.ken-diff-title {
-  color: var(--ink);
-  font-weight: 600;
-}
-.ken-diff-spacer {
+/* The focused side's formatting toolbar, then the view's own controls. */
+.ken-diff-toolbars {
   flex: 1;
+  min-width: 0;
 }
-.ken-diff-bar button {
+.ken-diff-toolbars .ken-toolbar {
+  border: none;
+}
+.ken-diff-bar[data-readonly="true"] .ken-toolbar {
+  opacity: 0.4;
+  pointer-events: none;
+}
+.ken-diff-controls {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.ken-diff-controls button {
   font: inherit;
   color: var(--vscode-button-secondaryForeground, var(--ink));
   background: var(--vscode-button-secondaryBackground, transparent);
@@ -33,8 +43,9 @@
   border-radius: var(--radius-control);
   padding: 2px 10px;
   cursor: pointer;
+  white-space: nowrap;
 }
-.ken-diff-bar button:hover {
+.ken-diff-controls button:hover {
   background: var(--vscode-button-secondaryHoverBackground, var(--sunken));
 }
 .ken-diff-toggle {
@@ -66,13 +77,21 @@
 .ken-diff-pane + .ken-diff-pane {
   border-left: 1px solid var(--border);
 }
-.ken-diff-pane-label {
-  padding: 4px 16px;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+.ken-diff-pane {
+  position: relative;
+}
+.ken-diff-readonly {
+  position: absolute;
+  top: 8px;
+  right: 14px;
+  z-index: 5;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--vscode-editorWidget-background, var(--surface));
   color: var(--ink-secondary);
-  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  pointer-events: none;
 }
 .ken-diff-pane .editor-scroll {
   flex: 1;
@@ -121,6 +140,33 @@
   text-decoration: line-through;
   opacity: 0.8;
 }
-.ken-diff-stats[data-empty="false"] {
-  font-variant-numeric: tabular-nums;
+/* Removed blocks in the combined view, and changed frontmatter: shown, not edited. */
+.milkdown .ProseMirror .ken-diff-widget {
+  margin: 4px 0;
+  user-select: none;
+}
+.ken-diff-pane[data-side="combined"] .milkdown .ProseMirror .ken-diff-widget:not(.ken-diff-edited) {
+  text-decoration: line-through;
+  opacity: 0.8;
+}
+.milkdown .ProseMirror .ken-diff-front pre {
+  position: relative;
+  margin: 4px 0;
+  padding: 8px 12px;
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  white-space: pre-wrap;
+}
+/* A removed list is plain HTML (no list item views): give it its markers back. */
+.milkdown .ProseMirror .ken-diff-widget :is(ul, ol) {
+  padding-left: 1.6em;
+}
+.milkdown .ProseMirror .ken-diff-widget ul > li {
+  list-style: disc;
+}
+.milkdown .ProseMirror .ken-diff-widget ol > li {
+  list-style: decimal;
+}
+.milkdown .ProseMirror .ken-diff-widget li::before {
+  display: none;
 }

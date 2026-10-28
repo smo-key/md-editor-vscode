@@ -3,7 +3,9 @@
 //   npm run sync-contributes
 import { readFileSync, writeFileSync } from "fs";
 
-export const FOCUS_WHEN = "kenMarkdown.editorFocused && activeCustomEditorId == 'kenMarkdown.editor'";
+// The editor, or the diff view (src/diffPanel.ts), whose sides are editors too.
+export const IN_EDITOR = "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')";
+export const FOCUS_WHEN = `kenMarkdown.editorFocused && ${IN_EDITOR}`;
 
 export function contributions(shortcuts) {
   const commands = [];
@@ -30,7 +32,7 @@ export function sync(pkg, shortcuts) {
   const palette = (pkg.contributes.menus.commandPalette ?? []).filter((m) => !commands.some((c) => c.command === m.command));
   pkg.contributes.menus.commandPalette = [
     ...palette,
-    ...commands.map((c) => ({ command: c.command, when: "activeCustomEditorId == 'kenMarkdown.editor'" })),
+    ...commands.map((c) => ({ command: c.command, when: IN_EDITOR })),
   ];
   return pkg;
 }

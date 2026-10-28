@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import * as fs from "fs";
 import * as path from "path";
 import { SHORTCUTS, editorShortcutKeys, editorShortcutLabels, parseJsonc } from "./keybindings";
-import type { TestAction } from "./protocol";
+import type { DiffWebviewMessage, TestAction } from "./protocol";
 import { KenMarkdownEditorProvider, VIEW_TYPE } from "./provider";
 import { CollabManager } from "./collab/manager";
 import { checkWhatsNew, showWhatsNew } from "./whatsNewPanel";
@@ -11,7 +11,14 @@ import { DiffPanels } from "./diffPanel";
 export function activate(context: vscode.ExtensionContext) {
   const collab = new CollabManager();
   const provider = new KenMarkdownEditorProvider(context, collab);
-  const diffs = new DiffPanels(context);
+  const diffs = new DiffPanels(context, {
+    shortcuts: () => ({ labels: provider.shortcutLabels(), keys: provider.shortcutKeys() }),
+    focusChanged: (focused) => {
+      provider.diffFocused = focused;
+      provider.focusChanged();
+    },
+    openExternal: (url) => provider.openExternal(url),
+  });
   const collabContext = () =>
     void vscode.commands.executeCommand("setContext", "kenMarkdown.collaboration", collab.role ?? false);
   collabContext();
@@ -49,6 +56,12 @@ export function activate(context: vscode.ExtensionContext) {
     const def = SHORTCUTS.find((s) => s.command === command)!;
     context.subscriptions.push(
       vscode.commands.registerCommand(command, () => {
+        // A focused or active diff view takes the editor's commands too.
+        const diff = diffs.target();
+        if (diff && (diff.focused || diff.panel.active)) {
+          if (def.editor) diff.send({ type: "command", id: def.editor });
+          return;
+        }
         const session = provider.target();
         if (!session) return;
         session.send(def.editor ? { type: "command", id: def.editor } : { type: "showShortcuts" });
@@ -66,7 +79,10 @@ export function activate(context: vscode.ExtensionContext) {
     } catch {
       // No user keybindings (or unreadable): the defaults apply.
     }
-    provider.setShortcutLabels(editorShortcutLabels(process.platform, user), editorShortcutKeys(process.platform, user));
+    const labels = editorShortcutLabels(process.platform, user);
+    const keys = editorShortcutKeys(process.platform, user);
+    provider.setShortcutLabels(labels, keys);
+    diffs.setShortcuts(labels, keys);
   };
   refreshLabels();
   fs.watchFile(keybindingsFile, { interval: 1000 }, refreshLabels);
@@ -80,6 +96,7 @@ export function activate(context: vscode.ExtensionContext) {
       vscode.commands.registerCommand("kenMarkdown._testKeybindingsFile", () => keybindingsFile),
       vscode.commands.registerCommand("kenMarkdown._testCollab", () => collab.stats()),
       vscode.commands.registerCommand("kenMarkdown._testDiffs", () => diffs.count),
+      vscode.commands.registerCommand("kenMarkdown._testDiffMessage", (m: DiffWebviewMessage) => diffs.testMessage(m)),
       // URLs the host would have opened in the browser (openExternal is stubbed in tests).
       vscode.commands.registerCommand("kenMarkdown._testExternalOpened", () => [...provider.externalOpened]),
       vscode.commands.registerCommand("kenMarkdown._testEditors", (uri: string) => provider.sessionsFor(uri).length),

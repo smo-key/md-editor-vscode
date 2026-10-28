@@ -186,15 +186,39 @@ export interface DiffContent {
   newLabel: string;
 }
 
+/** Which sides of a comparison can't be edited (e.g. a version in git). */
+export interface DiffReadOnly {
+  old: boolean;
+  new: boolean;
+}
+
+export type DiffSideName = "old" | "new";
+
 export type DiffHostMessage =
-  | ({ type: "diffInit"; config: EditorConfig; layout: DiffLayoutMode; base: string } & DiffContent)
+  | ({
+      type: "diffInit";
+      config: EditorConfig;
+      layout: DiffLayoutMode;
+      /** Folder URL each side's relative images resolve against. */
+      base: { old: string; new: string };
+      readOnly: DiffReadOnly;
+      shortcuts: ShortcutLabels;
+      keys: ShortcutKeys;
+    } & DiffContent)
   | ({ type: "diffUpdate" } & DiffContent)
-  | { type: "config"; config: EditorConfig };
+  | { type: "config"; config: EditorConfig }
+  /** Run an editor command (webview/commands.ts id) in the focused side. */
+  | { type: "command"; id: string }
+  | { type: "shortcuts"; labels: ShortcutLabels; keys: ShortcutKeys }
+  | { type: "clipboardText"; id: number; text: string };
 
 export type DiffWebviewMessage =
   | { type: "diffReady" }
   | { type: "diffLayout"; layout: DiffLayoutMode }
-  | { type: "openFile" }
-  /** Show the same comparison in VS Code's text diff editor. */
+  /** A side was edited: its full new text (LF). */
+  | { type: "diffEdit"; side: DiffSideName; text: string }
+  | { type: "focus"; focused: boolean }
+  | { type: "readClipboard"; id: number }
+  | { type: "print"; html: string; name: string }
   | { type: "openTextDiff" }
   | { type: "error"; message: string };

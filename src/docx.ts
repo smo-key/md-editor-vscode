@@ -17,6 +17,10 @@ import { mathFromMarkdown } from "mdast-util-math";
 import { math } from "micromark-extension-math";
 
 import { headingSlugs } from "./slug";
+import { texToOmml } from "./omml";
+
+/** Fenced code the editor shows as an equation. */
+const MATH_FENCE = /^(latex|tex|katex|math)$/i;
 
 export interface ImageData {
   /** PNG, JPEG or GIF bytes; may be absent for an SVG (a blank stand-in is used for old readers). */
@@ -83,6 +87,7 @@ interface RunStyle {
   i?: boolean;
   s?: boolean;
   u?: boolean;
+  vert?: "superscript" | "subscript";
   code?: boolean;
   link?: boolean;
 }
@@ -134,6 +139,9 @@ class Writer {
   private slugs: string[];
   private slugIndex = 0;
   private underline = false;
+  private vert: "superscript" | "subscript" | null = null;
+  /** The settings a `<!-- ken:table … -->` marker gave the table that follows it. */
+  private tableFlags: { noHeader: boolean; total: boolean; full: boolean } | null = null;
 
   constructor(
     private readonly loadImage: DocxOptions["loadImage"],
@@ -160,6 +168,8 @@ class Writer {
     if (st.i) props.push("<w:i/>");
     if (st.s) props.push("<w:strike/>");
     if (st.u || this.underline) props.push('<w:u w:val="single"/>');
+    const vert = st.vert ?? this.vert;
+    if (vert) props.push(`<w:vertAlign w:val="${vert}"/>`);
     const rPr = props.length ? `<w:rPr>${props.join("")}</w:rPr>` : "";
     return text
       .split("\n")
@@ -187,7 +197,7 @@ class Writer {
       case "inlineCode":
         return this.run(n.value ?? "", { ...st, code: true });
       case "inlineMath":
-        return this.run(n.value ?? "", { ...st, code: true });
+        return texToOmml(n.value ?? "", false) ?? this.run(n.value ?? "", { ...st, code: true });
       case "break":
         return "<w:r><w:br/></w:r>";
       case "link": {
@@ -209,6 +219,14 @@ class Writer {
         }
         if (/^<\/(ins|u)>$/i.test(v)) {
           this.underline = false;
+          return "";
+        }
+        if (/^<sup>$/i.test(v) || /^<sub>$/i.test(v)) {
+          this.vert = /sup/i.test(v) ? "superscript" : "subscript";
+          return "";
+        }
+        if (/^<\/(sup|sub)>$/i.test(v)) {
+          this.vert = null;
           return "";
         }
         if (/^<li>$/i.test(v)) return `<w:r><w:br/></w:r>${this.run("•  ", st)}`;
@@ -323,6 +341,13 @@ class Writer {
         await this.list(n, ctx.level ?? 0);
         return;
       case "code":
+        if (MATH_FENCE.test(n.lang ?? "")) {
+          const omml = texToOmml(n.value ?? "", true);
+          if (omml) {
+            this.para(null, `<m:oMathPara>${omml}</m:oMathPara>`);
+            return;
+          }
+        }
         if ((n.lang ?? "").toLowerCase() === "mermaid") {
           const pic = this.diagram?.(this.diagramIndex++) ?? null;
           const size = pic ? imageSize(pic) : null;
@@ -333,6 +358,13 @@ class Writer {
         }
       // falls through
       case "math": {
+        if (n.type === "math") {
+          const omml = texToOmml(n.value ?? "", true);
+          if (omml) {
+            this.para(null, `<m:oMathPara>${omml}</m:oMathPara>`);
+            return;
+          }
+        }
         const lines = (n.value ?? "").split("\n");
         for (const line of lines) this.para("CodeBlock", this.run(line, {}));
         return;
@@ -345,6 +377,12 @@ class Writer {
         return;
       case "html": {
         const v = (n.value ?? "").trim();
+        const marker = /^<!--\s*ken:table\s+([^>]*?)\s*-->$/.exec(v);
+        if (marker) {
+          const tokens = marker[1]!.split(/\s+/);
+          this.tableFlags = { noHeader: tokens.includes("noheader"), total: tokens.includes("total"), full: tokens.includes("full") };
+          return;
+        }
         if (KEN_COMMENT.test(v) || /^<!--[\s\S]*-->$/.test(v)) return;
         const text = v.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, "").replace(/\n{3,}/g, "\n\n").trim();
         if (text) this.para(ctx.style ?? null, this.run(decodeEntities(text), {}));
@@ -395,19 +433,31 @@ class Writer {
   }
 
   private async table(n: MdNode): Promise<void> {
-    const rows = n.children ?? [];
+    const flags = this.tableFlags ?? { noHeader: false, total: false, full: false };
+    this.tableFlags = null;
+    let rows = n.children ?? [];
     const align = n.align ?? [];
-    let xml = '<w:tbl><w:tblPr><w:tblStyle w:val="KenTable"/><w:tblW w:w="0" w:type="auto"/><w:tblLook w:val="04A0" w:firstRow="1" w:lastRow="0" w:firstColumn="0" w:lastColumn="0" w:noHBand="1" w:noVBand="1"/></w:tblPr><w:tblGrid>';
+    // A table without a header row has an empty one on disk (GFM needs it): drop it.
+    const emptyHeader = !!rows[0] && (rows[0].children ?? []).every((cell) => !textOf(cell).trim() && !(cell.children ?? []).some((c) => c.type === "image"));
+    const header = !(flags.noHeader && emptyHeader);
+    if (!header) rows = rows.slice(1);
+    const width = flags.full ? '<w:tblW w:w="5000" w:type="pct"/>' : '<w:tblW w:w="0" w:type="auto"/>';
+    let xml = `<w:tbl><w:tblPr><w:tblStyle w:val="KenTable"/>${width}<w:tblLook w:val="${header ? "04A0" : "0480"}" w:firstRow="${header ? 1 : 0}" w:lastRow="0" w:firstColumn="0" w:lastColumn="0" w:noHBand="1" w:noVBand="1"/></w:tblPr><w:tblGrid>`;
     const cols = Math.max(0, ...rows.map((r) => r.children?.length ?? 0));
     for (let i = 0; i < cols; i++) xml += "<w:gridCol/>";
     xml += "</w:tblGrid>";
     for (const [ri, row] of rows.entries()) {
-      xml += `<w:tr>${ri === 0 ? "<w:trPr><w:tblHeader/></w:trPr>" : ""}`;
+      const totalRow = flags.total && ri === rows.length - 1 && rows.length > 1;
+      xml += `<w:tr>${ri === 0 && header ? "<w:trPr><w:tblHeader/></w:trPr>" : ""}`;
       for (let ci = 0; ci < cols; ci++) {
         const cell = row.children?.[ci];
         const jc = align[ci] === "center" ? "center" : align[ci] === "right" ? "right" : null;
-        const content = cell ? await this.inlines(cell.children ?? []) : "";
-        xml += `<w:tc><w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="288" w:lineRule="auto"/>${jc ? `<w:jc w:val="${jc}"/>` : ""}</w:pPr>${content}</w:p></w:tc>`;
+        const content = cell ? await this.inlines(cell.children ?? [], totalRow ? { b: true } : {}) : "";
+        // A total row is set apart, as in the editor: a double rule above, shaded.
+        const tcPr = totalRow
+          ? '<w:tcPr><w:tcBorders><w:top w:val="double" w:sz="6" w:space="0" w:color="8C8C8C"/></w:tcBorders><w:shd w:val="clear" w:color="auto" w:fill="F3F3F3"/></w:tcPr>'
+          : "";
+        xml += `<w:tc>${tcPr}<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="288" w:lineRule="auto"/>${jc ? `<w:jc w:val="${jc}"/>` : ""}</w:pPr>${content}</w:p></w:tc>`;
       }
       xml += "</w:tr>";
     }
@@ -490,6 +540,7 @@ export async function markdownToDocx(markdown: string, template: Uint8Array, opt
   for (const [prefix, uri] of [
     ["wp", "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"],
     ["r", "http://schemas.openxmlformats.org/officeDocument/2006/relationships"],
+    ["m", "http://schemas.openxmlformats.org/officeDocument/2006/math"],
   ] as const) {
     if (!root.includes(`xmlns:${prefix}=`)) root = root.replace("<w:document ", `<w:document xmlns:${prefix}="${uri}" `);
   }

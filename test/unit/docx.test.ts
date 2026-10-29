@@ -102,5 +102,28 @@ describe("DOCX export", () => {
     ]);
     expect(types).toContain('Extension="svg" ContentType="image/svg+xml"');
   });
+
+  it("writes math as Word equations", async () => {
+    const { doc } = await convert("Inline $x^2$ here.\n\n$$\n\\frac{a}{b} + \\sum_{i=1}^n i\n$$\n\n```latex\n\\sqrt{2}\n```\n");
+    expect(doc).toContain('xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"');
+    expect(doc).toMatch(/<m:oMath><m:sSup><m:e><m:r><m:t xml:space="preserve">x<\/m:t><\/m:r><\/m:e><m:sup><m:r><m:t xml:space="preserve">2<\/m:t>/);
+    expect(doc).toContain("<m:oMathPara><m:oMath><m:f><m:num>");
+    expect(doc).toContain('<m:nary><m:naryPr><m:chr m:val="∑"/><m:limLoc m:val="undOvr"/></m:naryPr>');
+    expect(doc).toContain('<m:rad><m:radPr><m:degHide m:val="1"/></m:radPr>');
+    expect(doc).not.toContain("CodeBlock");
+  });
+
+  it("superscript, subscript, and tables without a header or with a total row", async () => {
+    const { doc } = await convert(
+      "H<sub>2</sub>O and x<sup>2</sup>\n\n<!-- ken:table noheader -->\n|   |   |\n| - | - |\n| a | b |\n\n<!-- ken:table total -->\n| Q | $ |\n| - | - |\n| x | 1 |\n| Total | 1 |\n",
+    );
+    expect(doc).toContain('<w:vertAlign w:val="subscript"/></w:rPr><w:t xml:space="preserve">2</w:t>');
+    expect(doc).toContain('<w:vertAlign w:val="superscript"/></w:rPr><w:t xml:space="preserve">2</w:t>');
+    const tables = doc.split("<w:tbl>").slice(1);
+    expect(tables[0]).toContain('w:firstRow="0"');
+    expect(tables[0]).not.toContain("<w:tblHeader/>");
+    expect(tables[0]!.match(/<w:tr>/g)).toHaveLength(1);
+    expect(tables[1]).toContain('<w:top w:val="double"');
+  });
 });
 

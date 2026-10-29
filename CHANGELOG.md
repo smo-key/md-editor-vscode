@@ -6,7 +6,7 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 
 ### Added
 
-- **Export** (toolbar, left of Print; the editor's title bar; the command palette): save the document as **HTML** (the page Print shows, without printing), **PDF** (printed by Chrome, Edge or another Chromium-based browser if one is installed, otherwise through your browser's print dialog; `kenMarkdown.export.browserPath` names one) or a **Word** document styled with the Ken Markdown template: Hanken Grotesk, Newsreader headings, JetBrains Mono code, quotes, alerts, tables, lists, links and images. Images (SVG and draw.io included) and Mermaid diagrams go in as pictures; math goes in as its source.
+- **Export** (toolbar, left of Print; the editor's title bar; the command palette): save the document as **HTML** (the page Print shows, without printing), **PDF** (printed by Chrome, Edge or another Chromium-based browser if one is installed, otherwise through your browser's print dialog; `kenMarkdown.export.browserPath` names one) or a **Word** document styled with the Ken Markdown template: Hanken Grotesk, Newsreader headings, JetBrains Mono code, quotes, alerts, tables, lists, links and images. Images (SVG and draw.io included) and Mermaid diagrams go in as pictures, math as editable Word equations, `<sup>`/`<sub>` as superscript and subscript, and tables keep their header-less or total-row layout.
 
 ### Fixed
 

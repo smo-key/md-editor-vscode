@@ -6,7 +6,7 @@ import type { DiffWebviewMessage, TestAction } from "./protocol";
 import { KenMarkdownEditorProvider, VIEW_TYPE } from "./provider";
 import { CollabManager } from "./collab/manager";
 import { checkWhatsNew, showWhatsNew } from "./whatsNewPanel";
-import { DiffPanels } from "./diffPanel";
+import { DiffPanels, isReplaceableDiff, pairFrom } from "./diffPanel";
 
 export function activate(context: vscode.ExtensionContext) {
   const collab = new CollabManager();
@@ -38,6 +38,13 @@ export function activate(context: vscode.ExtensionContext) {
       supportsMultipleEditorsPerDocument: true,
     }),
     vscode.commands.registerCommand("kenMarkdown.openEditor", async (uri?: vscode.Uri) => {
+      // From a text diff of Markdown (e.g. after "Switch to Text"), back to
+      // the rendered comparison rather than one side of it.
+      const pair = pairFrom(uri, undefined);
+      if (pair && isReplaceableDiff(pair.old, pair.new)) {
+        await diffs.compare(uri);
+        return;
+      }
       const target = uri ?? activeUri();
       if (target) await vscode.commands.executeCommand("vscode.openWith", target, VIEW_TYPE);
     }),
@@ -98,6 +105,7 @@ export function activate(context: vscode.ExtensionContext) {
       vscode.commands.registerCommand("kenMarkdown._testCollab", () => collab.stats()),
       vscode.commands.registerCommand("kenMarkdown._testDiffs", () => diffs.count),
       vscode.commands.registerCommand("kenMarkdown._testDiffMessage", (m: DiffWebviewMessage) => diffs.testMessage(m)),
+      vscode.commands.registerCommand("kenMarkdown._testDiffQuery", (selectors: string[]) => diffs.testQuery(selectors)),
       // URLs the host would have opened in the browser (openExternal is stubbed in tests).
       vscode.commands.registerCommand("kenMarkdown._testExternalOpened", () => [...provider.externalOpened]),
       vscode.commands.registerCommand("kenMarkdown._testEditors", (uri: string) => provider.sessionsFor(uri).length),

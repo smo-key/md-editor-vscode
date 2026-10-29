@@ -502,6 +502,9 @@ window.addEventListener("message", (event: MessageEvent<DiffHostMessage | HostMe
         waiting.get(m.id)?.(m);
         waiting.delete(m.id);
         return;
+      case "test":
+        post({ type: "testResult", id: m.id, result: m.selectors.map((s) => document.querySelectorAll(s).length) });
+        return;
     }
   } catch (err) {
     post({ type: "error", message: String(err) });

@@ -92,6 +92,17 @@ export function isReplaceableDiff(original: vscode.Uri, modified: vscode.Uri): b
   return ok(original) && ok(modified);
 }
 
+/** Whether `old` is `file`'s version in git's HEAD. */
+export function isHeadOf(old: vscode.Uri, file: vscode.Uri): boolean {
+  if (old.scheme !== "git" || file.scheme !== "file") return false;
+  try {
+    const q = JSON.parse(old.query) as { path?: string; ref?: string };
+    return q.ref === "HEAD" && !!q.path && vscode.Uri.file(q.path).toString() === file.toString();
+  } catch {
+    return false;
+  }
+}
+
 /** The file a command argument (or, without one, the active tab) is about. */
 export function targetUri(arg: unknown): vscode.Uri | undefined {
   let uri: vscode.Uri | undefined;
@@ -187,6 +198,18 @@ class DiffPanel {
     if (this.ready) this.post(m);
   }
 
+  private testSeq = 0;
+  private readonly tests = new Map<number, (r: unknown) => void>();
+
+  /** Tests: counts of the view's elements matching each selector. */
+  query(selectors: string[]): Promise<unknown> {
+    const id = ++this.testSeq;
+    return new Promise((resolve) => {
+      this.tests.set(id, resolve);
+      this.post({ type: "test", id, selectors });
+    });
+  }
+
   /** The document behind a side, when it can be written. */
   private sideUri(side: DiffSideName): vscode.Uri | null {
     if (side === "new") return this.uri;
@@ -280,6 +303,10 @@ class DiffPanel {
         });
         return;
       }
+      case "testResult":
+        this.tests.get(m.id)?.(m.result);
+        this.tests.delete(m.id);
+        return;
       case "diffEdit":
         this.editChain = this.editChain
           .then(() => this.applyEdit(m.side, m.text))
@@ -423,6 +450,8 @@ export class DiffPanels implements vscode.Disposable {
   }
 
   private open_(source: DiffSource, column: vscode.ViewColumn = vscode.ViewColumn.Active): void {
+    // A file against its HEAD version is "Open Changes", however it was opened.
+    if (source.kind === "pair" && isHeadOf(source.old, source.new)) source = { kind: "head", uri: source.new };
     const key = source.kind === "head" ? `head:${source.uri}` : `pair:${source.old}|${source.new}`;
     const existing = this.open.get(key);
     if (existing) {
@@ -456,6 +485,11 @@ export class DiffPanels implements vscode.Disposable {
   /** Tests: handle `m` as if the newest diff view had posted it. */
   async testMessage(m: DiffWebviewMessage): Promise<void> {
     await [...this.open.values()].pop()?.onMessage(m);
+  }
+
+  /** Tests: query the newest diff view. */
+  testQuery(selectors: string[]): Promise<unknown> {
+    return [...this.open.values()].pop()?.query(selectors) ?? Promise.resolve(null);
   }
 
   /** Open diff views (tests). */

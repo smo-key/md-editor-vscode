@@ -419,6 +419,25 @@ describe("Ken Markdown Editor", function () {
       await until("linked", () => doc.getText(), (t) => t.includes("[undo-bytes.md](undo-bytes.md)"));
     });
 
+    it("goes back from Switch to Text to the same rendered comparison", async () => {
+      const a = fixture("move.md");
+      const b = fixture("undo.md");
+      await openEditor(a);
+      await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+      await vscode.commands.executeCommand("kenMarkdown.compare", b, [a, b]);
+      const query = () => vscode.commands.executeCommand<number[]>("kenMarkdown._testDiffQuery", [".ken-diff-added, .ken-diff-removed"]);
+      await until("highlights", query, (r) => (r?.[0] ?? 0) > 0);
+      await vscode.commands.executeCommand("kenMarkdown._testDiffMessage", { type: "openTextDiff" });
+      const active = () => vscode.window.tabGroups.activeTabGroup.activeTab;
+      await until("text diff", () => active()?.input instanceof vscode.TabInputTextDiff, (v) => v);
+      // "Open in Ken Markdown Editor" from the text diff returns to the comparison, not one side of it.
+      await vscode.commands.executeCommand("kenMarkdown.openEditor", b);
+      await until("comparison", () => active()?.input instanceof vscode.TabInputWebview, (v) => v);
+      assert.strictEqual(await vscode.commands.executeCommand<number>("kenMarkdown._testEditors", b.toString()), 0, "no plain editor opened");
+      assert.ok(((await query())?.[0] ?? 0) > 0, "still highlighted");
+      await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+    });
+
     it("opens a file's changes in the diff view", async () => {
       const uri = fixture("move.md");
       await openEditor(uri);

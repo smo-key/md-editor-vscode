@@ -4,6 +4,10 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 
 ## [Unreleased]
 
+### Fixed
+
+- After **Switch to Text**, **Open in Ken Markdown Editor** from the text diff goes back to the red/green comparison instead of opening one side of it as a plain document. A file compared with its last commit (from Source Control or a text diff) reuses its **Open Changes** view.
+
 ## [0.8.0] - 2026-10-28
 
 ### Added

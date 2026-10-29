@@ -222,7 +222,9 @@ export type DiffHostMessage =
   /** Run an editor command (webview/commands.ts id) in the focused side. */
   | { type: "command"; id: string }
   | { type: "shortcuts"; labels: ShortcutLabels; keys: ShortcutKeys }
-  | { type: "clipboardText"; id: number; text: string };
+  | { type: "clipboardText"; id: number; text: string }
+  /** Tests: what the view shows (counts of elements matching selectors). */
+  | { type: "test"; id: number; selectors: string[] };
 
 export type DiffWebviewMessage =
   | { type: "diffReady" }
@@ -233,4 +235,5 @@ export type DiffWebviewMessage =
   | { type: "readClipboard"; id: number }
   | { type: "print"; html: string; name: string }
   | { type: "openTextDiff" }
+  | { type: "testResult"; id: number; result: unknown }
   | { type: "error"; message: string };

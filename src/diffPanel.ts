@@ -377,6 +377,8 @@ export class DiffPanels implements vscode.Disposable {
 
   /** Text diffs opened on purpose ("Text diff" in the view), not to be replaced. */
   private readonly keepText = new Set<string>();
+  /** Markdown text diffs open now, by group and tab label, to recognise them reopened with another editor. */
+  private readonly textDiffs = new Map<string, { old: vscode.Uri; new: vscode.Uri }>();
 
   constructor(
     private readonly context: vscode.ExtensionContext,
@@ -397,7 +399,23 @@ export class DiffPanels implements vscode.Disposable {
   private async takeOver(tabs: readonly vscode.Tab[]): Promise<void> {
     for (const tab of tabs) {
       const input = tab.input;
+      const where = `${tab.group.viewColumn}:${tab.label}`;
+      // A Markdown text diff reopened with another editor ("Reopen Editor
+      // With… › Ken Markdown Editor") becomes a diff of two plain editors,
+      // which VS Code reports as an unknown tab: the rendered comparison
+      // replaces it, as it would the text diff.
+      if (input === undefined) {
+        const was = this.textDiffs.get(where);
+        if (!was) continue;
+        this.textDiffs.delete(where);
+        this.keepText.delete(`${was.old}|${was.new}`);
+        const column = tab.group.viewColumn;
+        await vscode.window.tabGroups.close(tab, true);
+        this.open_({ kind: "pair", ...was }, column);
+        continue;
+      }
       if (!(input instanceof vscode.TabInputTextDiff) || !isReplaceableDiff(input.original, input.modified)) continue;
+      this.textDiffs.set(where, { old: input.original, new: input.modified });
       const key = `${input.original}|${input.modified}`;
       if (this.keepText.has(key)) continue;
       const setting = vscode.workspace.getConfiguration("kenMarkdown", input.modified).get<string>("diff.openMarkdownDiffs", "ken");

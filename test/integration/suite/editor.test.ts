@@ -457,6 +457,27 @@ describe("Ken Markdown Editor", function () {
       }
     });
 
+    it("replaces a text diff reopened with the Ken Markdown Editor by the rendered comparison", async () => {
+      const a = fixture("move.md");
+      const b = fixture("undo.md");
+      await openEditor(a);
+      await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+      await vscode.commands.executeCommand("kenMarkdown.compare", b, [a, b]);
+      await vscode.commands.executeCommand("kenMarkdown._testDiffMessage", { type: "openTextDiff" });
+      const active = () => vscode.window.tabGroups.activeTabGroup.activeTab;
+      await until("text diff", () => active()?.input instanceof vscode.TabInputTextDiff, (v) => v);
+      // Reopen Editor With… › the second choice (after the text editor) is this extension's editor.
+      void vscode.commands.executeCommand("workbench.action.reopenWithEditor");
+      await sleep(1200);
+      await vscode.commands.executeCommand("workbench.action.quickOpenSelectNext");
+      await vscode.commands.executeCommand("workbench.action.acceptSelectedQuickOpenItem");
+      await until("comparison", () => active()?.input instanceof vscode.TabInputWebview, (v) => v);
+      const tabs = vscode.window.tabGroups.all.flatMap((g) => g.tabs);
+      assert.ok(!tabs.some((t) => t.input === undefined), "the plain side-by-side editors are gone");
+      assert.strictEqual(await vscode.commands.executeCommand<number>("kenMarkdown._testDiffs"), 1, "the same comparison");
+      await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+    });
+
     it("opens a file's changes in the diff view", async () => {
       const uri = fixture("move.md");
       await openEditor(uri);

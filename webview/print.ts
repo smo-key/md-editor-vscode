@@ -176,6 +176,44 @@ function labelCodeBlocks(view: EditorView): () => void {
   };
 }
 
+/**
+ * Build every code block Crepe hasn't yet (it only builds those on screen),
+ * so code prints highlighted exactly as in the editor, then wait a moment for
+ * each block's language (loaded on demand) to highlight it.
+ */
+async function buildCodeBlocks(view: EditorView, timeout = 3000): Promise<void> {
+  const blocks: HTMLElement[] = [];
+  const editors: { cm?: { requestMeasure(): void } }[] = [];
+  view.state.doc.descendants((node, pos) => {
+    if (node.type.name !== "code_block") return true;
+    const dom = view.nodeDOM(pos) as
+      | (HTMLElement & { pmViewDesc?: { spec?: { initializeCodeMirror?: () => void; cm?: { requestMeasure(): void } } } })
+      | null;
+    const spec = dom?.pmViewDesc?.spec;
+    if (dom && dom.querySelector(".milkdown-code-block-placeholder") && typeof spec?.initializeCodeMirror === "function") {
+      try {
+        spec.initializeCodeMirror();
+        blocks.push(dom);
+        editors.push(spec);
+      } catch {
+        // It stays a placeholder (plain code).
+      }
+    }
+    return false;
+  });
+  if (!blocks.length) return;
+  const highlighted = (b: HTMLElement) => {
+    const lang = b.querySelector(".language-button")?.textContent?.trim();
+    const content = b.querySelector(".cm-content");
+    return !lang || !content || !!content.querySelector("span") || !content.textContent?.trim();
+  };
+  const end = Date.now() + timeout;
+  while (Date.now() < end && !blocks.every(highlighted)) await new Promise((r) => setTimeout(r, 100));
+  // Line numbers are placed from measured line heights: measure, then let it apply.
+  for (const e of editors) e.cm?.requestMeasure();
+  for (let i = 0; i < 3; i++) await new Promise((r) => requestAnimationFrame(() => r(null)));
+}
+
 /** In the clone, a diagram or equation not rendered on screen gets rendered. */
 async function renderMissingPreviews(clone: HTMLElement): Promise<void> {
   const blocks = Array.from(clone.querySelectorAll<HTMLElement>(".milkdown-code-block[data-ken-print-lang]"));
@@ -235,6 +273,12 @@ body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .milkdown .milkdown-table-block table.children { table-layout: auto !important; }
   .milkdown .milkdown-table-block :is(th, td) { overflow-wrap: break-word !important; }
   tr { break-inside: avoid; }
+}
+/* Line numbers follow the lines (an editor built off screen never measured its own). */
+.cm-gutters .cm-gutterElement:not([style*="visibility: hidden"]) { height: auto !important; margin-top: 0 !important; }
+/* Folding is an editing control. */
+.cm-editor .cm-gutters .cm-gutter.cm-foldGutter { display: none !important; }
+@media print {
   h1, h2, h3, h4, h5, h6 { break-after: avoid; }
 }
 `;
@@ -250,6 +294,7 @@ export async function printablePage(
   view?: EditorView,
 ): Promise<string> {
   const cache = new Map<string, Promise<string>>();
+  if (view) await buildCodeBlocks(view);
   await diagramsReady(content);
   const unlabel = view ? labelCodeBlocks(view) : () => undefined;
   const clone = content.cloneNode(true) as HTMLElement;

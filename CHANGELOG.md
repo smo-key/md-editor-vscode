@@ -10,6 +10,7 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 
 ### Fixed
 
+- Code blocks in Print and Export (PDF, HTML) are syntax-highlighted exactly as in the editor, including ones you hadn't scrolled to (those printed as plain text); line numbers stay aligned and the fold arrows are left out.
 - Print and Export (PDF, HTML) show every Mermaid diagram and equation block as a picture, including ones you hadn't scrolled to; before, those printed as their source.
 - Tables in Print and Export (PDF, HTML) fit the page and stay centred: a full-width table is no longer shifted right and cut off, and columns keep their proportions at any page or window width.
 - Split diff view: scrolling one side no longer makes the other overshoot and bounce back; the side you're scrolling leads, and the other keeps the same block (or the gap where a block was added) level with it.

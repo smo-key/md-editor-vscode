@@ -16,6 +16,7 @@ import { execFile } from "child_process";
 
 import { markdownToDocx, type ImageData } from "./docx";
 import { withAutoPrint } from "./printScript";
+import type { ExportAsset } from "./protocol";
 
 export type ExportFormat = "html" | "pdf" | "docx";
 
@@ -148,7 +149,12 @@ export interface ExportRequest {
   extensionUri: vscode.Uri;
   /** Opens an http(s) or file URL outside VS Code. */
   openExternal: (url: string) => Thenable<boolean>;
+  /** Pictures the webview made for the Word export (diagrams, SVG images). */
+  assets?: { images: Record<string, ExportAsset>; diagrams: (ExportAsset | null)[] };
 }
+
+const asImage = (a: ExportAsset | null | undefined): ImageData | null =>
+  a ? { data: a.png ? new Uint8Array(a.png) : undefined, ext: a.png ? "png" : undefined, svg: a.svg, width: a.width, height: a.height } : null;
 
 /** Write the export. Returns false when the PDF fell back to the browser's print dialog. */
 export async function writeExport(req: ExportRequest): Promise<boolean> {
@@ -170,7 +176,12 @@ export async function writeExport(req: ExportRequest): Promise<boolean> {
   }
   const template = await vscode.workspace.fs.readFile(vscode.Uri.joinPath(req.extensionUri, "media", "export-template.docx"));
   const title = path.posix.basename(document.uri.path).replace(/\.(md|markdown)$/i, "");
-  const bytes = await markdownToDocx(document.getText(), template, { title, loadImage: (src) => loadImage(document.uri, src) });
+  const assets = req.assets;
+  const bytes = await markdownToDocx(document.getText(), template, {
+    title,
+    loadImage: async (src) => asImage(assets?.images[src]) ?? (await loadImage(document.uri, src)),
+    diagram: (i) => asImage(assets?.diagrams[i]),
+  });
   await vscode.workspace.fs.writeFile(target, bytes);
   return true;
 }

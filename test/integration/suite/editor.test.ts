@@ -478,6 +478,19 @@ describe("Ken Markdown Editor", function () {
       await vscode.commands.executeCommand("workbench.action.closeAllEditors");
     });
 
+    it("puts images, draw.io and Mermaid diagrams into the Word export", async function () {
+      this.timeout(120000);
+      const uri = fixture("all.md");
+      await openEditor(uri);
+      const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "ken-export-test-")), "all.docx");
+      assert.ok(await vscode.commands.executeCommand<boolean>("kenMarkdown._testExport", uri.toString(), "docx", file));
+      const zip = fs.readFileSync(file).toString("latin1");
+      // logo.svg twice (block and inline) and flow.drawio.svg, plus two diagrams: each an SVG part.
+      const svgs = new Set(zip.match(/word\/media\/ken-image-\d+\.svg/g) ?? []);
+      assert.ok(svgs.size >= 5, `SVG pictures: ${svgs.size}`);
+      console.log("EXPORT", file);
+    });
+
     it("opens a file's changes in the diff view", async () => {
       const uri = fixture("move.md");
       await openEditor(uri);

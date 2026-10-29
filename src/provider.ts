@@ -13,6 +13,7 @@ import type {
   TestAction,
   ToolbarPosition,
   WebviewMessage,
+  ExportAsset,
 } from "./protocol";
 import { headingNumbersConfig } from "./headingNumbers";
 import { editUrl, lucidPreviewMode, openUrl, parseLucidUrl } from "./lucidUrl";
@@ -289,6 +290,10 @@ class EditorSession {
         return;
       case "export":
         await this.export();
+        return;
+      case "exportAssetsReady":
+        this.pendingAssets.get(m.id)?.({ images: m.images, diagrams: m.diagrams });
+        this.pendingAssets.delete(m.id);
         return;
       case "exportPageReady":
         this.pendingPages.get(m.id)?.(m.html);
@@ -682,6 +687,21 @@ class EditorSession {
     });
   }
 
+  private readonly pendingAssets = new Map<number, (a: { images: Record<string, ExportAsset>; diagrams: (ExportAsset | null)[] }) => void>();
+
+  /** Pictures for the Word export (diagrams, SVG images), drawn by the webview. */
+  private assets(): Promise<{ images: Record<string, ExportAsset>; diagrams: (ExportAsset | null)[] }> {
+    const id = ++this.pageSeq;
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => resolve({ images: {}, diagrams: [] }), 30000);
+      this.pendingAssets.set(id, (a) => {
+        clearTimeout(timer);
+        resolve(a);
+      });
+      this.post({ type: "exportAssets", id });
+    });
+  }
+
   /** The print page, without printing, from the webview. */
   private page(): Promise<string> {
     const id = ++this.pageSeq;
@@ -707,6 +727,7 @@ class EditorSession {
             format,
             target,
             html: format === "docx" ? "" : await this.page(),
+            assets: format === "docx" ? await this.assets() : undefined,
             document: this.document,
             extensionUri: this.extensionUri,
             openExternal: (url) => this.host.openExternal(url),

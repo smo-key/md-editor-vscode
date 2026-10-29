@@ -98,3 +98,31 @@ export const renderMermaidPreview: CodeBlockConfig["renderPreview"] = (
 export function mermaidPreviewToggleText(previewOnlyMode: boolean): string {
   return previewOnlyMode ? "Code" : "Diagram";
 }
+
+/**
+ * A diagram's SVG for a document leaving the editor (Word export): the light
+ * theme (paper is white) and labels drawn as SVG text rather than HTML, which
+ * other programs (and canvases) can't show.
+ */
+export function exportMermaidSvg(code: string): Promise<string | null> {
+  const run = queue.then(async () => {
+    try {
+      const mermaid = await loadMermaid();
+      mermaid.initialize({
+        startOnLoad: false,
+        securityLevel: "strict",
+        theme: "default",
+        fontFamily: fontFamily(),
+        htmlLabels: false,
+        flowchart: { htmlLabels: false },
+      });
+      await mermaid.parse(code);
+      const { svg } = await mermaid.render(`ken-mermaid-export-${++seq}`, code);
+      return svg;
+    } catch {
+      return null;
+    }
+  });
+  queue = run;
+  return run;
+}

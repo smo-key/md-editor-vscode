@@ -51,6 +51,14 @@ export interface LucidchartConfig {
  * A file dropped from VS Code's Explorer, as the document should reference it:
  * linked where it is when in the document's workspace folder, else a copy.
  */
+/** A picture for the Word export: SVG and/or PNG, with its size in CSS pixels. */
+export interface ExportAsset {
+  svg?: string;
+  png?: Uint8Array;
+  width: number;
+  height: number;
+}
+
 /** A file the @ menu offers: its path relative to the document, unencoded. */
 export interface FileHit {
   path: string;
@@ -92,6 +100,8 @@ export type HostMessage =
   | { type: "diagramCreated"; id: number; path?: string; error?: string }
   /** The clipboard's text, for Paste as Plain Text. */
   | { type: "clipboardText"; id: number; text: string }
+  /** Export: the page (as Print shows it, without printing) is needed. */
+  | { type: "exportAssets"; id: number }
   /** Export: the page (as Print shows it, without printing) is needed. */
   | { type: "exportPage"; id: number }
   /** Files for the @ menu, best match first. */
@@ -168,6 +178,8 @@ export type WebviewMessage =
   | { type: "findFiles"; id: number; query: string }
   /** The Export button: the host asks for a format and a place. */
   | { type: "export" }
+  /** Pictures for the Word export, asked for by `exportAssets`. */
+  | { type: "exportAssetsReady"; id: number; images: Record<string, ExportAsset>; diagrams: (ExportAsset | null)[] }
   /** The page asked for by `exportPage`. */
   | { type: "exportPageReady"; id: number; html: string }
   /** Open this standalone page of the document in the browser, to print it. */

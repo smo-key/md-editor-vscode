@@ -79,4 +79,28 @@ describe("DOCX export", () => {
   it("reads image sizes", () => {
     expect(imageSize({ data: png, ext: "png" })).toEqual({ w: 2, h: 3 });
   });
+
+  it("embeds SVG images and Mermaid diagrams as pictures, with a PNG for older readers", async () => {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="20"><rect width="40" height="20"/></svg>';
+    const bytes = await markdownToDocx("![logo](logo.svg)\n\n```mermaid\ngraph TD\nA-->B\n```\n\n```mermaid\nbroken\n```\n", template, {
+      loadImage: async (src) => (src === "logo.svg" ? { svg, width: 40, height: 20 } : null),
+      diagram: (i) => (i === 0 ? { svg, data: png, ext: "png", width: 200, height: 100 } : null),
+    });
+    const zip = await JSZip.loadAsync(bytes);
+    const doc = (await zip.file("word/document.xml")!.async("string"))!;
+    const types = (await zip.file("[Content_Types].xml")!.async("string"))!;
+    expect(doc.match(/<asvg:svgBlip /g)).toHaveLength(2);
+    expect(doc).toContain('<wp:extent cx="381000" cy="190500"/>');
+    expect(doc).toContain('<wp:extent cx="1905000" cy="952500"/>');
+    expect(doc).toContain('<w:pStyle w:val="CodeBlock"/></w:pPr><w:r><w:t xml:space="preserve">broken</w:t>');
+    expect(doc).not.toContain("graph TD");
+    expect(Object.keys(zip.files).filter((f) => f.startsWith("word/media/") && !f.endsWith("/")).sort()).toEqual([
+      "word/media/ken-image-1.png",
+      "word/media/ken-image-2.svg",
+      "word/media/ken-image-3.png",
+      "word/media/ken-image-4.svg",
+    ]);
+    expect(types).toContain('Extension="svg" ContentType="image/svg+xml"');
+  });
 });
+

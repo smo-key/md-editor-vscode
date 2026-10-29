@@ -60,6 +60,7 @@ import { inEditorText, installKeyRouting, setBoundKeys } from "./keys";
 import { onLastHeadingLevel, setLastHeadingLevel } from "./headingControl";
 import { COMMANDS, command, execute, setClipboardReader, setExportHandler, setPrintHandler, setShortcutLabels } from "./commands";
 import { printablePage } from "./print";
+import { collectExportAssets } from "./exportAssets";
 import { closeShortcutsPanel, initShortcutsPanel, isShortcutsPanelOpen, toggleShortcutsPanel } from "./shortcutsPanel";
 import type { EditorConfig, HostMessage, TestAction, WebviewMessage } from "../src/protocol";
 import "@milkdown/crepe/theme/common/style.css";
@@ -916,6 +917,17 @@ window.addEventListener("message", async (event: MessageEvent<HostMessage>) => {
       return;
     case "test": {
       post({ type: "testResult", id: m.id, result: runTest(m.action) });
+      return;
+    }
+    case "exportAssets": {
+      if (!view) return;
+      void collectExportAssets(view.state.doc, proxyImageSrc).then(
+        ({ images, diagrams }) => post({ type: "exportAssetsReady", id: m.id, images, diagrams }),
+        (err) => {
+          post({ type: "error", message: `export: ${err}` });
+          post({ type: "exportAssetsReady", id: m.id, images: {}, diagrams: [] });
+        },
+      );
       return;
     }
     case "exportPage": {

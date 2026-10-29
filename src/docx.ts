@@ -19,15 +19,44 @@ import { math } from "micromark-extension-math";
 import { headingSlugs } from "./slug";
 
 export interface ImageData {
-  data: Uint8Array;
+  /** PNG, JPEG or GIF bytes; may be absent for an SVG (a blank stand-in is used for old readers). */
+  data?: Uint8Array;
   /** png, jpeg or gif. */
-  ext: "png" | "jpeg" | "gif";
+  ext?: "png" | "jpeg" | "gif";
+  /** The SVG itself, which Word (2016 and later) shows in place of `data`. */
+  svg?: string;
+  /** Size in CSS pixels, when `data` can't tell it (an SVG). */
+  width?: number;
+  height?: number;
 }
 
 export interface DocxOptions {
   title?: string;
   /** The bytes of an image the document references (`src` as written), or null. */
   loadImage?: (src: string) => Promise<ImageData | null>;
+  /** The n-th Mermaid diagram (from 0, in document order) as a picture, or null to keep its source. */
+  diagram?: (index: number) => ImageData | null;
+}
+
+/** A 1×1 transparent PNG: the stand-in an SVG picture needs for readers without SVG. */
+const BLANK_PNG = Uint8Array.from(
+  atobBytes("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="),
+);
+
+function atobBytes(b64: string): number[] {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  const out: number[] = [];
+  let buf = 0;
+  let bits = 0;
+  for (const c of b64.replace(/=+$/, "")) {
+    buf = (buf << 6) | chars.indexOf(c);
+    bits += 6;
+    if (bits >= 8) {
+      bits -= 8;
+      out.push((buf >> bits) & 0xff);
+    }
+  }
+  return out;
 }
 
 interface MdNode {
@@ -65,7 +94,9 @@ const MAX_HEIGHT = 4.5 * 914400;
 
 /** Pixel size of a PNG, JPEG or GIF. */
 export function imageSize(img: ImageData): { w: number; h: number } | null {
+  if (img.width && img.height) return { w: img.width, h: img.height };
   const d = img.data;
+  if (!d) return null;
   const u16 = (i: number) => (d[i]! << 8) | d[i + 1]!;
   const u32 = (i: number) => ((d[i]! << 24) | (d[i + 1]! << 16) | (d[i + 2]! << 8) | d[i + 3]!) >>> 0;
   if (img.ext === "png" && d.length > 24) return { w: u32(16), h: u32(20) };
@@ -95,7 +126,8 @@ const KEN_COMMENT = /^<!--\s*ken:/;
 class Writer {
   body: string[] = [];
   rels: string[] = [];
-  media: { name: string; data: Uint8Array; ext: string }[] = [];
+  media: { name: string; data: Uint8Array | string; ext: string }[] = [];
+  private diagramIndex = 0;
   nums: { abstract: string; id: number; start: number }[] = [];
   private relSeq = 1000;
   private picSeq = 1;
@@ -105,6 +137,7 @@ class Writer {
 
   constructor(
     private readonly loadImage: DocxOptions["loadImage"],
+    private readonly diagram: DocxOptions["diagram"],
     private readonly numbering: NumberingInfo,
     headings: string[],
   ) {
@@ -192,29 +225,42 @@ class Writer {
     const src = n.url ?? "";
     const img = this.loadImage ? await this.loadImage(src).catch(() => null) : null;
     const size = img ? imageSize(img) : null;
-    if (!img || !size || !size.w || !size.h) {
+    if (!img || !size || !size.w || !size.h || (!img.data && !img.svg)) {
       // Not something Word can show: a link to it instead.
       const label = n.alt || src;
       if (!/^https?:/i.test(src)) return this.run(`[${label}]`, st);
       return `<w:hyperlink r:id="${this.rel("hyperlink", src, true)}">${this.run(label, { ...st, link: true })}</w:hyperlink>`;
     }
-    const name = `ken-image-${this.media.length + 1}.${img.ext}`;
-    this.media.push({ name, data: img.data, ext: img.ext });
+    return this.picture(img, size, n.alt ?? "");
+  }
+
+  /** An inline picture: the PNG/JPEG/GIF, and the SVG over it where there is one. */
+  private picture(img: ImageData, size: { w: number; h: number }, altText: string): string {
+    const ext = img.data ? (img.ext ?? "png") : "png";
+    const name = `ken-image-${this.media.length + 1}.${ext}`;
+    this.media.push({ name, data: img.data ?? BLANK_PNG, ext });
     const rid = this.rel("image", `media/${name}`);
+    let svgExt = "";
+    if (img.svg) {
+      const svgName = `ken-image-${this.media.length + 1}.svg`;
+      this.media.push({ name: svgName, data: img.svg, ext: "svg" });
+      const svgRid = this.rel("image", `media/${svgName}`);
+      svgExt = `<a:extLst><a:ext uri="{96DAC541-7B7A-43D3-8B79-37D633B846F1}"><asvg:svgBlip xmlns:asvg="http://schemas.microsoft.com/office/drawing/2016/SVG/main" r:embed="${svgRid}"/></a:ext></a:extLst>`;
+    }
     let cx = size.w * EMU_PER_PX;
     let cy = size.h * EMU_PER_PX;
     const k = Math.min(1, MAX_WIDTH / cx, MAX_HEIGHT / cy);
     cx = Math.round(cx * k);
     cy = Math.round(cy * k);
     const id = this.picSeq++;
-    const alt = esc(n.alt ?? "");
+    const alt = esc(altText);
     return (
       `<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/>` +
       `<wp:docPr id="${id}" name="Picture ${id}" descr="${alt}"/>` +
       `<wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr>` +
       `<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">` +
       `<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="${id}" name="${name}" descr="${alt}"/><pic:cNvPicPr/></pic:nvPicPr>` +
-      `<pic:blipFill><a:blip r:embed="${rid}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>` +
+      `<pic:blipFill><a:blip r:embed="${rid}">${svgExt}</a:blip><a:stretch><a:fillRect/></a:stretch></pic:blipFill>` +
       `<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic>` +
       `</a:graphicData></a:graphic></wp:inline></w:drawing></w:r>`
     );
@@ -277,6 +323,15 @@ class Writer {
         await this.list(n, ctx.level ?? 0);
         return;
       case "code":
+        if ((n.lang ?? "").toLowerCase() === "mermaid") {
+          const pic = this.diagram?.(this.diagramIndex++) ?? null;
+          const size = pic ? imageSize(pic) : null;
+          if (pic && size) {
+            this.para(null, this.picture(pic, size, "Diagram"), '<w:jc w:val="center"/>');
+            return;
+          }
+        }
+      // falls through
       case "math": {
         const lines = (n.value ?? "").split("\n");
         for (const line of lines) this.para("CodeBlock", this.run(line, {}));
@@ -423,7 +478,7 @@ export async function markdownToDocx(markdown: string, template: Uint8Array, opt
   };
   walk(tree);
 
-  const writer = new Writer(options.loadImage, new NumberingInfo(styles, numbering), headings);
+  const writer = new Writer(options.loadImage, options.diagram, new NumberingInfo(styles, numbering), headings);
   await writer.blocks(tree.children ?? []);
 
   // The template's body is replaced; its page setup (the last sectPr) stays.
@@ -459,6 +514,7 @@ export async function markdownToDocx(markdown: string, template: Uint8Array, opt
     ["png", "image/png"],
     ["jpeg", "image/jpeg"],
     ["gif", "image/gif"],
+    ["svg", "image/svg+xml"],
   ]) {
     if (writer.media.some((m) => m.ext === ext) && !types.includes(`Extension="${ext}"`)) {
       types = types.replace("</Types>", `<Default Extension="${ext}" ContentType="${mime}"/></Types>`);

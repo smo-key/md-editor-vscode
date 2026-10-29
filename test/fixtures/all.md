@@ -9,18 +9,21 @@ status: draft
 Every feature of the editor in one file, written the way the editor saves it. Open it in the Ken Markdown Editor; the raw file shows what GitHub would render.
 
 <!-- ken:toc -->
-- [Ken Markdown feature tour](#ken-markdown-feature-tour)
-  - [Text formatting](#text-formatting)
-  - [Links](#links)
-  - [Headings](#headings)
-  - [Lists](#lists)
-  - [Quotes and alerts](#quotes-and-alerts)
-  - [Code](#code)
-  - [Math](#math)
-  - [Tables](#tables)
-  - [Images and diagrams](#images-and-diagrams)
-  - [Comments](#comments)
-  - [HTML and footnotes](#html-and-footnotes)
+- [Text formatting](#text-formatting)
+- [Links](#links)
+- [Headings](#headings)
+  - [Heading 3](#heading-3)
+    - [Heading 4](#heading-4)
+      - [Heading 5](#heading-5)
+        - [Heading 6](#heading-6)
+- [Lists](#lists)
+- [Quotes and alerts](#quotes-and-alerts)
+- [Code](#code)
+- [Math](#math)
+- [Tables](#tables)
+- [Images and diagrams](#images-and-diagrams)
+- [Comments](#comments)
+- [HTML and footnotes](#html-and-footnotes)
 
 ## Text formatting
 

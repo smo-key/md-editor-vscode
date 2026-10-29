@@ -99,6 +99,7 @@ import {
   PanelBottom,
   ClipboardPaste,
   Printer,
+  FileOutput,
   ChevronsUp,
   ChevronsDown,
   CopyPlus,
@@ -340,6 +341,12 @@ function insertLink(view: EditorView, ctx: Ctx) {
 // --- Print ----------------------------------------------------------------------------
 
 let printHandler: () => void = () => window.print();
+let exportHandler: () => void = () => undefined;
+
+/** What Export does (main.ts: the host asks for the format). */
+export function setExportHandler(handler: () => void): void {
+  exportHandler = handler;
+}
 
 /** What Print does (main.ts: a page for the browser, through the host). */
 export function setPrintHandler(handler: () => void): void {
@@ -822,6 +829,16 @@ export const COMMANDS: EditorCommand[] = [
     isEnabled: (state) => !!duplicateUnitTr(state),
   },
 
+  {
+    id: "export",
+    label: "Export (HTML, PDF, Word)",
+    icon: FileOutput,
+    group: "edit",
+    keywords: ["export", "html", "pdf", "docx", "word", "save as"],
+    toolbar: true,
+    keepFocus: true,
+    run: () => exportHandler(),
+  },
   {
     id: "print",
     label: "Print",

@@ -4,6 +4,10 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 
 ## [Unreleased]
 
+### Added
+
+- **Export** (toolbar, left of Print; the editor's title bar; the command palette): save the document as **HTML** (the page Print shows, without printing), **PDF** (printed by Chrome, Edge or another Chromium-based browser if one is installed, otherwise through your browser's print dialog; `kenMarkdown.export.browserPath` names one) or a **Word** document styled with the Ken Markdown template: Hanken Grotesk, Newsreader headings, JetBrains Mono code, quotes, alerts, tables, lists, links and images. Mermaid diagrams and math go into the Word document as their source.
+
 ### Fixed
 
 - After **Switch to Text**, **Open in Ken Markdown Editor** from the text diff goes back to the red/green comparison instead of opening one side of it as a plain document. A file compared with its last commit (from Source Control or a text diff) reuses its **Open Changes** view.

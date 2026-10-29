@@ -103,6 +103,11 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
       vscode.commands.registerCommand("kenMarkdown._testKeybindingsFile", () => keybindingsFile),
       vscode.commands.registerCommand("kenMarkdown._testCollab", () => collab.stats()),
+      vscode.commands.registerCommand("kenMarkdown._testExport", (uri: string, format: "html" | "pdf" | "docx", file: string) => {
+        const session = provider.sessions.get(uri);
+        if (!session) throw new Error(`no editor for ${uri}`);
+        return session.testExport(format, vscode.Uri.file(file));
+      }),
       vscode.commands.registerCommand("kenMarkdown._testDiffs", () => diffs.count),
       vscode.commands.registerCommand("kenMarkdown._testDiffMessage", (m: DiffWebviewMessage) => diffs.testMessage(m)),
       vscode.commands.registerCommand("kenMarkdown._testDiffQuery", (selectors: string[]) => diffs.testQuery(selectors)),

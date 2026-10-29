@@ -170,3 +170,7 @@
 .milkdown .ProseMirror .ken-diff-widget li::before {
   display: none;
 }
+/* Export works on a document in its own editor, not on a comparison. */
+.ken-diff-bar .ken-toolbar-button[data-id="export"] {
+  display: none;
+}

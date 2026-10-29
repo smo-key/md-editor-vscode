@@ -326,6 +326,12 @@
         "category": "Ken Markdown"
       },
       {
+        "command": "kenMarkdown.export",
+        "title": "Export (HTML, PDF, Word)…",
+        "category": "Ken Markdown",
+        "icon": "$(export)"
+      },
+      {
         "command": "kenMarkdown.print",
         "title": "Print",
         "category": "Ken Markdown",
@@ -451,6 +457,11 @@
         },
         {
           "command": "kenMarkdown.openDiff",
+          "when": "activeCustomEditorId == kenMarkdown.editor",
+          "group": "navigation"
+        },
+        {
+          "command": "kenMarkdown.export",
           "when": "activeCustomEditorId == kenMarkdown.editor",
           "group": "navigation"
         },
@@ -668,6 +679,10 @@
           "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {
+          "command": "kenMarkdown.export",
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
+        },
+        {
           "command": "kenMarkdown.print",
           "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
@@ -858,6 +873,11 @@
           ],
           "default": "ken",
           "markdownDescription": "Where diffs of two Markdown files open. The rendered view has a **Text diff** button for the source."
+        },
+        "kenMarkdown.export.browserPath": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "The Chromium-based browser (Chrome, Edge, Chromium, Brave) that **Export › PDF** prints with. Empty finds one in the usual places; without one, the page opens in your default browser to print as PDF."
         },
         "kenMarkdown.headingNumbers.enabled": {
           "type": "boolean",
@@ -1625,11 +1645,15 @@
     "@milkdown/crepe": "^7.21.2",
     "@milkdown/kit": "^7.21.2",
     "dompurify": "^3.4.17",
+    "jszip": "^3.10.2",
     "katex": "^0.17.0",
     "lucide": "^1.60.0",
+    "mdast-util-from-markdown": "^2.1.0",
+    "mdast-util-gfm": "^3.1.0",
     "mdast-util-math": "^3.0.0",
     "mdast-util-to-markdown": "^2.2.0",
     "mermaid": "^11.17.2",
+    "micromark-extension-gfm": "^3.0.0",
     "micromark-extension-math": "^3.1.0",
     "micromark-util-character": "^2.1.1",
     "vsls": "^1.0.4753",

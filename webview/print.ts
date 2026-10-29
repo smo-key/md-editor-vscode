@@ -9,6 +9,8 @@
  * the toolbar, placeholders) are left out.
  */
 
+import { AUTO_PRINT_SCRIPT } from "../src/printScript";
+
 /** Editor chrome that is not part of the document. */
 const CHROME = [
   "button",
@@ -107,7 +109,7 @@ body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 const escapeHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 /** A standalone page of `content` (the editor's `.measure` element) as shown now. */
-export async function printablePage(content: HTMLElement, title: string, doc: Document = document): Promise<string> {
+export async function printablePage(content: HTMLElement, title: string, doc: Document = document, autoPrint = true): Promise<string> {
   const cache = new Map<string, Promise<string>>();
   const clone = content.cloneNode(true) as HTMLElement;
   for (const el of Array.from(clone.querySelectorAll(CHROME))) el.remove();
@@ -133,6 +135,10 @@ export async function printablePage(content: HTMLElement, title: string, doc: Do
   // Live embeds (Lucid, draw.io editor) can't be printed from a file.
   for (const frame of Array.from(clone.querySelectorAll("iframe"))) frame.remove();
   const css = await collectCss(doc, cache);
+  // The page's own colour reaches the paper's edges too (the margins outside
+  // the content are painted by @page, not by the document).
+  const paper = doc.defaultView?.getComputedStyle(doc.body).backgroundColor ?? "";
+  const pageRule = paper && !/rgba\(0, 0, 0, 0\)|transparent/.test(paper) ? `@page { background: ${paper}; }` : "";
   const rootStyle = doc.documentElement.getAttribute("style") ?? "";
   const bodyClass = doc.body.className.replace(/\bready\b/, "").trim();
   return `<!doctype html>
@@ -142,16 +148,11 @@ export async function printablePage(content: HTMLElement, title: string, doc: Do
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>${escapeHtml(title)}</title>
 <style>${css.replace(/<\/style/gi, "<\\/style")}</style>
-<style>${PRINT_CSS}</style>
+<style>${PRINT_CSS}${pageRule}</style>
 </head>
 <body class="${escapeHtml(bodyClass)} ready ken-print">
 <div class="editor-scroll"><div class="${escapeHtml(content.className)}">${clone.innerHTML}</div></div>
-<script>
-  // Fonts and images first, then the print dialog.
-  window.addEventListener("load", () => {
-    (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => setTimeout(() => window.print(), 300));
-  });
-</script>
+${autoPrint ? AUTO_PRINT_SCRIPT : ""}
 </body>
 </html>`;
 }

@@ -262,6 +262,12 @@
       "alias": true
     },
     {
+      "command": "kenMarkdown.export",
+      "editor": "export",
+      "title": "Export (HTML, PDF, Word)…",
+      "icon": "$(export)"
+    },
+    {
       "command": "kenMarkdown.print",
       "editor": "print",
       "title": "Print",

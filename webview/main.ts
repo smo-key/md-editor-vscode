@@ -58,7 +58,7 @@ import { CommentsPanel } from "./comments/panel";
 import { joinDocument, propertyValue, splitDocument } from "./frontmatterModel";
 import { inEditorText, installKeyRouting, setBoundKeys } from "./keys";
 import { onLastHeadingLevel, setLastHeadingLevel } from "./headingControl";
-import { COMMANDS, command, execute, setClipboardReader, setPrintHandler, setShortcutLabels } from "./commands";
+import { COMMANDS, command, execute, setClipboardReader, setExportHandler, setPrintHandler, setShortcutLabels } from "./commands";
 import { printablePage } from "./print";
 import { closeShortcutsPanel, initShortcutsPanel, isShortcutsPanelOpen, toggleShortcutsPanel } from "./shortcutsPanel";
 import type { EditorConfig, HostMessage, TestAction, WebviewMessage } from "../src/protocol";
@@ -348,6 +348,8 @@ function request<T extends HostMessage>(build: (id: number) => WebviewMessage): 
 setClipboardReader(async () =>
   (await request<Extract<HostMessage, { type: "clipboardText" }>>((id) => ({ type: "readClipboard", id }))).text,
 );
+
+setExportHandler(() => post({ type: "export" }));
 
 setPrintHandler(() => {
   const name = docPath.slice(docPath.lastIndexOf("/") + 1) || "Document";
@@ -914,6 +916,14 @@ window.addEventListener("message", async (event: MessageEvent<HostMessage>) => {
       return;
     case "test": {
       post({ type: "testResult", id: m.id, result: runTest(m.action) });
+      return;
+    }
+    case "exportPage": {
+      const name = docPath.slice(docPath.lastIndexOf("/") + 1) || "Document";
+      void printablePage(host, name.replace(/\.(md|markdown)$/i, ""), document, false).then(
+        (html) => post({ type: "exportPageReady", id: m.id, html }),
+        (err) => post({ type: "error", message: `export: ${err}` }),
+      );
       return;
     }
   }

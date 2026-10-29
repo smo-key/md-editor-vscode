@@ -26,7 +26,7 @@ const MAIN = [
   ["bullet-list", "ordered-list", "task-list", "outdent", "indent"],
   ["quote", "code-block", "table", "divider", "image", "frontmatter"],
   ["comment-add", "comments"],
-  ["print"],
+  ["export", "print"],
 ];
 
 const TABLE = [

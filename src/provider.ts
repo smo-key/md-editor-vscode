@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import * as os from "os";
 import { WorkspaceFiles } from "./fileSearch";
+import { pickFormat, pickTarget, writeExport, type ExportFormat } from "./exportDoc";
 import * as path from "path";
 import type {
   EditorConfig,
@@ -285,6 +286,13 @@ class EditorSession {
       }
       case "print":
         await this.print(m.html, m.name);
+        return;
+      case "export":
+        await this.export();
+        return;
+      case "exportPageReady":
+        this.pendingPages.get(m.id)?.(m.html);
+        this.pendingPages.delete(m.id);
         return;
       case "findFiles":
         this.post({ type: "filesFound", id: m.id, items: await this.host.files.find(m.query, this.document.uri) });
@@ -659,6 +667,67 @@ class EditorSession {
         change.text,
       ),
     ];
+  }
+
+  /** A test's export: no dialogs, and told when it is done. */
+  pendingExport: { format: ExportFormat; target: vscode.Uri; done: (ok: boolean) => void } | undefined;
+  private pageSeq = 0;
+  private readonly pendingPages = new Map<number, (html: string) => void>();
+
+  /** Tests: export without the dialogs; resolves with whether it completed. */
+  testExport(format: ExportFormat, target: vscode.Uri): Promise<boolean> {
+    return new Promise((done) => {
+      this.pendingExport = { format, target, done };
+      this.send({ type: "command", id: "export" });
+    });
+  }
+
+  /** The print page, without printing, from the webview. */
+  private page(): Promise<string> {
+    const id = ++this.pageSeq;
+    return new Promise((resolve) => {
+      this.pendingPages.set(id, resolve);
+      this.post({ type: "exportPage", id });
+    });
+  }
+
+  /** Export as HTML, PDF or DOCX: ask which and where, then write it. */
+  private async export(): Promise<void> {
+    const preset = this.pendingExport;
+    this.pendingExport = undefined;
+    const format = preset?.format ?? (await pickFormat());
+    if (!format) return preset?.done(false);
+    const target = preset?.target ?? (await pickTarget(this.document.uri, format));
+    if (!target) return preset?.done(false);
+    try {
+      const complete = await vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Notification, title: `Exporting ${path.posix.basename(target.path)}…` },
+        async () =>
+          writeExport({
+            format,
+            target,
+            html: format === "docx" ? "" : await this.page(),
+            document: this.document,
+            extensionUri: this.extensionUri,
+            openExternal: (url) => this.host.openExternal(url),
+          }),
+      );
+      preset?.done(complete);
+      if (preset) return;
+      if (!complete) {
+        void vscode.window.showInformationMessage(
+          "Ken Markdown: no Chrome, Edge or Chromium was found to make the PDF, so the page opened in your browser: choose “Save as PDF” in its print dialog. (kenMarkdown.export.browserPath can name another Chromium-based browser.)",
+        );
+        return;
+      }
+      const reveal = process.platform === "darwin" ? "Show in Finder" : process.platform === "win32" ? "Show in File Explorer" : "Open Folder";
+      const choice = await vscode.window.showInformationMessage(`Exported ${path.posix.basename(target.path)}`, "Open", reveal);
+      if (choice === "Open") await this.host.openExternal(target.toString());
+      else if (choice === reveal) await vscode.commands.executeCommand("revealFileInOS", target);
+    } catch (err) {
+      preset?.done(false);
+      void vscode.window.showErrorMessage(`Ken Markdown: could not export: ${err instanceof Error ? err.message : err}`);
+    }
   }
 
   private async print(html: string, name: string): Promise<void> {

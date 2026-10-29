@@ -92,6 +92,8 @@ export type HostMessage =
   | { type: "diagramCreated"; id: number; path?: string; error?: string }
   /** The clipboard's text, for Paste as Plain Text. */
   | { type: "clipboardText"; id: number; text: string }
+  /** Export: the page (as Print shows it, without printing) is needed. */
+  | { type: "exportPage"; id: number }
   /** Files for the @ menu, best match first. */
   | { type: "filesFound"; id: number; items: FileHit[] }
   | { type: "flush"; id: number }
@@ -164,6 +166,10 @@ export type WebviewMessage =
   | { type: "readClipboard"; id: number }
   /** Search the workspace's files by name for the @ menu (webview/fileMention.ts). */
   | { type: "findFiles"; id: number; query: string }
+  /** The Export button: the host asks for a format and a place. */
+  | { type: "export" }
+  /** The page asked for by `exportPage`. */
+  | { type: "exportPageReady"; id: number; html: string }
   /** Open this standalone page of the document in the browser, to print it. */
   | { type: "print"; html: string; name: string }
   | { type: "openFile"; path: string }

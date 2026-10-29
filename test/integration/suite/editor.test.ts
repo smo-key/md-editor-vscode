@@ -1,3 +1,6 @@
+import * as path from "path";
+import * as fs from "fs";
+import * as os from "os";
 import * as assert from "assert";
 import * as vscode from "vscode";
 import type { TestAction } from "../../../src/protocol";
@@ -436,6 +439,22 @@ describe("Ken Markdown Editor", function () {
       assert.strictEqual(await vscode.commands.executeCommand<number>("kenMarkdown._testEditors", b.toString()), 0, "no plain editor opened");
       assert.ok(((await query())?.[0] ?? 0) > 0, "still highlighted");
       await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+    });
+
+    it("exports HTML, PDF and Word documents", async function () {
+      this.timeout(120000);
+      const uri = fixture("sample.md");
+      await openEditor(uri);
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ken-export-test-"));
+      for (const format of ["html", "pdf", "docx"] as const) {
+        const file = path.join(dir, `sample.${format}`);
+        const ok = await vscode.commands.executeCommand<boolean>("kenMarkdown._testExport", uri.toString(), format, file);
+        const bytes = fs.readFileSync(file);
+        if (format === "html") assert.ok(bytes.toString("utf8").includes("<title>sample</title>") && !bytes.toString("utf8").includes("window.print()"), "html without the print dialog");
+        if (format === "pdf") assert.ok(!ok || bytes.subarray(0, 4).toString() === "%PDF", "a PDF (or the browser fallback)");
+        if (format === "docx") assert.strictEqual(bytes.subarray(0, 2).toString(), "PK", "a zip");
+        if (format !== "pdf") assert.ok(ok);
+      }
     });
 
     it("opens a file's changes in the diff view", async () => {

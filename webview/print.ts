@@ -154,7 +154,17 @@ body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 @page { margin: 14mm; }
 @media print {
   .measure { max-width: none !important; padding: 0 !important; }
-  pre, table, img, figure, blockquote, .milkdown-image-block, .mermaid-preview { break-inside: avoid; }
+  pre, img, figure, blockquote, .milkdown-image-block, .mermaid-preview { break-inside: avoid; }
+  /* Tables fit the paper: no pane-wide placement, columns in proportion. */
+  .milkdown .milkdown-table-block, .milkdown .milkdown-table-block[data-full-width="true"] {
+    width: auto !important; max-width: 100% !important; left: auto !important; transform: none !important; margin-left: 0 !important; margin-right: 0 !important;
+  }
+  .milkdown .milkdown-table-block[data-full-width="true"] { width: 100% !important; }
+  .milkdown .milkdown-table-block .table-wrapper { overflow: visible !important; }
+  /* Column widths are targets, but a word never breaks inside itself. */
+  .milkdown .milkdown-table-block table.children { table-layout: auto !important; }
+  .milkdown .milkdown-table-block :is(th, td) { overflow-wrap: break-word !important; }
+  tr { break-inside: avoid; }
   h1, h2, h3, h4, h5, h6 { break-after: avoid; }
 }
 `;
@@ -166,6 +176,19 @@ export async function printablePage(content: HTMLElement, title: string, doc: Do
   const cache = new Map<string, Promise<string>>();
   await diagramsReady(content);
   const clone = content.cloneNode(true) as HTMLElement;
+  // Column widths were worked out in pixels for the pane; as percentages they
+  // keep their proportions on paper (or in a browser of any width).
+  for (const table of Array.from(clone.querySelectorAll<HTMLTableElement>("table"))) {
+    const cols = Array.from(table.querySelectorAll<HTMLTableColElement>(":scope > colgroup.ken-table-cols > col"));
+    const px = cols.map((c) => parseFloat(c.style.width) || 0);
+    const total = px.reduce((a, b) => a + b, 0);
+    if (!cols.length || total <= 0) continue;
+    cols.forEach((c, i) => (c.style.width = `${((px[i]! / total) * 100).toFixed(3)}%`));
+    const full = table.closest(".milkdown-table-block")?.getAttribute("data-full-width") === "true";
+    table.style.width = full ? "100%" : `min(${Math.ceil(total)}px, 100%)`;
+    table.style.maxWidth = "100%";
+    table.style.minWidth = "0";
+  }
   // A rendered diagram prints as itself, never as its source.
   for (const block of Array.from(clone.querySelectorAll(".milkdown-code-block"))) {
     if (block.querySelector(".preview svg, .preview img")) block.querySelector(".codemirror-host")?.remove();

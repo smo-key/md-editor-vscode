@@ -10,6 +10,7 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 
 ### Fixed
 
+- Tables in Print and Export (PDF, HTML) fit the page and stay centred: a full-width table is no longer shifted right and cut off, and columns keep their proportions at any page or window width.
 - Split diff view: scrolling one side no longer makes the other overshoot and bounce back; the side you're scrolling leads, and the other keeps the same block (or the gap where a block was added) level with it.
 - Print and Export (HTML, PDF) leave out the Properties panel, and print Mermaid diagrams as diagrams, never as their source, in any browser.
 - A Markdown text diff reopened with **Reopen Editor With… › Ken Markdown Editor** shows the red/green comparison, instead of the two versions side by side without highlights.

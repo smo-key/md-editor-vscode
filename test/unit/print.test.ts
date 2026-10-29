@@ -49,3 +49,18 @@ it("writes nested CSS out flat", () => {
     "}",
   ]);
 });
+
+it("turns a table's pixel column widths into proportions, so it fits any page", async () => {
+  const measure = document.createElement("div");
+  measure.className = "measure";
+  measure.innerHTML =
+    '<div class="milkdown"><div class="ProseMirror"><div class="milkdown-table-block" data-full-width="true"><table class="children" style="width: 1200px">' +
+    '<colgroup class="ken-table-cols"><col style="width: 300px"><col style="width: 900px"></colgroup><tbody><tr><td>a</td><td>b</td></tr></tbody></table></div>' +
+    '<div class="milkdown-table-block"><table class="children"><colgroup class="ken-table-cols"><col style="width: 40px"><col style="width: 60px"></colgroup><tbody><tr><td>c</td><td>d</td></tr></tbody></table></div></div></div>';
+  const html = await printablePage(measure, "x");
+  expect(html).toContain('<col style="width: 25.000%;">');
+  expect(html).toContain('<col style="width: 75.000%;">');
+  expect(html).toMatch(/<table class="children" style="width: 100%; max-width: 100%; min-width: 0(px)?;?">/);
+  // (happy-dom can't hold `min(100px, 100%)`: the cap is what is checked.)
+  expect(html).toContain('<col style="width: 40.000%;"><col style="width: 60.000%;">');
+});

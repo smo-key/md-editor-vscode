@@ -353,7 +353,7 @@ setExportHandler(() => post({ type: "export" }));
 
 setPrintHandler(() => {
   const name = docPath.slice(docPath.lastIndexOf("/") + 1) || "Document";
-  void printablePage(host, name).then(
+  void printablePage(host, name, document, true, view ?? undefined).then(
     (html) => post({ type: "print", html, name }),
     (err) => post({ type: "error", message: `print: ${err}` }),
   );
@@ -920,7 +920,7 @@ window.addEventListener("message", async (event: MessageEvent<HostMessage>) => {
     }
     case "exportPage": {
       const name = docPath.slice(docPath.lastIndexOf("/") + 1) || "Document";
-      void printablePage(host, name.replace(/\.(md|markdown)$/i, ""), document, false).then(
+      void printablePage(host, name.replace(/\.(md|markdown)$/i, ""), document, false, view ?? undefined).then(
         (html) => post({ type: "exportPageReady", id: m.id, html }),
         (err) => post({ type: "error", message: `export: ${err}` }),
       );

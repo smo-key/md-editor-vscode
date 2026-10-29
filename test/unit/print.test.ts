@@ -64,3 +64,19 @@ it("turns a table's pixel column widths into proportions, so it fits any page", 
   // (happy-dom can't hold `min(100px, 100%)`: the cap is what is checked.)
   expect(html).toContain('<col style="width: 40.000%;"><col style="width: 60.000%;">');
 });
+
+it("renders an equation Crepe hasn't built yet (off screen) instead of printing its source", async () => {
+  const { mountEditor, stubLayout } = await import("./editorEnv");
+  void stubLayout;
+  const { editorViewCtx } = await import("@milkdown/kit/core");
+  const ed = await mountEditor("Text\n\n$$\nx^2\n$$\n");
+  const view = ed.crepe.editor.action((ctx) => ctx.get(editorViewCtx));
+  expect(ed.root.querySelector(".milkdown-code-block .katex")).toBeNull();
+  const html = await printablePage(ed.root, "x", document, false, view);
+  const body = html.slice(html.indexOf("<body"));
+  // happy-dom runs in quirks mode, where KaTeX only reports an error; the equation's preview is there all the same.
+  expect(body).toContain('<div class="preview"><div class="ken-math-block');
+  expect(body).not.toContain("milkdown-code-block-placeholder");
+  expect(body).not.toContain("data-ken-print");
+  await ed.destroy();
+});

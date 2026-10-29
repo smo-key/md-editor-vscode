@@ -12,7 +12,11 @@
  * the same in any browser.
  */
 
+import type { EditorView } from "@milkdown/kit/prose/view";
+
 import { AUTO_PRINT_SCRIPT } from "../src/printScript";
+import { isMathLanguage, renderMathPreview } from "./markdown/math";
+import { renderMermaidPreview } from "./markdown/mermaid";
 
 /** Editor chrome that is not part of the document. */
 const CHROME = [
@@ -131,6 +135,72 @@ async function diagramsReady(content: HTMLElement, timeout = 4000): Promise<void
   while (pending() && Date.now() < end) await new Promise((r) => setTimeout(r, 100));
 }
 
+/** The rendered preview (diagram or equation) of a code block, or null when its language has none. */
+function renderPreview(language: string, code: string): Promise<HTMLElement | string | null> {
+  return new Promise((resolve) => {
+    const render = isMathLanguage(language) ? renderMathPreview : renderMermaidPreview;
+    const timer = setTimeout(() => resolve(null), 8000);
+    const result = render(language, code, (value) => {
+      clearTimeout(timer);
+      resolve(value);
+    });
+    if (result !== undefined) {
+      clearTimeout(timer);
+      resolve(result ?? null);
+    }
+  });
+}
+
+/**
+ * Crepe only builds a code block while it is on screen; off screen it is a
+ * plain-text placeholder. Each code block is labelled with its language and
+ * source, so the page can show every diagram and equation, wherever it is.
+ */
+function labelCodeBlocks(view: EditorView): () => void {
+  const labelled: HTMLElement[] = [];
+  view.state.doc.descendants((node, pos) => {
+    if (node.type.name !== "code_block") return true;
+    const dom = view.nodeDOM(pos);
+    if (dom instanceof HTMLElement) {
+      dom.dataset.kenPrintLang = String(node.attrs.language ?? "");
+      dom.dataset.kenPrintCode = node.textContent;
+      labelled.push(dom);
+    }
+    return false;
+  });
+  return () => {
+    for (const dom of labelled) {
+      delete dom.dataset.kenPrintLang;
+      delete dom.dataset.kenPrintCode;
+    }
+  };
+}
+
+/** In the clone, a diagram or equation not rendered on screen gets rendered. */
+async function renderMissingPreviews(clone: HTMLElement): Promise<void> {
+  const blocks = Array.from(clone.querySelectorAll<HTMLElement>(".milkdown-code-block[data-ken-print-lang]"));
+  await Promise.all(
+    blocks.map(async (block) => {
+      const language = block.dataset.kenPrintLang ?? "";
+      const code = block.dataset.kenPrintCode ?? "";
+      delete block.dataset.kenPrintLang;
+      delete block.dataset.kenPrintCode;
+      if (language.toLowerCase() !== "mermaid" && !isMathLanguage(language)) return;
+      if (block.querySelector(".preview svg, .preview img, .preview .katex")) return;
+      const preview = await renderPreview(language, code);
+      if (!preview) return;
+      const panel = document.createElement("div");
+      panel.className = "preview-panel";
+      const inner = document.createElement("div");
+      inner.className = "preview";
+      if (typeof preview === "string") inner.innerHTML = preview;
+      else inner.append(preview.cloneNode(true));
+      panel.append(inner);
+      block.replaceChildren(panel);
+    }),
+  );
+}
+
 async function collectCss(doc: Document, cache: Map<string, Promise<string>>): Promise<string> {
   const parts: string[] = [];
   for (const sheet of Array.from(doc.styleSheets)) {
@@ -172,10 +242,19 @@ body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 const escapeHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 /** A standalone page of `content` (the editor's `.measure` element) as shown now. */
-export async function printablePage(content: HTMLElement, title: string, doc: Document = document, autoPrint = true): Promise<string> {
+export async function printablePage(
+  content: HTMLElement,
+  title: string,
+  doc: Document = document,
+  autoPrint = true,
+  view?: EditorView,
+): Promise<string> {
   const cache = new Map<string, Promise<string>>();
   await diagramsReady(content);
+  const unlabel = view ? labelCodeBlocks(view) : () => undefined;
   const clone = content.cloneNode(true) as HTMLElement;
+  unlabel();
+  await renderMissingPreviews(clone);
   // Column widths were worked out in pixels for the pane; as percentages they
   // keep their proportions on paper (or in a browser of any width).
   for (const table of Array.from(clone.querySelectorAll<HTMLTableElement>("table"))) {
@@ -191,7 +270,7 @@ export async function printablePage(content: HTMLElement, title: string, doc: Do
   }
   // A rendered diagram prints as itself, never as its source.
   for (const block of Array.from(clone.querySelectorAll(".milkdown-code-block"))) {
-    if (block.querySelector(".preview svg, .preview img")) block.querySelector(".codemirror-host")?.remove();
+    if (block.querySelector(".preview svg, .preview img, .preview .katex")) block.querySelector(".codemirror-host")?.remove();
   }
   for (const el of Array.from(clone.querySelectorAll(CHROME))) el.remove();
   for (const el of Array.from(clone.querySelectorAll("[contenteditable]"))) el.removeAttribute("contenteditable");

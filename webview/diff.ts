@@ -474,7 +474,7 @@ setClipboardReader(
 setPrintHandler(() => {
   const side = active;
   if (!side) return;
-  void printablePage(side.scroll.querySelector<HTMLElement>(".measure")!, "Document").then((html) => post({ type: "print", html, name: "Document" }));
+  void printablePage(side.scroll.querySelector<HTMLElement>(".measure")!, "Document", document, true, side.view).then((html) => post({ type: "print", html, name: "Document" }));
 });
 
 function onContent(m: DiffContent) {

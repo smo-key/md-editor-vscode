@@ -295,3 +295,35 @@ export function combinedWidgets(entries: BlockEntry[]): RemovedWidget[] {
   }
   return out;
 }
+
+/** A block (or run of changes) of a pane: its anchor and its span in the pane's content, in px. */
+export interface AnchorSpan {
+  anchor: string;
+  top: number;
+  bottom: number;
+}
+
+/**
+ * Where `to` should be scrolled to match `from`: the same point of the same
+ * block (or run of changes). A run only one side has maps to the gap where it
+ * would be on the other.
+ */
+export function syncedScrollTop(fromTop: number, from: AnchorSpan[], to: AnchorSpan[]): number | null {
+  if (!from.length || !to.length) return null;
+  const target = new Map(to.map((s) => [s.anchor, s]));
+  let i = from.findIndex((s) => s.bottom > fromTop);
+  if (i < 0) i = from.length - 1;
+  const here = from[i]!;
+  const there = target.get(here.anchor);
+  if (there) {
+    const ratio = here.bottom > here.top ? Math.min(1, Math.max(0, (fromTop - here.top) / (here.bottom - here.top))) : 0;
+    return there.top + ratio * (there.bottom - there.top);
+  }
+  // Only on this side: hold the other side at the gap, after the last block both share.
+  for (let k = i - 1; k >= 0; k--) {
+    const shared = target.get(from[k]!.anchor);
+    if (shared) return shared.bottom;
+  }
+  return 0;
+}
+

@@ -32,7 +32,7 @@ import "./diff.css";
 import { buildEditor } from "./editorSetup";
 import { joinDocument, splitDocument } from "./frontmatterModel";
 import { splitThreads } from "./comments/store";
-import { combinedWidgets, diffBlocks, layoutDiff, type DiffMark, type RemovedWidget } from "./diffModel";
+import { combinedWidgets, diffBlocks, layoutDiff, syncedScrollTop, type DiffMark, type RemovedWidget } from "./diffModel";
 import { normalizeTrailingNewlines } from "./markdown/gfmFidelity";
 import { applyTypography, trackScreenHeight } from "./theme";
 import { isHostMessage } from "./hostMessage";
@@ -398,30 +398,48 @@ function setLayout(next: DiffLayoutMode) {
 
 // --- Scrolling: the split panes follow each other, block for block ---------------
 
-function anchorAtTop(scroll: HTMLElement): { anchor: string; ratio: number } | null {
-  const top = scroll.getBoundingClientRect().top;
+/** The anchored blocks of a pane, top to bottom, grouped by anchor: each group's span in the pane's content. */
+function anchorSpans(scroll: HTMLElement): { anchor: string; top: number; bottom: number }[] {
+  const base = scroll.getBoundingClientRect().top - scroll.scrollTop;
+  const spans = new Map<string, { anchor: string; top: number; bottom: number }>();
   for (const el of scroll.querySelectorAll<HTMLElement>("[data-diff-anchor]")) {
     const r = el.getBoundingClientRect();
-    if (r.bottom > top) return { anchor: el.dataset.diffAnchor!, ratio: r.height ? (top - r.top) / r.height : 0 };
+    const anchor = el.dataset.diffAnchor!;
+    const span = spans.get(anchor);
+    if (span) {
+      span.top = Math.min(span.top, r.top - base);
+      span.bottom = Math.max(span.bottom, r.bottom - base);
+    } else spans.set(anchor, { anchor, top: r.top - base, bottom: r.bottom - base });
   }
-  return null;
+  return [...spans.values()].sort((x, y) => x.top - y.top);
 }
 
+/**
+ * Scroll the two split panes together. Only the pane the user is working in
+ * leads (the last one wheeled, touched, clicked or typed in); the other just
+ * follows, so a follower's own scroll events (and a leader's momentum) never
+ * echo back and forth.
+ */
 function linkScrolling(a: HTMLElement, b: HTMLElement) {
-  let driver: HTMLElement | null = null;
-  const follow = (from: HTMLElement, to: HTMLElement) => () => {
-    if (driver && driver !== from) return;
-    driver = from;
-    requestAnimationFrame(() => (driver = null));
-    const at = anchorAtTop(from);
-    const target = at && to.querySelector<HTMLElement>(`[data-diff-anchor="${at.anchor}"]`);
-    if (!at || !target) {
-      const max = from.scrollHeight - from.clientHeight;
-      to.scrollTop = max > 0 ? (from.scrollTop / max) * (to.scrollHeight - to.clientHeight) : 0;
-      return;
+  let leader: HTMLElement | null = null;
+  for (const pane of [a, b]) {
+    for (const type of ["wheel", "pointerdown", "touchstart", "keydown", "focusin"]) {
+      pane.addEventListener(type, () => (leader = pane), { passive: true, capture: true });
     }
-    const r = target.getBoundingClientRect();
-    to.scrollTop += r.top + at.ratio * r.height - to.getBoundingClientRect().top;
+  }
+  let frame = 0;
+  const follow = (from: HTMLElement, to: HTMLElement) => () => {
+    if (leader !== from || frame) return;
+    frame = requestAnimationFrame(() => {
+      frame = 0;
+      const top = syncedScrollTop(from.scrollTop, anchorSpans(from), anchorSpans(to));
+      if (top === null) {
+        const max = from.scrollHeight - from.clientHeight;
+        to.scrollTop = max > 0 ? (from.scrollTop / max) * (to.scrollHeight - to.clientHeight) : 0;
+        return;
+      }
+      if (Math.abs(to.scrollTop - top) >= 1) to.scrollTo({ top, behavior: "instant" });
+    });
   };
   a.addEventListener("scroll", follow(a, b), { passive: true });
   b.addEventListener("scroll", follow(b, a), { passive: true });

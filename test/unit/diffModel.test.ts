@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { editorViewCtx, parserCtx } from "@milkdown/kit/core";
 import type { Node as ProseNode } from "@milkdown/kit/prose/model";
 
-import { combinedWidgets, diffBlocks, layoutDiff } from "../../webview/diffModel";
+import { combinedWidgets, diffBlocks, layoutDiff, syncedScrollTop } from "../../webview/diffModel";
 import { mountEditor, stubLayout } from "./editorEnv";
 
 stubLayout();
@@ -88,3 +88,23 @@ describe("diff model", () => {
   });
 });
 
+
+describe("split view scrolling", () => {
+  const left = [
+    { anchor: "s0", top: 0, bottom: 100 },
+    { anchor: "c1", top: 100, bottom: 300 },
+    { anchor: "s2", top: 300, bottom: 400 },
+  ];
+  const right = [
+    { anchor: "s0", top: 0, bottom: 100 },
+    { anchor: "s2", top: 100, bottom: 200 },
+  ];
+  it("keeps the same point of the same block at the top", () => {
+    expect(syncedScrollTop(50, left, right)).toBe(50);
+    expect(syncedScrollTop(350, left, right)).toBe(150);
+  });
+  it("holds the other side at the gap while a run only one side has scrolls past", () => {
+    expect(syncedScrollTop(150, left, right)).toBe(100);
+    expect(syncedScrollTop(250, left, right)).toBe(100);
+  });
+});

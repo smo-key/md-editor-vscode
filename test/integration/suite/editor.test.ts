@@ -485,10 +485,11 @@ describe("Ken Markdown Editor", function () {
       const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "ken-export-test-")), "all.docx");
       assert.ok(await vscode.commands.executeCommand<boolean>("kenMarkdown._testExport", uri.toString(), "docx", file));
       const zip = fs.readFileSync(file).toString("latin1");
-      // logo.svg twice (block and inline) and flow.drawio.svg, plus two diagrams: each an SVG part.
-      const svgs = new Set(zip.match(/word\/media\/ken-image-\d+\.svg/g) ?? []);
-      assert.ok(svgs.size >= 5, `SVG pictures: ${svgs.size}`);
-      console.log("EXPORT", file);
+      // logo.svg twice (block and inline), flow.drawio.svg and two diagrams: each drawn as a PNG
+      // (Word's own SVG drawing loses draw.io's text and Mermaid's lines).
+      const pngs = new Set(zip.match(/word\/media\/ken-image-\d+\.png/g) ?? []);
+      assert.ok(pngs.size >= 5, `pictures: ${pngs.size}`);
+      assert.ok(!/word\/media\/ken-image-\d+\.svg/.test(zip), "no SVG parts");
     });
 
     it("opens a file's changes in the diff view", async () => {

@@ -136,7 +136,7 @@ Your own VS Code writes the file. One editor per copy of the file saves the shar
 
 - **HTML**: a single page that looks exactly like the editor, with fonts, images and diagrams inside it.
 - **PDF**: that page printed by Chrome, Edge, Chromium or Brave if one is installed (set `kenMarkdown.export.browserPath` for another); otherwise the page opens in your browser to *Save as PDF*.
-- **Word (.docx)**: styled by the Ken Markdown template (`media/export-template.docx`), with the editor's fonts embedded. Images (SVG and draw.io included) and Mermaid diagrams go in as pictures (SVG, with a PNG for older versions of Word); math becomes editable Word equations.
+- **Word (.docx)**: styled by the Ken Markdown template (`media/export-template.docx`), with the editor's fonts embedded. Images (SVG and draw.io included) and Mermaid diagrams go in as high-resolution pictures, drawn as the editor shows them; math becomes editable Word equations.
 
 ### See what changed
 

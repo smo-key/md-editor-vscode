@@ -153,8 +153,18 @@ export interface ExportRequest {
   assets?: { images: Record<string, ExportAsset>; diagrams: (ExportAsset | null)[] };
 }
 
+/**
+ * A picture for Word: the PNG the editor drew whenever there is one. Word
+ * draws an SVG itself, and badly (no HTML text such as draw.io's labels, no
+ * stylesheet such as the one stroking Mermaid's lines), so an SVG goes in only
+ * when there's no PNG.
+ */
 const asImage = (a: ExportAsset | null | undefined): ImageData | null =>
-  a ? { data: a.png ? new Uint8Array(a.png) : undefined, ext: a.png ? "png" : undefined, svg: a.svg, width: a.width, height: a.height } : null;
+  a
+    ? a.png
+      ? { data: new Uint8Array(a.png), ext: "png", width: a.width, height: a.height }
+      : { svg: a.svg, width: a.width, height: a.height }
+    : null;
 
 /** Write the export. Returns false when the PDF fell back to the browser's print dialog. */
 export async function writeExport(req: ExportRequest): Promise<boolean> {

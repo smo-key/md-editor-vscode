@@ -10,7 +10,7 @@ import type { Node as ProseNode } from "@milkdown/kit/prose/model";
 import type { ExportAsset } from "../src/protocol";
 import { exportMermaidSvg } from "./markdown/mermaid";
 
-const MAX_PX = 2400;
+const MAX_PX = 3600;
 
 function svgSize(svg: string): { w: number; h: number } | null {
   const doc = new DOMParser().parseFromString(svg, "image/svg+xml");
@@ -44,7 +44,8 @@ async function toPng(url: string, w: number, h: number): Promise<Uint8Array | nu
   } catch {
     return null;
   }
-  const scale = Math.min(2, MAX_PX / Math.max(w, h));
+  // Sharp in print: three device pixels per CSS pixel, within a sane size.
+  const scale = Math.min(3, MAX_PX / Math.max(w, h));
   const canvas = document.createElement("canvas");
   canvas.width = Math.max(1, Math.round(w * scale));
   canvas.height = Math.max(1, Math.round(h * scale));

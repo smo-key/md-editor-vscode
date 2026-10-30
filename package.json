@@ -511,6 +511,11 @@
           "command": "kenMarkdown.compare",
           "when": "isInDiffEditor && resourceLangId == markdown",
           "group": "navigation"
+        },
+        {
+          "command": "kenMarkdown.compare",
+          "when": "activeEditor == multiDiffEditor",
+          "group": "navigation"
         }
       ],
       "explorer/context": [

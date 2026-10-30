@@ -216,6 +216,7 @@ describe("Ken Markdown Editor", function () {
     // before the agent's edits in a document of this scheme.
     const scheme = "chat-editing-text-model";
     const provider = vscode.workspace.registerTextDocumentContentProvider(scheme, { provideTextDocumentContent: () => original });
+    let snapshots: vscode.Disposable | undefined;
     try {
       const session = { $mid: 1, scheme: "vscode-chat-session", path: "/test" };
       const originalUri = vscode.Uri.from({ scheme, path: uri.path, query: JSON.stringify({ kind: "doc", documentId: "test", chatSessionResource: session }) });
@@ -243,7 +244,30 @@ describe("Ken Markdown Editor", function () {
       await until("file undone", () => doc.getText(), (t) => t === original);
       await until("no changes left", () => webview(uri, { kind: "count", selector: ".ken-agent-hunk" }), (n) => n === 0);
       await doc.save();
+
+      // The chat's multi-file diffs (session and request changes) of just this file open here too.
+      await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+      await vscode.commands.executeCommand("vscode.changes", "Session changes", [[uri, originalUri, uri]]);
+      await until(
+        "the Ken editor replaces the session's changes",
+        () => vscode.window.tabGroups.activeTabGroup.activeTab?.input,
+        (input) => input instanceof vscode.TabInputCustom && input.viewType === VIEW_TYPE,
+      );
+      // Two versions from earlier requests: the rendered comparison.
+      const snap = (requestId: string) =>
+        vscode.Uri.from({ scheme: "chat-editing-snapshot-text-model", path: uri.path, query: JSON.stringify({ session: "s", requestId, undoStop: "" }) });
+      snapshots = vscode.workspace.registerTextDocumentContentProvider("chat-editing-snapshot-text-model", {
+        provideTextDocumentContent: (u) => (u.query.includes('"a"') ? original : edited),
+      });
+      await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+      await vscode.commands.executeCommand("vscode.changes", "Request changes", [[uri, snap("a"), snap("b")]]);
+      await until(
+        "the comparison replaces the request's changes",
+        () => vscode.window.tabGroups.activeTabGroup.activeTab?.input,
+        (input) => input instanceof vscode.TabInputWebview && input.viewType.endsWith("kenMarkdown.diff"),
+      );
     } finally {
+      snapshots?.dispose();
       provider.dispose();
       await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
       fs.rmSync(uri.fsPath, { force: true });

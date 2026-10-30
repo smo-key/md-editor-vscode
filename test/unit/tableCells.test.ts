@@ -201,3 +201,70 @@ describe("pasting into and as tables", () => {
     });
   });
 });
+
+describe("copying inside a table cell", () => {
+  const md =
+    "<!-- ken:table full noheader -->\n|  |\n| :- |\n| **Builds on:** XD 11/9<br><br>**Topics**<ul><li>Non-course credit</li></ul> |\n";
+
+  function copy(view: EditorView, type: "copy" | "cut" = "copy") {
+    const clipboardData = new DataTransfer();
+    view.dom.dispatchEvent(new ClipboardEvent(type, { clipboardData, bubbles: true, cancelable: true }));
+    return { text: clipboardData.getData("text/plain"), html: clipboardData.getData("text/html") };
+  }
+
+  function select(view: EditorView, from: string, to: string) {
+    let a = -1;
+    let b = -1;
+    view.state.doc.descendants((node, pos) => {
+      if (!node.isText) return true;
+      const i = node.text!.indexOf(from);
+      if (a < 0 && i >= 0) a = pos + i;
+      const j = node.text!.indexOf(to);
+      if (j >= 0) b = pos + j + to.length;
+      return true;
+    });
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, a, b)));
+  }
+
+  it("copies just the text, not the table around it", async () => {
+    await withEditor(md, (view) => {
+      select(view, "XD", "Non-course credit");
+      const { text, html } = copy(view);
+      expect(text).toBe("XD 11/9\n\nTopics\nNon-course credit");
+      expect(html).not.toContain("<table");
+      expect(html).toContain("<li");
+      select(view, "11/9", "11/9");
+      expect(copy(view).text).toBe("11/9");
+    });
+  });
+
+  it("leaves copies of whole cells to the table", async () => {
+    await withEditor("| a | b |\n| - | - |\n| x | y |\n", (view) => {
+      const cells: number[] = [];
+      view.state.doc.descendants((node, pos) => {
+        if (node.type.name === "table_header") cells.push(pos);
+        return true;
+      });
+      view.dispatch(view.state.tr.setSelection(CellSelection.create(view.state.doc, cells[0]!, cells[1]!)));
+      // The table's own copy: still a table.
+      expect(copy(view).html).toContain("<table");
+    });
+  });
+});
+
+describe("an empty paragraph before a list in a cell", () => {
+  const md = "|  |\n| :- |\n| **Topics**<ul><li>Non-course credit</li></ul> |\n";
+  for (const key of ["Backspace", "Delete"]) {
+    it(`goes away on ${key}, leaving the list a list`, async () => {
+      await withEditor(md, (view, out) => {
+        caretAfter(view, "Topics");
+        const end = view.state.selection.from;
+        view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, end - "Topics".length, end)));
+        press(view, "Backspace");
+        press(view, key);
+        expect(row(out())).toBe("| <ul><li>Non-course credit</li></ul> |");
+        expect(view.state.selection.$from.parent.textContent).toBe("Non-course credit");
+      });
+    });
+  }
+});

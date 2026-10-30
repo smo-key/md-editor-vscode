@@ -36,6 +36,7 @@ import { slashMenuPlugin } from "./slashMenu";
 import { fileMentionPlugin, type FileMentionOptions } from "./fileMention";
 import { useTaskHandle } from "./taskHandle";
 import { headingLevelKeys, tableCellClickFix, tableKeys } from "./tableKeys";
+import { cellCopyPlugin } from "./markdown/cellCopy";
 import { columnResizePlugin } from "./tableResize";
 import { blockExitPlugin } from "./blockExit";
 import { drawioPlugin } from "./drawio";
@@ -181,6 +182,7 @@ export function buildEditor(options: EditorOptions): Crepe {
   // After the menu: while it is open, Enter runs its highlighted item.
   crepe.editor.use(slashShortcutKeys);
   crepe.editor.use(tableKeys);
+  crepe.editor.use(cellCopyPlugin);
   crepe.editor.use(headingLevelKeys);
   crepe.editor.use(tableCellClickFix);
   // Selections reaching images, tables, diagrams and code take them whole.

@@ -5,12 +5,17 @@
 //   (h3 → h2 → h1 → p), so we disable that shortcut and install our own;
 // - in an empty list item (bullet, numbered or task, at any depth), the item
 //   leaves every list it sits in and becomes a paragraph where it was. The
-//   items around it stay in their lists, which split around the paragraph.
+//   items around it stay in their lists, which split around the paragraph;
+// - an empty paragraph before a block (a list, say) goes away by itself:
+//   Delete in it, or Backspace when nothing comes before it (the start of the
+//   document or of a table cell). ProseMirror would otherwise pull the next
+//   list's first item out into the paragraph, or do nothing.
 import type { Ctx } from "@milkdown/kit/ctx";
 import { setBlockType } from "@milkdown/kit/prose/commands";
 import { keymap } from "@milkdown/kit/prose/keymap";
 import { liftListItem } from "@milkdown/kit/prose/schema-list";
 import {
+  Selection,
   TextSelection,
   type Command,
   type Transaction,
@@ -103,6 +108,32 @@ export function blockBackspaceCommand(ctx: Ctx): Command {
 }
 
 /**
+ * Remove an empty paragraph that has a block after it in the same container
+ * (not a list item's own paragraph), leaving the caret at the start of that
+ * block. `first`: only when nothing comes before it there (Backspace).
+ */
+export function emptyParagraphCommand(ctx: Ctx, first: boolean): Command {
+  return (state, dispatch) => {
+    const { selection } = state;
+    if (!selection.empty) return false;
+    const { $from } = selection;
+    const depth = $from.depth;
+    if ($from.parent.type !== paragraphSchema.type(ctx) || $from.parent.content.size !== 0 || depth < 1) return false;
+    const container = $from.node(depth - 1);
+    const index = $from.index(depth - 1);
+    if (container.type === listItemSchema.type(ctx)) return false;
+    if (index >= container.childCount - 1 || (first && index > 0)) return false;
+    if (!dispatch) return true;
+    const from = $from.before(depth);
+    const tr = state.tr.delete(from, $from.after(depth));
+    const $at = tr.doc.resolve(from);
+    tr.setSelection(Selection.findFrom($at, 1, true) ?? Selection.near($at));
+    dispatch(tr.scrollIntoView());
+    return true;
+  };
+}
+
+/**
  * The numbered list the paragraph was lifted out of now sits either side of
  * it; a fresh list after a paragraph would restart at 1 on disk, so the part
  * after carries on from the part before (or from the list's own start when
@@ -137,9 +168,13 @@ function continueNumbering(tr: Transaction, start: number, to: number) {
  */
 export const headingBackspace = milkdown.$prose((ctx: Ctx) => {
   const command = blockBackspaceCommand(ctx);
+  const emptyFirst = emptyParagraphCommand(ctx, true);
+  const emptyAny = emptyParagraphCommand(ctx, false);
   return keymap({
+    Delete: emptyAny,
     Backspace: (state, dispatch, view) => {
       if (command(state, dispatch)) return true;
+      if (emptyFirst(state, dispatch)) return true;
       // The heading-link button is a widget at the very start of a heading.
       // Arrowing onto offset 0 past it can leave the DOM caret at the start
       // while ProseMirror's selection still says offset 1 (the browser moves

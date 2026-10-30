@@ -64,6 +64,8 @@ export interface AgentEditsHost {
 interface State {
   decos: DecorationSet;
   hunks: AgentHunk[];
+  /** The agent created the file: shown as it is under a banner, kept or undone whole. */
+  added?: boolean;
 }
 
 const key = new PluginKey<State>("ken-agent-edits");
@@ -113,6 +115,8 @@ function skipInPrint(el: HTMLElement): HTMLElement {
   return el;
 }
 
+const isAdded = () => !!view && !!key.getState(view.state)?.added;
+
 function hunks(): AgentHunk[] {
   return view ? (key.getState(view.state)?.hunks ?? []) : [];
 }
@@ -154,6 +158,17 @@ function frontBox(front: NonNullable<AgentHunk["front"]>): HTMLElement {
 function compute(v: EditorView): State {
   if (!original) return { decos: DecorationSet.empty, hunks: [] };
   const { doc, schema } = v.state;
+  if (!original.front && !original.doc.textContent && original.doc.childCount <= 1 && (doc.textContent || host!.front())) {
+    const banner = () => {
+      const el = document.createElement("div");
+      el.className = "ken-diff-banner ken-agent-banner";
+      el.dataset.status = "added";
+      el.contentEditable = "false";
+      el.textContent = "This file was added.";
+      return skipInPrint(el);
+    };
+    return { decos: DecorationSet.create(doc, [Decoration.widget(0, banner, { side: -10, key: "agent-added", ignoreSelection: true })]), hunks: [], added: true };
+  }
   const entries = diffBlocks(original.doc, doc);
   const list = agentHunks(entries);
   const fronts = { old: yaml(original.front), new: yaml(host!.front()) };
@@ -190,7 +205,8 @@ function refresh() {
   busyUntil = 0;
   view.dispatch(view.state.tr.setMeta(key, compute(view)).setMeta("addToHistory", false));
   const list = hunks();
-  bar.hidden = list.length === 0;
+  bar.hidden = !agentEdits.pending();
+  bar.classList.toggle("added", isAdded());
   if (current >= list.length) current = Math.max(0, list.length - 1);
   showCurrent(false);
 }
@@ -240,7 +256,7 @@ function resolveChange(action: "keep" | "undo", index: number) {
 }
 
 function resolveFile(action: "keep" | "undo") {
-  if (!host || busy() || !hunks().length) return;
+  if (!host || busy() || !agentEdits.pending()) return;
   host.flush();
   busyUntil = Date.now() + 3000;
   host.post({ type: "agentAction", action, scope: "file" });
@@ -248,9 +264,9 @@ function resolveFile(action: "keep" | "undo") {
 
 /** Keyboard commands (webview/commands.ts). */
 export const agentEdits = {
-  pending: () => hunks().length > 0,
-  keepChange: () => resolveChange("keep", hunkAtCaret()),
-  undoChange: () => resolveChange("undo", hunkAtCaret()),
+  pending: () => hunks().length > 0 || isAdded(),
+  keepChange: () => (isAdded() ? resolveFile("keep") : resolveChange("keep", hunkAtCaret())),
+  undoChange: () => (isAdded() ? resolveFile("undo") : resolveChange("undo", hunkAtCaret())),
   keepFile: () => resolveFile("keep"),
   undoFile: () => resolveFile("undo"),
   next: () => step(1),
@@ -268,6 +284,7 @@ export const agentEditsPlugin = $prose(
           const next = tr.getMeta(key) as State | undefined;
           if (next) return next;
           if (!tr.docChanged) return prev;
+          if (prev.added) return { ...prev, decos: prev.decos.map(tr.mapping, tr.doc) };
           const hunks = prev.hunks.map((h) => ({ ...h, from: tr.mapping.map(h.from, -1), to: Math.max(tr.mapping.map(h.from, -1), tr.mapping.map(h.to, 1)) }));
           return { decos: prev.decos.map(tr.mapping, tr.doc), hunks };
         },

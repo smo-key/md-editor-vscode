@@ -132,11 +132,16 @@ bar.append(toolbars, controls);
 
 const panes = document.createElement("div");
 panes.className = "ken-diff-panes";
-document.body.append(bar, panes);
+/** "This file was added/deleted": a file with only one version is shown as it is. */
+const banner = document.createElement("div");
+banner.className = "ken-diff-banner";
+banner.hidden = true;
+document.body.append(bar, banner, panes);
 
 // --- State --------------------------------------------------------------------------
 
 let layout: DiffLayoutMode = "combined";
+let status: DiffContent["status"];
 let readOnly: DiffReadOnly = { old: true, new: false };
 let base = { old: "", new: "" };
 /** Each version's full text: the latest from the host or from an edit here. */
@@ -192,6 +197,10 @@ const yaml = (front: string) => front.replace(/^---\r?\n/, "").replace(/\r?\n?--
 
 /** Recompute one side's highlights against the other version. */
 function highlight(side: Side) {
+  if (status) {
+    side.view.dispatch(side.view.state.tr.setMeta(diffKey, { marks: [], widgets: [], front: null }).setMeta("addToHistory", false));
+    return;
+  }
   const other: DiffSideName = side.role === "new" ? "old" : "new";
   const otherDoc = parseIn(side, parts(texts[other]).markdown);
   const doc = side.view.state.doc;
@@ -338,10 +347,19 @@ async function render() {
   active = null;
   panes.replaceChildren();
   toolbars.replaceChildren();
-  panes.dataset.layout = layout;
+  panes.dataset.layout = status ? "combined" : layout;
   combinedBtn.setAttribute("aria-pressed", String(layout === "combined"));
   splitBtn.setAttribute("aria-pressed", String(layout === "split"));
-  const plan: [DiffSideName, Side["mode"]][] = layout === "split" ? [["old", "old"], ["new", "new"]] : [["new", "combined"]];
+  toggle.hidden = !!status;
+  banner.hidden = !status;
+  banner.dataset.status = status ?? "";
+  banner.textContent = status === "added" ? "This file was added." : status === "deleted" ? "This file was deleted." : "";
+  const only: DiffSideName = status === "deleted" ? "old" : "new";
+  const plan: [DiffSideName, Side["mode"]][] = status
+    ? [[only, only]]
+    : layout === "split"
+      ? [["old", "old"], ["new", "new"]]
+      : [["new", "combined"]];
   for (const [role, mode] of plan) sides.push(await mountSide(role, mode));
   if (seq !== renderSeq) return;
   setActive(sides.find((s) => s.role === "new") ?? sides[0]!);
@@ -449,6 +467,14 @@ setPrintHandler(() => {
 });
 
 function onContent(m: DiffContent) {
+  if (m.status !== status) {
+    // Now new or gone, or back to two versions: redraw.
+    status = m.status;
+    texts.old = m.oldText;
+    texts.new = m.newText;
+    void render();
+    return;
+  }
   for (const role of ["old", "new"] as const) {
     texts[role] = m[`${role}Text`];
     for (const s of sides) if (s.role === role) applyText(s, texts[role]);
@@ -472,6 +498,7 @@ window.addEventListener("message", (event: MessageEvent<DiffHostMessage | HostMe
         setBoundKeys(m.keys ?? {});
         texts.old = m.oldText;
         texts.new = m.newText;
+        status = m.status;
         void render();
         return;
       case "diffUpdate":

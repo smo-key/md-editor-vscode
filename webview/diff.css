@@ -254,3 +254,33 @@ body[data-toolbar="bottom"] .ken-agent-bar {
 .ken-agent-count:empty {
   display: none;
 }
+
+/* A file with only one version (diff.ts): shown as it is, under a banner. */
+.ken-diff-banner {
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--vscode-editorGroup-border, var(--border));
+  font-family: var(--vscode-font-family);
+  font-size: 12px;
+  color: var(--vscode-editorInfo-foreground, var(--ink));
+  background: var(--vscode-editorWidget-background, var(--surface));
+}
+.ken-diff-banner[data-status="added"] {
+  border-left: 3px solid var(--diff-added-edge);
+}
+.ken-diff-banner[data-status="deleted"] {
+  border-left: 3px solid var(--diff-removed-edge);
+}
+.ken-diff-banner[hidden],
+.ken-diff-toggle[hidden] {
+  display: none;
+}
+/* A file a chat agent created: no runs of changes to step through. */
+.ken-agent-bar.added .ken-agent-count,
+.ken-agent-bar.added button:not(.primary):not(:nth-child(2)) {
+  display: none;
+}
+.milkdown .ProseMirror .ken-agent-banner {
+  margin: 0 0 12px;
+  border-radius: 3px;
+  user-select: none;
+}

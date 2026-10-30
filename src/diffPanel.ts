@@ -41,7 +41,11 @@ async function gitRepository(uri: vscode.Uri): Promise<Repository | null> {
 }
 
 /** What to compare: a file against its last commit, or two documents. */
-export type DiffSource = { kind: "head"; uri: vscode.Uri } | { kind: "pair"; old: vscode.Uri; new: vscode.Uri };
+export type DiffSource =
+  | { kind: "head"; uri: vscode.Uri }
+  | { kind: "pair"; old: vscode.Uri; new: vscode.Uri }
+  /** A file with no earlier version to compare with (e.g. new in a multi-file diff). */
+  | { kind: "added"; uri: vscode.Uri };
 
 const isMarkdown = (uri: vscode.Uri) => /\.(md|markdown)$/i.test(uri.path);
 
@@ -183,6 +187,11 @@ function tabDiffs(input: unknown): { old: vscode.Uri; new: vscode.Uri }[] {
   return [];
 }
 
+/** The text of the chat's original of a file, if it keeps one. */
+function pendingOriginalText(uri: vscode.Uri): string | undefined {
+  return vscode.workspace.textDocuments.find((d) => d.uri.scheme === ORIGINAL_SCHEME && d.uri.path === uri.path)?.getText();
+}
+
 /** Markdown files with a chat agent's edits pending: their originals against the files. */
 function pendingChatFiles(): { old: vscode.Uri; new: vscode.Uri }[] {
   const out: { old: vscode.Uri; new: vscode.Uri }[] = [];
@@ -211,6 +220,8 @@ class DiffPanel {
   private readonly disposables: vscode.Disposable[] = [];
   private repo: Repository | null = null;
   private oldText = "";
+  /** Whether the file is in HEAD (head comparisons). */
+  private inHead = true;
   private ready = false;
   private timer: ReturnType<typeof setTimeout> | undefined;
   /** The document shown as the newer version. */
@@ -228,8 +239,8 @@ class DiffPanel {
     private readonly openTextDiff: (old: vscode.Uri, uri: vscode.Uri, title: string) => void,
     private readonly host: DiffHost,
   ) {
-    const uri = (this.uri = source.kind === "head" ? source.uri : source.new);
-    const watched = source.kind === "head" ? [uri] : [source.old, source.new];
+    const uri = (this.uri = source.kind === "pair" ? source.new : source.uri);
+    const watched = source.kind === "pair" ? [source.old, source.new] : [uri];
     const dirs = watched.filter((u) => u.scheme === "file").map((u) => vscode.Uri.joinPath(u, ".."));
     const roots = [vscode.Uri.joinPath(extensionUri, "dist"), ...dirs, ...(vscode.workspace.workspaceFolders ?? []).map((f) => f.uri)];
     panel.webview.options = { enableScripts: true, localResourceRoots: roots };
@@ -306,34 +317,44 @@ class DiffPanel {
   }
 
   private async content(head: boolean): Promise<DiffContent> {
+    /** A document's text, or null when it doesn't exist. */
+    const read = async (u: vscode.Uri) => {
+      try {
+        return toLF((await vscode.workspace.openTextDocument(u)).getText());
+      } catch {
+        return null;
+      }
+    };
+    if (this.source.kind === "added") {
+      const newText = (await read(this.uri)) ?? "";
+      return { oldText: "", newText, oldLabel: "", newLabel: describe(this.uri), status: "added" };
+    }
     if (this.source.kind === "pair") {
-      const read = async (u: vscode.Uri) => {
-        try {
-          return (await vscode.workspace.openTextDocument(u)).getText();
-        } catch {
-          return "";
-        }
-      };
       const [oldText, newText] = await Promise.all([read(this.source.old), read(this.source.new)]);
-      return { oldText: toLF(oldText), newText: toLF(newText), oldLabel: describe(this.source.old), newLabel: describe(this.source.new) };
+      return {
+        oldText: oldText ?? "",
+        newText: newText ?? "",
+        oldLabel: describe(this.source.old),
+        newLabel: describe(this.source.new),
+        status: newText === null && oldText ? "deleted" : !oldText && newText ? "added" : undefined,
+      };
     }
     if (head || !this.repo) {
       this.repo ??= await gitRepository(this.uri);
       try {
         this.oldText = this.repo ? await this.repo.show("HEAD", this.uri.fsPath) : "";
+        this.inHead = !!this.repo;
       } catch {
         // Not in HEAD: a new file.
         this.oldText = "";
+        this.inHead = false;
       }
     }
-    let newText = "";
-    try {
-      newText = (await vscode.workspace.openTextDocument(this.uri)).getText();
-    } catch {
-      // Deleted: everything was removed.
-    }
+    // Null: deleted, everything was removed.
+    const newText = await read(this.uri);
     const commit = this.repo?.state.HEAD?.commit?.slice(0, 7);
-    return { oldText: toLF(this.oldText), newText: toLF(newText), oldLabel: commit ? `HEAD (${commit})` : "HEAD", newLabel: "Working Tree" };
+    const status = newText === null && this.oldText ? "deleted" : !this.inHead && newText ? "added" : undefined;
+    return { oldText: toLF(this.oldText), newText: newText ?? "", oldLabel: commit ? `HEAD (${commit})` : "HEAD", newLabel: "Working Tree", status };
   }
 
   private async refresh(head: boolean) {
@@ -388,6 +409,10 @@ class DiffPanel {
         this.layout = m.layout;
         return;
       case "openTextDiff": {
+        if (this.source.kind === "added") {
+          await vscode.commands.executeCommand("vscode.open", this.uri);
+          return;
+        }
         const old =
           this.source.kind === "pair"
             ? this.source.old
@@ -553,7 +578,8 @@ export class DiffPanels implements vscode.Disposable {
    */
   async compare(arg?: unknown, uris?: unknown): Promise<void> {
     // From a multi-file diff's title bar, the argument is the diff itself, not a file.
-    if (arg instanceof vscode.Uri && arg.scheme === "multi-diff-editor") arg = undefined;
+    const fromMulti = arg instanceof vscode.Uri && arg.scheme === "multi-diff-editor";
+    if (fromMulti) arg = undefined;
     let pair = pairFrom(arg, uris);
     if (pair && (await this.toolTarget(pair.old, pair.new))) return this.openTool(pair.old, pair.new);
     if (!pair && !(arg instanceof vscode.Uri)) {
@@ -586,6 +612,9 @@ export class DiffPanels implements vscode.Disposable {
         void vscode.window.showInformationMessage("Ken Markdown: open a Markdown file to compare it with another.");
         return;
       }
+      // A file that is new, or gone, has nothing to pick a second file for.
+      const alone = await this.newOrDeleted(first, fromMulti);
+      if (alone) return this.open_(alone);
       const picked = await vscode.window.showOpenDialog({
         title: `Compare ${path.basename(first.path)} with…`,
         openLabel: "Compare",
@@ -599,21 +628,64 @@ export class DiffPanels implements vscode.Disposable {
     this.open_({ kind: "pair", ...pair });
   }
 
+  /**
+   * How to show a file that has no earlier version (new: untracked in git,
+   * created by a chat agent, or new in the multi-file diff it was picked
+   * from) or no newer one (deleted, picked as a version from git or a tool);
+   * null for a file with both.
+   */
+  private async newOrDeleted(uri: vscode.Uri, fromMulti: boolean): Promise<DiffSource | null> {
+    const exists = async (u: vscode.Uri) => {
+      try {
+        await vscode.workspace.fs.stat(u);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    if (!isFile(uri) || uri.scheme === "git") {
+      let file: vscode.Uri | undefined;
+      try {
+        file = uri.scheme === "git" ? vscode.Uri.file((JSON.parse(uri.query) as { path: string }).path) : (vscode.workspace.workspaceFolders?.[0]?.uri ?? vscode.Uri.file("/")).with({ path: uri.path });
+      } catch {
+        return null;
+      }
+      return (await exists(file)) ? null : { kind: "pair", old: uri, new: file };
+    }
+    if (!(await exists(uri))) return { kind: "head", uri };
+    try {
+      if (hasPendingEdits(await vscode.workspace.openTextDocument(uri)) && pendingOriginalText(uri) === "") return { kind: "added", uri };
+    } catch {
+      // Not a text document.
+    }
+    const repo = await gitRepository(uri);
+    if (repo) {
+      try {
+        await repo.show("HEAD", uri.fsPath);
+      } catch {
+        return { kind: "head", uri };
+      }
+    }
+    return fromMulti ? { kind: "added", uri } : null;
+  }
+
   private open_(source: DiffSource, column: vscode.ViewColumn = vscode.ViewColumn.Active): void {
     // A file against its HEAD version is "Open Changes", however it was opened.
     if (source.kind === "pair" && isHeadOf(source.old, source.new)) source = { kind: "head", uri: source.new };
-    const key = source.kind === "head" ? `head:${source.uri}` : `pair:${source.old}|${source.new}`;
+    const key = source.kind === "pair" ? `pair:${source.old}|${source.new}` : `${source.kind}:${source.uri}`;
     const existing = this.open.get(key);
     if (existing) {
       existing.panel.reveal();
       return;
     }
-    const uri = source.kind === "head" ? source.uri : source.new;
+    const uri = source.kind === "pair" ? source.new : source.uri;
     const layout = vscode.workspace.getConfiguration("kenMarkdown", uri).get<DiffLayoutMode>("diff.layout", "combined");
     const title =
-      source.kind === "head"
-        ? `${path.basename(uri.path)} (Changes)`
-        : `${path.basename(source.old.path)} ↔ ${path.basename(source.new.path)}`;
+      source.kind === "pair"
+        ? `${path.basename(source.old.path)} ↔ ${path.basename(source.new.path)}`
+        : source.kind === "added"
+          ? `${path.basename(uri.path)} (Added)`
+          : `${path.basename(uri.path)} (Changes)`;
     const panel = vscode.window.createWebviewPanel("kenMarkdown.diff", title, column, {
       retainContextWhenHidden: true,
       enableFindWidget: true,

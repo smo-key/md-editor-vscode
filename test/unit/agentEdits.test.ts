@@ -40,7 +40,7 @@ describe("agent edit hunks (src/agentEdits.ts)", () => {
 });
 
 describe("agent edits in the editor (webview/agentEdits.ts)", () => {
-  it("shows each run of changes with Keep/Undo and undoes one exactly", async () => {
+  it("shows each run of changes with Keep/Undo and undoes one exactly", { timeout: 10000 }, async () => {
     const root = document.createElement("div");
     document.body.append(root);
     const crepe = buildEditor({ root, markdown: CURRENT });
@@ -79,6 +79,15 @@ describe("agent edits in the editor (webview/agentEdits.ts)", () => {
     expect(revertHunks(ORIGINAL, CURRENT, hunksForBlock(ORIGINAL, CURRENT, current!, reverted!))).toBe(
       "# Title\n\nAlpha one.\n\nBeta two.\n\nGamma.\n\nDelta new.\n",
     );
+
+    // A file the agent created: shown as it is under a banner, kept or undone whole.
+    setAgentOriginal("");
+    expect(root.querySelector(".ken-agent-banner")?.textContent).toBe("This file was added.");
+    expect(root.querySelectorAll(".ken-agent-hunk, .ken-diff-added")).toHaveLength(0);
+    expect(agentEdits.pending()).toBe(true);
+    await new Promise((r) => setTimeout(r, 3100));
+    document.querySelector<HTMLButtonElement>(".ken-agent-bar button:not(.primary)")!.click();
+    expect(posted.at(-1)).toMatchObject({ scope: "file", action: "undo" });
 
     setAgentOriginal(null);
     expect(agentEdits.pending()).toBe(false);

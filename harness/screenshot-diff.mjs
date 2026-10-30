@@ -1,6 +1,7 @@
 // Visual check of the diff view (webview/diff.ts) under a captured VS Code
 // theme. Usage:
 //   node harness/screenshot-diff.mjs <theme.json> <old.md> <new.md> <out.png> [combined|split] [width]
+// KEN_STATUS=added|deleted shows a file with only one version.
 import { chromium } from "playwright";
 import { readFileSync } from "fs";
 import { createServer } from "http";
@@ -20,6 +21,7 @@ const init = {
   newText: readFileSync(newFile, "utf8"),
   oldLabel: "HEAD (abc1234)",
   newLabel: "Working Tree",
+  status: process.env.KEN_STATUS || undefined,
   config: { fontSize: 16, bodyFontFamily: "", headingFontFamily: "", codeFontFamily: "", lineHeight: 1.85, maxWidth: 720, toolbar: "hidden", tabSize: 4 },
 };
 const html = `<!doctype html><html style='${theme.style.replace(/'/g, "&#39;")}'><head><meta charset="utf-8">

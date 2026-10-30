@@ -226,6 +226,8 @@ export interface DiffContent {
   /** Labels for the two versions, e.g. "HEAD" and "Working Tree". */
   oldLabel: string;
   newLabel: string;
+  /** The file is new (no earlier version) or gone (no newer one): shown as it is, with a banner. */
+  status?: "added" | "deleted";
 }
 
 /** Which sides of a comparison can't be edited (e.g. a version in git). */

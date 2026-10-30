@@ -215,9 +215,10 @@ describe("Ken Markdown Editor", function () {
     // Stands in for VS Code's chat editing, which keeps the file as it was
     // before the agent's edits in a document of this scheme.
     const scheme = "chat-editing-text-model";
-    const provider = vscode.workspace.registerTextDocumentContentProvider(scheme, { provideTextDocumentContent: () => original });
+    const provider = vscode.workspace.registerTextDocumentContentProvider(scheme, { provideTextDocumentContent: (u) => (u.query.includes('"created"') ? "" : original) });
     let snapshots: vscode.Disposable | undefined;
     let tool: vscode.Disposable | undefined;
+    let createdOriginal = false;
     try {
       const session = { $mid: 1, scheme: "vscode-chat-session", path: "/test" };
       const originalUri = vscode.Uri.from({ scheme, path: uri.path, query: JSON.stringify({ kind: "doc", documentId: "test", chatSessionResource: session }) });
@@ -267,6 +268,25 @@ describe("Ken Markdown Editor", function () {
         () => vscode.window.tabGroups.activeTabGroup.activeTab?.input,
         (input) => input instanceof vscode.TabInputWebview && input.viewType.endsWith("kenMarkdown.diff"),
       );
+      // Compare on a file the agent created (its original is empty), and on a
+      // version of a file that is gone: shown as it is, under a banner.
+      const created = fixture("agent-created.md");
+      fs.writeFileSync(created.fsPath, "# Created\n\nBy the agent.\n");
+      await vscode.workspace.openTextDocument(
+        vscode.Uri.from({ scheme, path: created.path, query: JSON.stringify({ kind: "doc", documentId: "created", chatSessionResource: session }) }),
+      );
+      createdOriginal = true;
+      await vscode.workspace.openTextDocument(created);
+      const banner = () => vscode.commands.executeCommand<number[]>("kenMarkdown._testDiffQuery", [".ken-diff-banner:not([hidden])", ".ken-diff-added, .ken-diff-removed"]);
+      await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+      await vscode.commands.executeCommand("kenMarkdown.compare", created);
+      await until("added banner", banner, (r) => r?.[0] === 1 && r?.[1] === 0);
+      tool = vscode.workspace.registerTextDocumentContentProvider("ken-test-agent", { provideTextDocumentContent: () => edited });
+      await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+      await vscode.commands.executeCommand("kenMarkdown.compare", vscode.Uri.from({ scheme: "ken-test-agent", path: fixture("gone.md").path }));
+      await until("deleted banner", banner, (r) => r?.[0] === 1 && r?.[1] === 0);
+      tool.dispose();
+
       // Any other tool's version against the file (e.g. an agent host's): the comparison too.
       tool = vscode.workspace.registerTextDocumentContentProvider("ken-test-agent", { provideTextDocumentContent: () => edited });
       await vscode.commands.executeCommand("workbench.action.closeAllEditors");
@@ -282,6 +302,7 @@ describe("Ken Markdown Editor", function () {
       provider.dispose();
       await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
       fs.rmSync(uri.fsPath, { force: true });
+      if (createdOriginal) fs.rmSync(fixture("agent-created.md").fsPath, { force: true });
     }
   });
 

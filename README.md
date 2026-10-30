@@ -144,13 +144,17 @@ Your own VS Code writes the file. One editor per copy of the file saves the shar
 
 To compare any two Markdown files, select both in the Explorer and choose **Compare in Ken Markdown**, or run it from the command palette and pick the second file. Diffs of Markdown files that VS Code opens (Source Control, **Compare Selected**, the Timeline) open here too, rendered; **Switch to Text** shows the source in VS Code's diff editor instead. To keep VS Code's text diffs, set `kenMarkdown.diff.openMarkdownDiffs` to `text`.
 
+### Chat agent edits (Copilot)
+
+When a chat agent such as GitHub Copilot edits a Markdown file, the Ken editor shows its pending edits the way VS Code's text editor does: changed blocks in green, removed ones in red where they were, and the words that changed inside an edited block highlighted. Each run of changes has its own **Keep** and **Undo**, and a bar at the bottom keeps or undoes every change in the file and steps from change to change. Keeping and undoing go through VS Code, so the chat's list of changed files stays in step. The chat's diffs of a Markdown file open in the Ken editor too, while it is your default Markdown editor and `kenMarkdown.diff.openMarkdownDiffs` is `ken`. **Open Markdown Source** switches to the text editor, which shows the same edits with VS Code's own Keep/Undo, and **Open in Ken Markdown Editor** switches back.
+
 ### Looks the way you want
 
 Typography is set for long-form reading, with Hanken Grotesk, Newsreader and JetBrains Mono bundled. Every font, the text size, line height and column width are adjustable in settings.
 
 ## Keyboard shortcuts
 
-Every editing action is a VS Code command, so you can change, remove or add keys in VS Code's **Keyboard Shortcuts** editor (search for `Ken Markdown`). They apply only while this editor has focus. A selection of the defaults:
+Every editing action is a VS Code command, so you can change, remove or add keys in VS Code's **Keyboard Shortcuts** editor (search for `Ken Markdown`). They apply only while this editor has focus (the chat edit keys, VS Code's own, only while a chat agent's edits to the file are pending). A selection of the defaults:
 
 | Action | macOS | Windows / Linux |
 | --- | --- | --- |
@@ -173,6 +177,9 @@ Every editing action is a VS Code command, so you can change, remove or add keys
 | Table: move column left / right | ⌃⌥← / ⌃⌥→ | Ctrl+Alt+← / → |
 | Table: insert column left / right | ⌃⌥⇧← / ⌃⌥⇧→ | Ctrl+Alt+Shift+← / → |
 | Table: delete row / column | ⌃⌥⌫ / ⌃⌥⇧⌫ | Ctrl+Alt+Backspace / Ctrl+Alt+Shift+Backspace |
+| Chat edits: keep / undo this change | ⌘Y / ⌘N | Ctrl+Y / Ctrl+N |
+| Chat edits: keep / undo all in the file | ⇧⌘Y / ⇧⌘N | Ctrl+Shift+Y / Ctrl+Shift+N |
+| Chat edits: next / previous change | ⌥F5 / ⇧⌥F5 | Alt+F5 / Shift+Alt+F5 |
 | Show all shortcuts | ⌘/ | Ctrl+/ |
 
 ## Settings

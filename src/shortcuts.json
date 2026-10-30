@@ -416,6 +416,54 @@
       "title": "Show Keyboard Shortcuts",
       "key": "ctrl+/",
       "mac": "cmd+/"
+    },
+    {
+      "command": "kenMarkdown.keepChatEdit",
+      "editor": "agent-keep-change",
+      "title": "Keep this Chat Edit",
+      "key": "ctrl+y",
+      "mac": "cmd+y",
+      "when": "kenMarkdown.agentEdits"
+    },
+    {
+      "command": "kenMarkdown.undoChatEdit",
+      "editor": "agent-undo-change",
+      "title": "Undo this Chat Edit",
+      "key": "ctrl+n",
+      "mac": "cmd+n",
+      "when": "kenMarkdown.agentEdits"
+    },
+    {
+      "command": "kenMarkdown.keepChatEdits",
+      "editor": "agent-keep-file",
+      "title": "Keep Chat Edits in this File",
+      "key": "ctrl+shift+y",
+      "mac": "cmd+shift+y",
+      "when": "kenMarkdown.agentEdits"
+    },
+    {
+      "command": "kenMarkdown.undoChatEdits",
+      "editor": "agent-undo-file",
+      "title": "Undo Chat Edits in this File",
+      "key": "ctrl+shift+n",
+      "mac": "cmd+shift+n",
+      "when": "kenMarkdown.agentEdits"
+    },
+    {
+      "command": "kenMarkdown.nextChatEdit",
+      "editor": "agent-next",
+      "title": "Go to Next Chat Edit",
+      "key": "alt+f5",
+      "mac": "alt+f5",
+      "when": "kenMarkdown.agentEdits"
+    },
+    {
+      "command": "kenMarkdown.previousChatEdit",
+      "editor": "agent-previous",
+      "title": "Go to Previous Chat Edit",
+      "key": "shift+alt+f5",
+      "mac": "shift+alt+f5",
+      "when": "kenMarkdown.agentEdits"
     }
   ]
 }

@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import * as os from "os";
 import { WorkspaceFiles } from "./fileSearch";
+import { isOriginal, originalOf, runAgentAction, type AgentAction } from "./agentEditsHost";
 import { pickFormat, pickTarget, writeExport, type ExportFormat } from "./exportDoc";
 import * as path from "path";
 import type {
@@ -191,10 +192,14 @@ class EditorSession {
     this.disposables.push(
       webview.onDidReceiveMessage((m: WebviewMessage) => this.onMessage(m)),
       vscode.workspace.onDidChangeTextDocument((e) => {
+        if (isOriginal(e.document)) return this.pushAgentEdits();
         if (e.document.uri.toString() !== this.document.uri.toString()) return;
         if (e.contentChanges.length === 0) return;
         this.pushIfChanged();
+        this.pushAgentEdits();
       }),
+      vscode.workspace.onDidOpenTextDocument((d) => isOriginal(d) && this.pushAgentEdits()),
+      vscode.workspace.onDidCloseTextDocument((d) => isOriginal(d) && this.pushAgentEdits()),
       vscode.workspace.onWillSaveTextDocument((e) => {
         if (e.document.uri.toString() !== this.document.uri.toString()) return;
         e.waitUntil(this.flush());
@@ -226,6 +231,47 @@ class EditorSession {
     this.post({ type: "update", text });
   }
 
+  /** The original last sent for a chat agent's pending edits (null: none). */
+  private agentSent: string | null = null;
+  private agentBusy = false;
+
+  /** Tell the webview about a chat agent's pending edits to the file, when that changed. */
+  private pushAgentEdits(): void {
+    if (!this.ready || this.agentBusy) return;
+    const original = originalOf(this.document);
+    const text = original ? toLF(original.getText()) : null;
+    const next = text !== null && text !== toLF(this.document.getText()) ? text : null;
+    if (next === this.agentSent) return;
+    this.agentSent = next;
+    this.post({ type: "agentEdits", original: next });
+    this.host.focusChanged();
+  }
+
+  /** Whether a chat agent's edits to the file are pending (drives `kenMarkdown.agentEdits`). */
+  get agentPending(): boolean {
+    return this.agentSent !== null;
+  }
+
+  /** Keep or undo a chat agent's edits, in turn with the webview's own edits (which land first). */
+  private agentAction(m: AgentAction): Promise<void> {
+    this.pendingEdits++;
+    const run = this.editChain.then(async () => {
+      this.agentBusy = true;
+      try {
+        await runAgentAction(this.document, m, (text) => this.applyEdit(text));
+      } catch (err) {
+        void vscode.window.showErrorMessage(`Ken Markdown: ${err}`);
+      } finally {
+        this.agentBusy = false;
+        this.pendingEdits--;
+        if (this.pendingEdits === 0) this.pushIfChanged();
+        this.pushAgentEdits();
+      }
+    });
+    this.editChain = run;
+    return run;
+  }
+
   private post(message: HostMessage): void {
     void this.panel.webview.postMessage(message);
   }
@@ -247,6 +293,11 @@ class EditorSession {
           prefs: this.host.prefs(),
         });
         this.syncCollab();
+        this.agentSent = null;
+        this.pushAgentEdits();
+        return;
+      case "agentAction":
+        await this.agentAction(m);
         return;
       case "setPrefs":
         this.host.setPrefs(m.prefs);
@@ -939,6 +990,8 @@ export class KenMarkdownEditorProvider implements vscode.CustomTextEditorProvide
   focusChanged() {
     const focused = this.diffFocused || [...this.all].some((s) => s.focused);
     void vscode.commands.executeCommand("setContext", "kenMarkdown.editorFocused", focused);
+    const agent = [...this.all].some((s) => s.focused && s.agentPending);
+    void vscode.commands.executeCommand("setContext", "kenMarkdown.agentEdits", agent);
   }
 
   /** The editor a command applies to: the focused one, else the active tab's. */

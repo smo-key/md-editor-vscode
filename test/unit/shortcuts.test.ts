@@ -129,9 +129,11 @@ describe("bound keys (webview/keys.ts)", () => {
 describe("default keys", () => {
   it.each(["darwin", "win32"] as const)("never give two commands the same key on %s", (platform) => {
     const owner = new Map<string, string>();
+    // A key may be shared only under a narrower context (e.g. pending chat edits).
+    const when = (command: string) => SHORTCUTS.find((s) => s.command === command)?.when ?? "";
     for (const [command, keys] of effectiveKeys(platform, [])) {
       for (const k of keys) {
-        const norm = k.split("+").sort().join("+");
+        const norm = `${k.split("+").sort().join("+")}|${when(command)}`;
         expect(owner.get(norm) ?? command, `${k}: ${owner.get(norm)} and ${command}`).toBe(command);
         owner.set(norm, command);
       }

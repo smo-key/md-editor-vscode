@@ -105,6 +105,9 @@ import {
   CopyPlus,
   RemoveFormatting,
   SquareCheck,
+  Check,
+  CheckCheck,
+  RotateCcw,
   type IconNode,
 } from "lucide";
 
@@ -118,6 +121,7 @@ import { insertAttachments } from "./fileDrop";
 import { addComment, commentsOpen, openCommentCount, toggleComments } from "./comments/panel";
 import { withColumnWidths } from "./tableResize";
 import { handleTablePaste } from "./markdown/tablePaste";
+import { agentEdits } from "./agentEdits";
 
 export type CommandGroup = "history" | "edit" | "text" | "format" | "list" | "insert" | "alert" | "comment" | "table";
 
@@ -976,6 +980,62 @@ export const COMMANDS: EditorCommand[] = [
     run: (ctx, view) => toggleList(view, ctx, "task"),
     isActive: (state) => listKind(state) === "task",
     isEnabled: (state) => !inCodeBlock(state),
+  },
+
+  // A chat agent's pending edits (agentEdits.ts), as VS Code's Keep/Undo.
+  {
+    id: "agent-keep-change",
+    label: "Keep this chat edit",
+    icon: Check,
+    group: "edit",
+    keepFocus: true,
+    run: () => agentEdits.keepChange(),
+    isEnabled: () => agentEdits.pending(),
+  },
+  {
+    id: "agent-undo-change",
+    label: "Undo this chat edit",
+    icon: Undo2,
+    group: "edit",
+    keepFocus: true,
+    run: () => agentEdits.undoChange(),
+    isEnabled: () => agentEdits.pending(),
+  },
+  {
+    id: "agent-keep-file",
+    label: "Keep chat edits in this file",
+    icon: CheckCheck,
+    group: "edit",
+    keepFocus: true,
+    run: () => agentEdits.keepFile(),
+    isEnabled: () => agentEdits.pending(),
+  },
+  {
+    id: "agent-undo-file",
+    label: "Undo chat edits in this file",
+    icon: RotateCcw,
+    group: "edit",
+    keepFocus: true,
+    run: () => agentEdits.undoFile(),
+    isEnabled: () => agentEdits.pending(),
+  },
+  {
+    id: "agent-next",
+    label: "Go to next chat edit",
+    icon: ArrowDown,
+    group: "edit",
+    keepFocus: true,
+    run: () => agentEdits.next(),
+    isEnabled: () => agentEdits.pending(),
+  },
+  {
+    id: "agent-previous",
+    label: "Go to previous chat edit",
+    icon: ArrowUp,
+    group: "edit",
+    keepFocus: true,
+    run: () => agentEdits.previous(),
+    isEnabled: () => agentEdits.pending(),
   },
 
   {

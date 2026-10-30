@@ -15,7 +15,9 @@
 import * as vscode from "vscode";
 import * as path from "path";
 
-import { openPrintPage, readConfig } from "./provider";
+import { VIEW_TYPE, openPrintPage, readConfig } from "./provider";
+import { ORIGINAL_SCHEME, SNAPSHOT_SCHEME, originalOf } from "./agentEditsHost";
+import { isDefaultEditor } from "./editorAssociation";
 import { minimalChange, toEOL, toLF } from "./sync";
 import type { DiffContent, DiffHostMessage, DiffLayoutMode, DiffReadOnly, DiffSideName, DiffWebviewMessage, ShortcutKeys, ShortcutLabels } from "./protocol";
 
@@ -414,6 +416,13 @@ export class DiffPanels implements vscode.Disposable {
         this.open_({ kind: "pair", ...was }, column);
         continue;
       }
+      if (input instanceof vscode.TabInputTextDiff && (await this.isChatEdit(input.original, input.modified))) {
+        // A chat agent's pending edits: the Ken editor shows them, with Keep/Undo.
+        const column = tab.group.viewColumn;
+        await vscode.window.tabGroups.close(tab, true);
+        await vscode.commands.executeCommand("vscode.openWith", input.modified, VIEW_TYPE, { viewColumn: column, preserveFocus: true });
+        continue;
+      }
       if (!(input instanceof vscode.TabInputTextDiff) || !isReplaceableDiff(input.original, input.modified)) continue;
       this.textDiffs.set(where, { old: input.original, new: input.modified });
       const key = `${input.original}|${input.modified}`;
@@ -423,6 +432,26 @@ export class DiffPanels implements vscode.Disposable {
       const column = tab.group.viewColumn;
       await vscode.window.tabGroups.close(tab, true);
       this.open_({ kind: "pair", old: input.original, new: input.modified }, column);
+    }
+  }
+
+  /**
+   * A diff the chat opens of a file an agent edited (its original against the
+   * file), which the Ken editor shows instead when it is the file's default
+   * editor and Markdown diffs open in Ken.
+   */
+  private async isChatEdit(original: vscode.Uri, modified: vscode.Uri): Promise<boolean> {
+    if (original.scheme !== ORIGINAL_SCHEME && original.scheme !== SNAPSHOT_SCHEME) return false;
+    if (!isMarkdown(modified) || modified.scheme === ORIGINAL_SCHEME || modified.scheme === SNAPSHOT_SCHEME) return false;
+    if (vscode.workspace.getConfiguration("kenMarkdown", modified).get<string>("diff.openMarkdownDiffs", "ken") !== "ken") return false;
+    const associations = vscode.workspace.getConfiguration("workbench").get("editorAssociations");
+    if (!isDefaultEditor(modified.path, VIEW_TYPE, associations, true)) return false;
+    if (original.scheme === ORIGINAL_SCHEME) return true;
+    // A snapshot (an earlier request's changes) only while edits are pending, which the editor shows.
+    try {
+      return !!originalOf(await vscode.workspace.openTextDocument(modified));
+    } catch {
+      return false;
     }
   }
 

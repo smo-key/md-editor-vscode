@@ -61,6 +61,7 @@ import { onLastHeadingLevel, setLastHeadingLevel } from "./headingControl";
 import { COMMANDS, command, execute, setClipboardReader, setExportHandler, setPrintHandler, setShortcutLabels } from "./commands";
 import { printablePage } from "./print";
 import { collectExportAssets } from "./exportAssets";
+import { agentEditsPlugin, installAgentEdits, setAgentOriginal } from "./agentEdits";
 import { closeShortcutsPanel, initShortcutsPanel, isShortcutsPanelOpen, toggleShortcutsPanel } from "./shortcutsPanel";
 import type { EditorConfig, HostMessage, TestAction, WebviewMessage } from "../src/protocol";
 import "@milkdown/crepe/theme/common/style.css";
@@ -618,6 +619,7 @@ async function createEditor(text: string) {
     onHeadingNumbering: () => openNumberingDialog(),
   });
   crepe.editor.use(changePlugin);
+  crepe.editor.use(agentEditsPlugin);
   // Restored after the undo's own update has finished (restoring redraws the numbers, a transaction).
   crepe.editor.use($prose(() => frontHistory((next) => queueMicrotask(() => restoreFront(next)))));
   await crepe.create();
@@ -632,6 +634,21 @@ async function createEditor(text: string) {
     resetFront(view, { front, gap });
   });
   numberingDrawn = JSON.stringify(effectiveNumbering());
+  installAgentEdits(view!, {
+    parse: (md) => crepe!.editor.action((ctx) => ctx.get(parserCtx)(md)) ?? null,
+    split: (text) => {
+      const parts = splitDocument(text);
+      return { front: parts.front, gap: parts.gap, markdown: splitThreads(parts.body).body };
+    },
+    front: () => front,
+    fullText: (doc, head = { front, gap }) => {
+      const markdown = crepe!.editor.action((ctx) => unescapeWikiLinks(normalizeTrailingNewlines(ctx.get(serializerCtx)(doc))));
+      const back = threadsBlock();
+      return joinDocument(head.front, head.gap, markdown + (back ? `${markdown ? "\n" : ""}${back}` : ""));
+    },
+    flush: () => sync(),
+    post,
+  });
   editorCreated();
 }
 
@@ -872,6 +889,10 @@ window.addEventListener("message", async (event: MessageEvent<HostMessage>) => {
       return;
     case "update":
       applyExternal(m.text);
+      return;
+    case "agentEdits":
+      await created;
+      setAgentOriginal(m.original);
       return;
     case "config":
       applyConfig(m.config);

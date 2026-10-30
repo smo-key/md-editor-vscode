@@ -318,6 +318,10 @@ export async function printablePage(
     if (block.querySelector(".preview svg, .preview img, .preview .katex")) block.querySelector(".codemirror-host")?.remove();
   }
   for (const el of Array.from(clone.querySelectorAll(CHROME))) el.remove();
+  // A chat agent's pending edits (agentEdits.ts) are marked in the editor only.
+  for (const el of Array.from(clone.querySelectorAll(".ken-agent-mark"))) {
+    el.classList.remove(...Array.from(el.classList).filter((c) => c.startsWith("ken-diff-") || c === "ken-agent-mark"));
+  }
   for (const el of Array.from(clone.querySelectorAll("[contenteditable]"))) el.removeAttribute("contenteditable");
   for (const el of Array.from(clone.querySelectorAll(".ProseMirror-selectednode, .selectedCell"))) {
     el.classList.remove("ProseMirror-selectednode", "selectedCell");

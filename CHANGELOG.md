@@ -4,6 +4,11 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 
 ## [Unreleased]
 
+### Added
+
+- **Chat agent edits in the Ken editor**: when GitHub Copilot (or another chat agent) edits a Markdown file, the editor shows the pending edits in green and red, with **Keep** and **Undo** for each change and, in a bar at the bottom, for the whole file, plus previous/next. They stay in step with the chat's Keep/Undo. Keys as in VS Code: ⌘Y/⌘N (Ctrl+Y/Ctrl+N) for a change, ⇧⌘Y/⇧⌘N for the file, ⌥F5/⇧⌥F5 to move between changes, all only while edits are pending and customizable in Keyboard Shortcuts.
+- The chat's diffs of a Markdown file open in the Ken editor when it is your default Markdown editor; **Open Markdown Source** and **Open in Ken Markdown Editor** switch between it and the text editor's own view of the edits.
+
 ## [0.9.0] - 2026-10-29
 
 ### Added

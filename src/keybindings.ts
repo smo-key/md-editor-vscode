@@ -16,6 +16,8 @@ export interface ShortcutDef {
   alias?: boolean;
   /** Codicon for menus, e.g. "$(print)". */
   icon?: string;
+  /** Only while this context holds too (e.g. `kenMarkdown.agentEdits`): the key may then share another command's. */
+  when?: string;
 }
 
 export const SHORTCUTS = (shortcutsJson as { shortcuts: ShortcutDef[] }).shortcuts;

@@ -52,7 +52,9 @@
   },
   "icon": "media/icon.png",
   "main": "./dist/extension.js",
-  "activationEvents": [],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "contributes": {
     "customEditors": [
       {
@@ -446,6 +448,36 @@
         "command": "kenMarkdown.showShortcuts",
         "title": "Show Keyboard Shortcuts",
         "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.keepChatEdit",
+        "title": "Keep this Chat Edit",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.undoChatEdit",
+        "title": "Undo this Chat Edit",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.keepChatEdits",
+        "title": "Keep Chat Edits in this File",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.undoChatEdits",
+        "title": "Undo Chat Edits in this File",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.nextChatEdit",
+        "title": "Go to Next Chat Edit",
+        "category": "Ken Markdown"
+      },
+      {
+        "command": "kenMarkdown.previousChatEdit",
+        "title": "Go to Previous Chat Edit",
+        "category": "Ken Markdown"
       }
     ],
     "menus": {
@@ -772,6 +804,30 @@
         },
         {
           "command": "kenMarkdown.showShortcuts",
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
+        },
+        {
+          "command": "kenMarkdown.keepChatEdit",
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
+        },
+        {
+          "command": "kenMarkdown.undoChatEdit",
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
+        },
+        {
+          "command": "kenMarkdown.keepChatEdits",
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
+        },
+        {
+          "command": "kenMarkdown.undoChatEdits",
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
+        },
+        {
+          "command": "kenMarkdown.nextChatEdit",
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
+        },
+        {
+          "command": "kenMarkdown.previousChatEdit",
           "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         }
       ],
@@ -1620,6 +1676,42 @@
         "key": "ctrl+/",
         "mac": "cmd+/",
         "when": "kenMarkdown.editorFocused && (activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
+      },
+      {
+        "command": "kenMarkdown.keepChatEdit",
+        "key": "ctrl+y",
+        "mac": "cmd+y",
+        "when": "kenMarkdown.editorFocused && (activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff') && kenMarkdown.agentEdits"
+      },
+      {
+        "command": "kenMarkdown.undoChatEdit",
+        "key": "ctrl+n",
+        "mac": "cmd+n",
+        "when": "kenMarkdown.editorFocused && (activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff') && kenMarkdown.agentEdits"
+      },
+      {
+        "command": "kenMarkdown.keepChatEdits",
+        "key": "ctrl+shift+y",
+        "mac": "cmd+shift+y",
+        "when": "kenMarkdown.editorFocused && (activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff') && kenMarkdown.agentEdits"
+      },
+      {
+        "command": "kenMarkdown.undoChatEdits",
+        "key": "ctrl+shift+n",
+        "mac": "cmd+shift+n",
+        "when": "kenMarkdown.editorFocused && (activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff') && kenMarkdown.agentEdits"
+      },
+      {
+        "command": "kenMarkdown.nextChatEdit",
+        "key": "alt+f5",
+        "mac": "alt+f5",
+        "when": "kenMarkdown.editorFocused && (activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff') && kenMarkdown.agentEdits"
+      },
+      {
+        "command": "kenMarkdown.previousChatEdit",
+        "key": "shift+alt+f5",
+        "mac": "shift+alt+f5",
+        "when": "kenMarkdown.editorFocused && (activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff') && kenMarkdown.agentEdits"
       }
     ]
   },

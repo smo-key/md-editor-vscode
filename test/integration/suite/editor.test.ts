@@ -206,6 +206,50 @@ describe("Ken Markdown Editor", function () {
     assert.strictEqual(doc.getText(), before);
   });
 
+  it("shows a chat agent's pending edits and undoes them a change at a time", async function () {
+    this.timeout(120000);
+    const original = "# Agent\n\nAlpha one.\n\nBeta two.\n\nGamma.\n";
+    const edited = "# Agent\n\nAlpha one changed.\n\nGamma.\n\nDelta new.\n";
+    const uri = fixture("agent-edits.md");
+    fs.writeFileSync(uri.fsPath, edited);
+    // Stands in for VS Code's chat editing, which keeps the file as it was
+    // before the agent's edits in a document of this scheme.
+    const scheme = "chat-editing-text-model";
+    const provider = vscode.workspace.registerTextDocumentContentProvider(scheme, { provideTextDocumentContent: () => original });
+    try {
+      const session = { $mid: 1, scheme: "vscode-chat-session", path: "/test" };
+      const originalUri = vscode.Uri.from({ scheme, path: uri.path, query: JSON.stringify({ kind: "doc", documentId: "test", chatSessionResource: session }) });
+      await vscode.workspace.openTextDocument(originalUri);
+      // The chat's diff of the file opens the Ken editor instead (Ken is the default editor here).
+      await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+      await vscode.commands.executeCommand("vscode.diff", originalUri, uri, "agent-edits.md (chat)");
+      await until(
+        "the Ken editor replaces the chat's diff",
+        () => vscode.window.tabGroups.activeTabGroup.activeTab?.input,
+        (input) => input instanceof vscode.TabInputCustom && input.viewType === VIEW_TYPE && input.uri.toString() === uri.toString(),
+      );
+      const doc = await openEditor(uri);
+      await until("changes shown", () => webview(uri, { kind: "count", selector: ".ken-agent-hunk" }), (n) => n === 2);
+      assert.strictEqual(await webview(uri, { kind: "count", selector: ".ken-diff-widget.ken-diff-removed" }), 2);
+      assert.strictEqual(await webview(uri, { kind: "getText", selector: ".ken-agent-count" }), "1 of 2");
+
+      // Undo the second change (the added paragraph): the file loses just that.
+      await webview(uri, { kind: "click", selector: '.ken-agent-hunk[data-hunk="1"] button:not(.primary)' });
+      await until("change undone", () => doc.getText(), (t) => t === "# Agent\n\nAlpha one changed.\n\nGamma.\n");
+      await until("one change left", () => webview(uri, { kind: "count", selector: ".ken-agent-hunk" }), (n) => n === 1);
+
+      // Undo for the whole file puts the original back.
+      await webview(uri, { kind: "click", selector: ".ken-agent-bar button:not(.primary)" });
+      await until("file undone", () => doc.getText(), (t) => t === original);
+      await until("no changes left", () => webview(uri, { kind: "count", selector: ".ken-agent-hunk" }), (n) => n === 0);
+      await doc.save();
+    } finally {
+      provider.dispose();
+      await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
+      fs.rmSync(uri.fsPath, { force: true });
+    }
+  });
+
   it("shows a change written to the file on disk", async function () {
     this.timeout(180000);
     const fs = await import("fs");

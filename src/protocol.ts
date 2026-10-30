@@ -114,6 +114,11 @@ export type HostMessage =
   /** Whether this editor writes the shared document to its file. */
   | { type: "collabWriter"; writer: boolean }
   | { type: "collabStop" }
+  /**
+   * A chat agent's pending edits to this file (VS Code's Keep/Undo): the
+   * file as it was before them, or null when there are none.
+   */
+  | { type: "agentEdits"; original: string | null }
   | { type: "test"; id: number; action: TestAction };
 
 export type TestAction =
@@ -200,6 +205,13 @@ export type WebviewMessage =
   | { type: "collabAwareness"; data: Uint8Array }
   /** The editor left the session; a non-writer wants the file's text back. */
   | { type: "collabStopped"; writer: boolean }
+  /**
+   * Keep or undo a chat agent's edits: the whole file's, or one block's. A
+   * block is described by the editor's Markdown as it is (`current`) and with
+   * the block put back as it was (`reverted`).
+   */
+  | { type: "agentAction"; action: "keep" | "undo"; scope: "file" }
+  | { type: "agentAction"; action: "keep" | "undo"; scope: "change"; current: string; reverted: string }
   | { type: "testResult"; id: number; result: unknown }
   | { type: "error"; message: string };
 

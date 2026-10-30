@@ -32,6 +32,7 @@ import "./diff.css";
 import { buildEditor } from "./editorSetup";
 import { joinDocument, splitDocument } from "./frontmatterModel";
 import { splitThreads } from "./comments/store";
+import { removedBlock } from "./diffDom";
 import { combinedWidgets, diffBlocks, layoutDiff, syncedScrollTop, type DiffMark, type RemovedWidget } from "./diffModel";
 import { normalizeTrailingNewlines } from "./markdown/gfmFidelity";
 import { applyTypography, trackScreenHeight } from "./theme";
@@ -57,29 +58,6 @@ interface Highlights {
 }
 
 const diffKey = new PluginKey<DecorationSet>("ken-diff");
-
-/** Wrap the text between offsets `[from, to)` of `root`'s text in spans of `className`. */
-function highlightText(root: HTMLElement, ranges: [number, number][], className: string) {
-  if (!ranges.length) return;
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-  const texts: Text[] = [];
-  for (let n = walker.nextNode(); n; n = walker.nextNode()) texts.push(n as Text);
-  let offset = 0;
-  for (const text of texts) {
-    const start = offset;
-    const end = offset + text.data.length;
-    offset = end;
-    const hits = ranges.filter(([a, b]) => a < end && b > start).map(([a, b]) => [Math.max(a, start) - start, Math.min(b, end) - start]);
-    for (const [a, b] of hits.reverse()) {
-      const target = text.splitText(a);
-      target.splitText(b - a);
-      const span = document.createElement("span");
-      span.className = className;
-      target.replaceWith(span);
-      span.append(target);
-    }
-  }
-}
 
 function frontWidget(front: NonNullable<Highlights["front"]>, side: DiffSideName | "combined"): HTMLElement {
   const box = document.createElement("div");
@@ -113,14 +91,7 @@ function decorations(view: EditorView, h: Highlights, side: DiffSideName | "comb
     decos.push(
       Decoration.widget(
         pos,
-        () => {
-          const box = document.createElement("div");
-          box.className = `ken-diff-removed ken-diff-widget${w.entry.pair ? " ken-diff-edited" : ""}`;
-          box.contentEditable = "false";
-          box.append(serializer.serializeNode(w.entry.node));
-          highlightText(box, w.words, "ken-diff-removed-text");
-          return box;
-        },
+        () => removedBlock(serializer, w),
         { side: -1, key: `rm-${i}-${w.entry.node.textContent.length}-${w.entry.node.type.name}`, ignoreSelection: true },
       ),
     );

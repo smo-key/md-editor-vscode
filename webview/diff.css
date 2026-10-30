@@ -174,3 +174,83 @@
 .ken-diff-bar .ken-toolbar-button[data-id="export"] {
   display: none;
 }
+
+/* A chat agent's pending edits in the editor (agentEdits.ts), as VS Code's text editor shows them. */
+.milkdown .ProseMirror .ken-agent-hunk {
+  position: relative;
+  height: 0;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+}
+.ken-agent-actions,
+.ken-agent-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--vscode-editorWidget-border, var(--border-strong));
+  border-radius: 6px;
+  background: var(--vscode-editorWidget-background, var(--surface));
+  color: var(--vscode-editorWidget-foreground, var(--ink));
+  box-shadow: 0 2px 8px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.25));
+  font-family: var(--vscode-font-family);
+  font-size: 12px;
+  line-height: 1;
+}
+.ken-agent-actions {
+  position: absolute;
+  right: -10px;
+  top: 2px;
+  z-index: 6;
+  opacity: 0.85;
+}
+.ken-agent-hunk.current .ken-agent-actions,
+.ken-agent-actions:hover {
+  opacity: 1;
+}
+.ken-agent-actions button,
+.ken-agent-bar button {
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ken-agent-actions button:hover,
+.ken-agent-bar button:hover {
+  background: var(--vscode-toolbar-hoverBackground, var(--sunken));
+}
+.ken-agent-actions button.primary,
+.ken-agent-bar button.primary {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+.ken-agent-actions button.primary:hover,
+.ken-agent-bar button.primary:hover {
+  background: var(--vscode-button-hoverBackground, var(--vscode-button-background));
+}
+.ken-agent-bar {
+  position: fixed;
+  right: 24px;
+  bottom: 16px;
+  z-index: 40;
+}
+.ken-agent-bar[hidden] {
+  display: none;
+}
+body[data-toolbar="bottom"] .ken-agent-bar {
+  bottom: 50px;
+}
+.ken-agent-count {
+  padding: 0 8px;
+  border-left: 1px solid var(--vscode-editorWidget-border, var(--border));
+  color: var(--ink-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.ken-agent-count:empty {
+  display: none;
+}

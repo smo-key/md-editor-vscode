@@ -52,6 +52,7 @@ export function activate(context: vscode.ExtensionContext) {
     diffs,
     vscode.commands.registerCommand("kenMarkdown.openDiff", (arg?: unknown) => diffs.show(arg)),
     vscode.commands.registerCommand("kenMarkdown.compare", (arg?: unknown, uris?: unknown) => diffs.compare(arg, uris)),
+    vscode.commands.registerCommand("kenMarkdown.openDiffFileInKen", (arg?: unknown) => diffs.openDiffFile(arg)),
     vscode.commands.registerCommand("kenMarkdown.openSource", async (uri?: vscode.Uri) => {
       const target = uri ?? activeUri();
       if (target) await vscode.commands.executeCommand("vscode.openWith", target, "default");

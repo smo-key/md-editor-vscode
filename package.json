@@ -128,6 +128,12 @@
         "category": "Ken Markdown"
       },
       {
+        "command": "kenMarkdown.openDiffFileInKen",
+        "title": "Open Changes in Ken Markdown",
+        "category": "Ken Markdown",
+        "icon": "$(preview)"
+      },
+      {
         "command": "kenMarkdown.bold",
         "title": "Bold",
         "category": "Ken Markdown"
@@ -556,6 +562,10 @@
           "when": "kenMarkdown.collaboration"
         },
         {
+          "command": "kenMarkdown.openDiffFileInKen",
+          "when": "false"
+        },
+        {
           "command": "kenMarkdown.bold",
           "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
@@ -841,6 +851,13 @@
           "command": "kenMarkdown.openDiff",
           "when": "scmProvider == git && (resourceExtname == .md || resourceExtname == .markdown)",
           "group": "navigation"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "kenMarkdown.openDiffFileInKen",
+          "when": "isInDiffEditor && resourceLangId == markdown",
+          "group": "navigation@0"
         }
       ]
     },

@@ -268,6 +268,20 @@ describe("Ken Markdown Editor", function () {
         () => vscode.window.tabGroups.activeTabGroup.activeTab?.input,
         (input) => input instanceof vscode.TabInputWebview && input.viewType.endsWith("kenMarkdown.diff"),
       );
+      // One Markdown file of a multi-file diff with other files, from its context menu.
+      const other = fixture("agent-other.txt");
+      fs.writeFileSync(other.fsPath, "text\n");
+      await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+      await vscode.commands.executeCommand("vscode.changes", "Mixed changes", [[uri, snap("a"), snap("b")], [other, other, other]]);
+      await until("the diff's editors", () => vscode.window.visibleTextEditors.filter((e) => e.document.uri.path === uri.path).length, (n) => n === 2);
+      await vscode.commands.executeCommand("kenMarkdown.openDiffFileInKen", snap("b"));
+      await until(
+        "the file's comparison",
+        () => vscode.window.tabGroups.activeTabGroup.activeTab?.input,
+        (input) => input instanceof vscode.TabInputWebview && input.viewType.endsWith("kenMarkdown.diff"),
+      );
+      fs.rmSync(other.fsPath, { force: true });
+
       // Compare on a file the agent created (its original is empty), and on a
       // version of a file that is gone: shown as it is, under a banner.
       const created = fixture("agent-created.md");

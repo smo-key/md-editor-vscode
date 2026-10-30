@@ -633,6 +633,33 @@ export class DiffPanels implements vscode.Disposable {
     void vscode.commands.executeCommand("vscode.diff", old, uri, `${title} (Text)`);
   }
 
+  /**
+   * One file of a diff (right-click in it, e.g. in a multi-file diff): its two
+   * versions are the visible editors showing that file, opened here as the
+   * Ken editor (pending chat edits), the rendered comparison, or with a banner
+   * when the file was added or deleted.
+   */
+  async openDiffFile(arg?: unknown): Promise<void> {
+    const uri = arg instanceof vscode.Uri ? arg : vscode.window.activeTextEditor?.document.uri;
+    if (!uri) return;
+    const docs: vscode.Uri[] = [];
+    for (const e of vscode.window.visibleTextEditors) {
+      const u = e.document.uri;
+      if (u.path === uri.path && !docs.some((d) => d.toString() === u.toString())) docs.push(u);
+    }
+    log().info(`open diff file ${uri.toString()}: editors ${docs.map(String).join("; ")}`);
+    if (docs.length === 2) {
+      // The diff shows the older version first; a file on disk is always the newer.
+      let [old, file] = docs as [vscode.Uri, vscode.Uri];
+      if (isFile(old) && !isFile(file)) [old, file] = [file, old];
+      if (!isFile(old) || !isFile(file)) return this.openTool(old, file);
+      return this.open_({ kind: "pair", old, new: file });
+    }
+    const alone = await this.newOrDeleted(uri, true);
+    if (alone) return this.open_(alone);
+    if (isFile(uri)) await vscode.commands.executeCommand("vscode.openWith", uri, VIEW_TYPE);
+  }
+
   /** A file's changes since the last commit. */
   async show(arg?: unknown): Promise<void> {
     const uri = targetUri(arg);

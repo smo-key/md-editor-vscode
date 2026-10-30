@@ -192,6 +192,39 @@ function pendingOriginalText(uri: vscode.Uri): string | undefined {
   return vscode.workspace.textDocuments.find((d) => d.uri.scheme === ORIGINAL_SCHEME && d.uri.path === uri.path)?.getText();
 }
 
+function isMultiDiff(input: unknown): boolean {
+  const Multi = (vscode as unknown as { TabInputTextMultiDiff?: new (...a: never[]) => unknown }).TabInputTextMultiDiff;
+  return !!Multi && input instanceof Multi;
+}
+
+/**
+ * The versions the visible text editors show of each Markdown file that has a
+ * tool's version among them (a multi-file diff's sides are editors too). The
+ * newer is the file when one side is the file, else the version that reads
+ * as the file does now, else the later editor.
+ */
+function editorPairs(): { old: vscode.Uri; new: vscode.Uri }[] {
+  const byPath = new Map<string, vscode.TextDocument[]>();
+  for (const e of vscode.window.visibleTextEditors) {
+    const d = e.document;
+    if (!isMarkdown(d.uri)) continue;
+    const list = byPath.get(d.uri.path) ?? [];
+    if (!list.some((x) => x.uri.toString() === d.uri.toString())) list.push(d);
+    byPath.set(d.uri.path, list);
+  }
+  const out: { old: vscode.Uri; new: vscode.Uri }[] = [];
+  for (const docs of byPath.values()) {
+    if (docs.length !== 2 || docs.every((d) => isFile(d.uri))) continue;
+    const [a, b] = docs as [vscode.TextDocument, vscode.TextDocument];
+    const file = vscode.workspace.textDocuments.find((d) => isFile(d.uri) && d.uri.path === a.uri.path);
+    const newer = isFile(a.uri) ? a : isFile(b.uri) ? b : file && b.getText() !== file.getText() && a.getText() === file.getText() ? a : b;
+    const older = newer === a ? b : a;
+    // A version that reads as the file does now is the file: its pending edits, if any, show in the editor.
+    out.push({ old: older.uri, new: !isFile(newer.uri) && file && newer.getText() === file.getText() ? file.uri : newer.uri });
+  }
+  return out;
+}
+
 /** Markdown files with a chat agent's edits pending: their originals against the files. */
 function pendingChatFiles(): { old: vscode.Uri; new: vscode.Uri }[] {
   const out: { old: vscode.Uri; new: vscode.Uri }[] = [];
@@ -204,16 +237,15 @@ function pendingChatFiles(): { old: vscode.Uri; new: vscode.Uri }[] {
 }
 
 /**
- * The one diff a tab shows of a Markdown file where a side is a version a
- * tool provides (a chat or agent's edits, its session or request changes),
- * if that's all it shows. Git's versions are left to `isReplaceableDiff`.
+ * The diffs a tab shows of Markdown files where a side is a version a tool
+ * provides (a chat or agent's edits, its session or request changes), when
+ * that's all it shows. Git's versions are left to `isReplaceableDiff`.
  */
-function toolPair(input: unknown): { old: vscode.Uri; new: vscode.Uri } | undefined {
+function toolPairs(input: unknown): { old: vscode.Uri; new: vscode.Uri }[] {
   const diffs = tabDiffs(input);
-  if (diffs.length !== 1) return undefined;
-  const d = diffs[0]!;
-  if (d.old.scheme === "git" || d.new.scheme === "git") return undefined;
-  return (!isFile(d.old) || !isFile(d.new)) && (isMarkdown(d.new) || isMarkdown(d.old)) ? d : undefined;
+  const ok = (d: { old: vscode.Uri; new: vscode.Uri }) =>
+    d.old.scheme !== "git" && d.new.scheme !== "git" && (!isFile(d.old) || !isFile(d.new)) && (isMarkdown(d.new) || isMarkdown(d.old));
+  return diffs.length && diffs.every(ok) ? diffs : [];
 }
 
 class DiffPanel {
@@ -506,14 +538,21 @@ export class DiffPanels implements vscode.Disposable {
       // request's changes, when that's the one file): the Ken editor shows
       // pending edits, Keep/Undo and all; other versions open in the rendered
       // comparison.
-      const tool = toolPair(input);
-      if (tool && !this.keepText.has(`${tool.old}|${tool.new}`)) {
-        const target = await this.toolTarget(tool.old, tool.new);
-        log().info(`→ ${target ?? "left as text"}`);
-        if (target) {
+      // A multi-file diff whose files VS Code hasn't listed (the chat's session
+      // and request changes): its files are read from the editors it shows.
+      const count = /\((\d+)\D*\)\s*$/.exec(tab.label);
+      if (isMultiDiff(input) && tabDiffs(input).length === 0 && count) {
+        void this.multiFromEditors(tab, Number(count[1]));
+        continue;
+      }
+      const tools = toolPairs(input);
+      if (tools.length && !tools.some((t) => this.keepText.has(`${t.old}|${t.new}`))) {
+        const targets = await Promise.all(tools.map((t) => this.toolTarget(t.old, t.new)));
+        log().info(`→ ${targets.map((t) => t ?? "left as text").join(", ")}`);
+        if (targets.every(Boolean)) {
           const column = tab.group.viewColumn;
           await vscode.window.tabGroups.close(tab, true);
-          await this.openTool(tool.old, tool.new, column);
+          for (const t of tools) await this.openTool(t.old, t.new, column);
           continue;
         }
       }
@@ -526,6 +565,38 @@ export class DiffPanels implements vscode.Disposable {
       const column = tab.group.viewColumn;
       await vscode.window.tabGroups.close(tab, true);
       this.open_({ kind: "pair", old: input.original, new: input.modified }, column);
+    }
+  }
+
+  private readonly multiPending = new Set<string>();
+
+  /**
+   * Replace a multi-file diff of Markdown files with this view (one tab per
+   * file), once its editors show all `count` files: each file's two versions
+   * are the visible text editors sharing its path. Diffs with other files, or
+   * whose versions can't be told apart, stay as they are.
+   */
+  private async multiFromEditors(tab: vscode.Tab, count: number): Promise<void> {
+    const key = `${tab.group.viewColumn}:${tab.label}`;
+    if (this.multiPending.has(key)) return;
+    this.multiPending.add(key);
+    try {
+      for (const end = Date.now() + 4000; Date.now() < end; await new Promise((r) => setTimeout(r, 150))) {
+        const current = tab.group.tabs.find((t) => t.label === tab.label && isMultiDiff(t.input));
+        if (!current || !current.isActive) return;
+        const pairs = editorPairs();
+        log().info(`multi diff "${tab.label}": ${pairs.length}/${count} files from editors: ${pairs.map((p) => `${p.old} ↔ ${p.new}`).join("; ")}`);
+        if (pairs.length < count) continue;
+        if (pairs.length > count || !pairs.every((p) => isMarkdown(p.new))) return;
+        const targets = await Promise.all(pairs.map((p) => this.toolTarget(p.old, p.new)));
+        if (targets.some((t) => !t)) return;
+        const column = tab.group.viewColumn;
+        await vscode.window.tabGroups.close(current, true);
+        for (const p of pairs) await this.openTool(p.old, p.new, column);
+        return;
+      }
+    } finally {
+      this.multiPending.delete(key);
     }
   }
 

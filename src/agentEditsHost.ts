@@ -36,6 +36,12 @@ export function originalOf(doc: vscode.TextDocument): vscode.TextDocument | unde
   return all.reverse().find((d) => d.getText() !== text) ?? all[0];
 }
 
+/** Whether a chat agent's edits to `doc` are pending (its original differs from it). */
+export function hasPendingEdits(doc: vscode.TextDocument): boolean {
+  const original = originalOf(doc);
+  return !!original && original.getText() !== doc.getText();
+}
+
 /** Whether a text document event concerns some file's original. */
 export const isOriginal = (doc: vscode.TextDocument) => doc.uri.scheme === ORIGINAL_SCHEME;
 

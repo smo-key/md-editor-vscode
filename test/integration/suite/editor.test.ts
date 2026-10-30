@@ -217,6 +217,7 @@ describe("Ken Markdown Editor", function () {
     const scheme = "chat-editing-text-model";
     const provider = vscode.workspace.registerTextDocumentContentProvider(scheme, { provideTextDocumentContent: () => original });
     let snapshots: vscode.Disposable | undefined;
+    let tool: vscode.Disposable | undefined;
     try {
       const session = { $mid: 1, scheme: "vscode-chat-session", path: "/test" };
       const originalUri = vscode.Uri.from({ scheme, path: uri.path, query: JSON.stringify({ kind: "doc", documentId: "test", chatSessionResource: session }) });
@@ -266,8 +267,18 @@ describe("Ken Markdown Editor", function () {
         () => vscode.window.tabGroups.activeTabGroup.activeTab?.input,
         (input) => input instanceof vscode.TabInputWebview && input.viewType.endsWith("kenMarkdown.diff"),
       );
+      // Any other tool's version against the file (e.g. an agent host's): the comparison too.
+      tool = vscode.workspace.registerTextDocumentContentProvider("ken-test-agent", { provideTextDocumentContent: () => edited });
+      await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+      await vscode.commands.executeCommand("vscode.diff", vscode.Uri.from({ scheme: "ken-test-agent", path: uri.path }), uri, "agent-edits.md (agent)");
+      await until(
+        "the comparison replaces an agent's diff",
+        () => vscode.window.tabGroups.activeTabGroup.activeTab?.input,
+        (input) => input instanceof vscode.TabInputWebview && input.viewType.endsWith("kenMarkdown.diff"),
+      );
     } finally {
       snapshots?.dispose();
+      tool?.dispose();
       provider.dispose();
       await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
       fs.rmSync(uri.fsPath, { force: true });

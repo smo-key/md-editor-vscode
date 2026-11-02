@@ -219,6 +219,7 @@ describe("Ken Markdown Editor", function () {
     let snapshots: vscode.Disposable | undefined;
     let tool: vscode.Disposable | undefined;
     let createdOriginal = false;
+    let hostFs: vscode.Disposable | undefined;
     try {
       const session = { $mid: 1, scheme: "vscode-chat-session", path: "/test" };
       const originalUri = vscode.Uri.from({ scheme, path: uri.path, query: JSON.stringify({ kind: "doc", documentId: "test", chatSessionResource: session }) });
@@ -282,6 +283,52 @@ describe("Ken Markdown Editor", function () {
       );
       fs.rmSync(other.fsPath, { force: true });
 
+      // An agent host's versions, served from a file system of its own (the
+      // version named in a query): its diff opens in the comparison too.
+      const versions = new Map([["old", original], ["new", edited]]);
+      const enc = new TextEncoder();
+      hostFs = vscode.workspace.registerFileSystemProvider(
+        "ken-test-agent-host",
+        {
+          onDidChangeFile: new vscode.EventEmitter<vscode.FileChangeEvent[]>().event,
+          watch: () => new vscode.Disposable(() => undefined),
+          stat: (u) => ({ type: vscode.FileType.File, ctime: 0, mtime: 0, size: enc.encode(versions.get(u.query.slice(3)) ?? "").length }),
+          readFile: (u) => enc.encode(versions.get(u.query.slice(3)) ?? ""),
+          readDirectory: () => [],
+          createDirectory: () => undefined,
+          writeFile: () => undefined,
+          delete: () => undefined,
+          rename: () => undefined,
+        },
+        { isReadonly: true },
+      );
+      const hostUri = (v: string) => vscode.Uri.from({ scheme: "ken-test-agent-host", path: uri.path, query: `_v=${v}` });
+      await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+      await vscode.commands.executeCommand("vscode.diff", hostUri("old"), hostUri("new"), "agent-edits.md ↔ agent-edits.md");
+      await until(
+        "the comparison replaces the agent host's diff",
+        () => vscode.window.tabGroups.activeTabGroup.activeTab?.input,
+        (input) => input instanceof vscode.TabInputWebview && input.viewType.endsWith("kenMarkdown.diff"),
+      );
+      await until("its changes marked", () => vscode.commands.executeCommand<number[]>("kenMarkdown._testDiffQuery", [".ken-diff-added, .ken-diff-removed"]), (r) => (r?.[0] ?? 0) > 0);
+      // Left as text (Markdown diffs set to open as text), then reopened with the Ken Markdown Editor: the comparison.
+      const config = vscode.workspace.getConfiguration("kenMarkdown");
+      await config.update("diff.openMarkdownDiffs", "text", vscode.ConfigurationTarget.Global);
+      try {
+        await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+        await vscode.commands.executeCommand("vscode.diff", hostUri("old"), hostUri("new"), "agent-edits.md ↔ agent-edits.md");
+        const activeInput = () => vscode.window.tabGroups.activeTabGroup.activeTab?.input;
+        await until("text diff", () => activeInput() instanceof vscode.TabInputTextDiff, (v) => v);
+        void vscode.commands.executeCommand("workbench.action.reopenWithEditor");
+        await sleep(1200);
+        await vscode.commands.executeCommand("workbench.action.quickOpenSelectNext");
+        await vscode.commands.executeCommand("workbench.action.acceptSelectedQuickOpenItem");
+        await until("comparison after reopening", activeInput, (input) => input instanceof vscode.TabInputWebview && input.viewType.endsWith("kenMarkdown.diff"));
+        await until("marked after reopening", () => vscode.commands.executeCommand<number[]>("kenMarkdown._testDiffQuery", [".ken-diff-added, .ken-diff-removed"]), (r) => (r?.[0] ?? 0) > 0);
+      } finally {
+        await config.update("diff.openMarkdownDiffs", undefined, vscode.ConfigurationTarget.Global);
+      }
+
       // Compare on a file the agent created (its original is empty), and on a
       // version of a file that is gone: shown as it is, under a banner.
       const created = fixture("agent-created.md");
@@ -313,6 +360,7 @@ describe("Ken Markdown Editor", function () {
     } finally {
       snapshots?.dispose();
       tool?.dispose();
+      hostFs?.dispose();
       provider.dispose();
       await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
       fs.rmSync(uri.fsPath, { force: true });

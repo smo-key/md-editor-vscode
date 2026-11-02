@@ -41,7 +41,7 @@ export function activate(context: vscode.ExtensionContext) {
       // From a text diff of Markdown (e.g. after "Switch to Text"), back to
       // the rendered comparison rather than one side of it.
       const pair = pairFrom(uri, undefined);
-      if (pair && isReplaceableDiff(pair.old, pair.new)) {
+      if (pair && (isReplaceableDiff(pair.old, pair.new) || (await diffs.isToolDiff(pair)))) {
         await diffs.compare(uri);
         return;
       }

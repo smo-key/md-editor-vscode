@@ -157,11 +157,18 @@ function writable(uri: vscode.Uri): boolean {
   return uri.scheme !== "git" && isFile(uri) && vscode.workspace.fs.isWritableFileSystem(uri.scheme) !== false;
 }
 
+/** Schemes of versions agents and chats provide, even where they are served as a file system. */
+const TOOL_SCHEMES = new Set(["vscode-agent-host", "chat-editing-text-model", "chat-editing-snapshot-text-model"]);
+
 /**
  * A document in a file system (or a new, untitled one), as opposed to a
  * version some tool provides: a chat agent's before and after, a review's.
+ * Such versions say which they are in a query (Copilot's agent host serves
+ * them from a file system of its own), files don't.
  */
-const isFile = (uri: vscode.Uri) => uri.scheme === "untitled" || vscode.workspace.fs.isWritableFileSystem(uri.scheme) !== undefined;
+const isFile = (uri: vscode.Uri) =>
+  uri.scheme === "untitled" ||
+  (!TOOL_SCHEMES.has(uri.scheme) && !uri.query && vscode.workspace.fs.isWritableFileSystem(uri.scheme) !== undefined);
 
 /** What the extension decided about diffs it may open instead (Output › Ken Markdown). */
 let logChannel: vscode.LogOutputChannel | undefined;
@@ -615,7 +622,8 @@ export class DiffPanels implements vscode.Disposable {
         this.keepText.delete(`${was.old}|${was.new}`);
         const column = tab.group.viewColumn;
         await vscode.window.tabGroups.close(tab, true);
-        this.open_({ kind: "pair", ...was }, column);
+        if (!isFile(was.old) || !isFile(was.new)) await this.openTool(was.old, was.new, column);
+        else this.open_({ kind: "pair", ...was }, column);
         continue;
       }
       // A chat's or agent's diff of a Markdown file (or its session's or a
@@ -630,6 +638,8 @@ export class DiffPanels implements vscode.Disposable {
         continue;
       }
       const tools = toolPairs(input);
+      // Remembered, to recognise it reopened with the Ken Markdown Editor.
+      if (input instanceof vscode.TabInputTextDiff && tools.length === 1) this.textDiffs.set(where, tools[0]!);
       if (tools.length && !tools.some((t) => this.keepText.has(`${t.old}|${t.new}`))) {
         const targets = await Promise.all(tools.map((t) => this.toolTarget(t.old, t.new)));
         log().info(`→ ${targets.map((t) => t ?? "left as text").join(", ")}`);
@@ -690,12 +700,15 @@ export class DiffPanels implements vscode.Disposable {
    * else as a comparison (`pair`). Only while the Ken editor is the file's
    * default editor and Markdown diffs open in Ken.
    */
-  private async toolTarget(original: vscode.Uri, modified: vscode.Uri): Promise<"editor" | "pair" | null> {
+  private async toolTarget(original: vscode.Uri, modified: vscode.Uri, asked = false): Promise<"editor" | "pair" | null> {
     const path = isMarkdown(modified) ? modified.path : original.path;
     if (!/\.(md|markdown)$/i.test(path)) return null;
-    if (vscode.workspace.getConfiguration("kenMarkdown", modified).get<string>("diff.openMarkdownDiffs", "ken") !== "ken") return null;
-    const associations = vscode.workspace.getConfiguration("workbench").get("editorAssociations");
-    if (!isDefaultEditor(path, VIEW_TYPE, associations, true)) return null;
+    // Opened here unasked only while Markdown diffs open in Ken and it is the default editor.
+    if (!asked) {
+      if (vscode.workspace.getConfiguration("kenMarkdown", modified).get<string>("diff.openMarkdownDiffs", "ken") !== "ken") return null;
+      const associations = vscode.workspace.getConfiguration("workbench").get("editorAssociations");
+      if (!isDefaultEditor(path, VIEW_TYPE, associations, true)) return null;
+    }
     if (!isFile(modified)) return "pair";
     if (original.scheme === ORIGINAL_SCHEME) return "editor";
     try {
@@ -705,8 +718,13 @@ export class DiffPanels implements vscode.Disposable {
     }
   }
 
+  /** Whether a pair is a tool's versions of a Markdown file (a chat's or an agent's), which this view can show. */
+  async isToolDiff(pair: { old: vscode.Uri; new: vscode.Uri }): Promise<boolean> {
+    return toolPairs(new vscode.TabInputTextDiff(pair.old, pair.new)).length === 1;
+  }
+
   private async openTool(old: vscode.Uri, uri: vscode.Uri, column: vscode.ViewColumn = vscode.ViewColumn.Active): Promise<void> {
-    if ((await this.toolTarget(old, uri)) === "editor") {
+    if ((await this.toolTarget(old, uri, true)) === "editor") {
       await vscode.commands.executeCommand("vscode.openWith", uri, VIEW_TYPE, { viewColumn: column, preserveFocus: true });
     } else this.open_({ kind: "pair", old, new: uri }, column);
   }
@@ -763,7 +781,7 @@ export class DiffPanels implements vscode.Disposable {
     const fromMulti = arg instanceof vscode.Uri && arg.scheme === "multi-diff-editor";
     if (fromMulti) arg = undefined;
     let pair = pairFrom(arg, uris);
-    if (pair && (await this.toolTarget(pair.old, pair.new))) return this.openTool(pair.old, pair.new);
+    if (pair && (await this.toolTarget(pair.old, pair.new, true))) return this.openTool(pair.old, pair.new);
     if (!pair && !(arg instanceof vscode.Uri)) {
       // A multi-file diff (e.g. the chat's session or request changes): its Markdown files.
       let diffs = tabDiffs(vscode.window.tabGroups.activeTabGroup.activeTab?.input).filter((d) => isMarkdown(d.new));

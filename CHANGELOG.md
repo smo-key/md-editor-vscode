@@ -14,6 +14,7 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 
 ### Fixed
 
+- Diffs from Copilot's agent sessions (its file and turn changes) open in Ken with their changes in red and green, and so does **Reopen Editor With… › Ken Markdown Editor** or **Open in Ken Markdown Editor** from such a diff left as text; before, Ken mistook those versions for files and showed them unmarked.
 - In a narrow editor the toolbar starts at its first button and scrolls all the way to both ends (the mouse wheel scrolls it sideways); before, its left end was cut off and out of reach.
 - A table of contents in the diff view looks as it does in the editor (its caption no longer squeezed into a column, no bullets on a removed one), and only the entries that changed are highlighted; before, every entry was, since the editor writes its links differently.
 - **Compare in Ken Markdown** on a new file (untracked, created by a chat agent, or new in a multi-file diff) or a deleted one no longer asks for a second file: it shows the file as it is, without highlights, under a banner saying **This file was added** or **This file was deleted**. A file an agent created shows the same banner in the editor, with Keep/Undo for the file.

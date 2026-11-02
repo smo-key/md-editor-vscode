@@ -4,6 +4,8 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-02
+
 ### Added
 
 - The diff view opens at the first change, and **↑ / ↓** buttons (left of Combined/Split) scroll quickly to the previous and next change, wrapping around; in split view the other side follows.

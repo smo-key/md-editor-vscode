@@ -56,6 +56,16 @@ class Toolbar {
     // Clicking a button must not take focus or the selection from the text.
     this.el.addEventListener("mousedown", (e) => e.preventDefault());
     host.append(this.el);
+    // A narrow pane: the mouse wheel scrolls the bar sideways too.
+    this.el.addEventListener(
+      "wheel",
+      (e) => {
+        if (this.el.scrollWidth <= this.el.clientWidth || Math.abs(e.deltaX) >= Math.abs(e.deltaY)) return;
+        e.preventDefault();
+        this.el.scrollLeft += e.deltaY;
+      },
+      { passive: false },
+    );
     this.stopTooltips = installTooltips(this.el);
     // Tooltips show the current keys: rebuild when the user rebinds them.
     this.stopListening = onShortcutLabels(() => {
@@ -98,6 +108,8 @@ class Toolbar {
       }
     });
     this.el.append(this.shortcutsButton());
+    // A new set of buttons (main ↔ table) starts at its first one.
+    this.el.scrollLeft = 0;
   }
 
   /** Opens the keyboard shortcut list; pushed to the far end of the bar. */

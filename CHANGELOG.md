@@ -13,6 +13,7 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 
 ### Fixed
 
+- In a narrow editor the toolbar starts at its first button and scrolls all the way to both ends (the mouse wheel scrolls it sideways); before, its left end was cut off and out of reach.
 - A table of contents in the diff view looks as it does in the editor (its caption no longer squeezed into a column, no bullets on a removed one), and only the entries that changed are highlighted; before, every entry was, since the editor writes its links differently.
 - **Compare in Ken Markdown** on a new file (untracked, created by a chat agent, or new in a multi-file diff) or a deleted one no longer asks for a second file: it shows the file as it is, without highlights, under a banner saying **This file was added** or **This file was deleted**. A file an agent created shows the same banner in the editor, with Keep/Undo for the file.
 - Copying or cutting text inside one table cell copies just that text (and its formatting for rich-text apps), not a one-cell table with the editor's table marker.

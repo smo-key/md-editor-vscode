@@ -10,6 +10,7 @@ import { Decoration, DecorationSet, type EditorView } from "@milkdown/kit/prose/
 import { $prose } from "@milkdown/kit/utils";
 import { combinedWidgets, diffBlocks, layoutDiff, type BlockEntry } from "./diffModel";
 import { removedBlock } from "./diffDom";
+import { scrollParent, scrollQuickly } from "./smoothScroll";
 import "./diff.css";
 
 /** One run of changed blocks, and where it is in the document as it is now. */
@@ -218,7 +219,13 @@ function showCurrent(scroll: boolean) {
   for (const el of view.dom.querySelectorAll<HTMLElement>(".ken-agent-hunk")) {
     el.classList.toggle("current", el.dataset.hunk === String(current));
   }
-  if (scroll) view.dom.querySelector<HTMLElement>(`.ken-agent-hunk[data-hunk="${current}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" });
+  const hunk = scroll ? view.dom.querySelector<HTMLElement>(`.ken-agent-hunk[data-hunk="${current}"]`) : null;
+  if (hunk) {
+    const box = scrollParent(hunk);
+    const r = hunk.getBoundingClientRect();
+    const b = box.getBoundingClientRect();
+    scrollQuickly(box, box.scrollTop + r.top - b.top - box.clientHeight / 3);
+  }
 }
 
 function step(by: number) {

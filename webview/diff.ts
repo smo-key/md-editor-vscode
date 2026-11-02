@@ -39,6 +39,7 @@ import { applyTypography, trackScreenHeight } from "./theme";
 import { isHostMessage } from "./hostMessage";
 import { COMMANDS, command, execute, setClipboardReader, setExportHandler, setPrintHandler, setShortcutLabels } from "./commands";
 import { inEditorText, installKeyRouting, setBoundKeys } from "./keys";
+import { scrollQuickly } from "./smoothScroll";
 import { printableColumns, type PrintColumn } from "./print";
 import { collectExportAssets } from "./exportAssets";
 import type { DiffContent, DiffHostMessage, DiffLayoutMode, DiffReadOnly, DiffSideName, DiffWebviewMessage, HostMessage } from "../src/protocol";
@@ -468,7 +469,8 @@ function goToChange(dir: 1 | -1, first = false) {
   if (dir > 0) top = tops.find((t) => t > here + 2) ?? tops[0]!;
   else top = [...tops].reverse().find((t) => t < here - 2) ?? tops[tops.length - 1]!;
   setScrollLeader(scroll);
-  scroll.scrollTo({ top, behavior: first ? "instant" : "smooth" });
+  if (first) scroll.scrollTop = top;
+  else scrollQuickly(scroll, top);
 }
 
 /**

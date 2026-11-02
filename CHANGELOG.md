@@ -6,10 +6,10 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 
 ### Added
 
-- The diff view opens at the first change, and **↑ / ↓** buttons (left of Combined/Split) scroll to the previous and next change, wrapping around; in split view the other side follows.
+- The diff view opens at the first change, and **↑ / ↓** buttons (left of Combined/Split) scroll quickly to the previous and next change, wrapping around; in split view the other side follows.
 - **Export** in the diff view: HTML and PDF are the comparison as shown, combined or with both versions side by side, changes in red and green; Word is the newer version as a clean document (the older one for a deleted file).
 - **Chat agent edits in the Ken editor**: when GitHub Copilot (or another chat agent) edits a Markdown file, the editor shows the pending edits in green and red, with **Keep** and **Undo** for each change and, in a bar at the bottom, for the whole file, plus previous/next. They stay in step with the chat's Keep/Undo. Keys as in VS Code: ⌘Y/⌘N (Ctrl+Y/Ctrl+N) for a change, ⇧⌘Y/⇧⌘N for the file, ⌥F5/⇧⌥F5 to move between changes, all only while edits are pending and customizable in Keyboard Shortcuts.
-- **Open Changes in Ken Markdown** in the right-click menu of a Markdown file's diff, including each file inside a multi-file diff (the chat's session and request changes, Source Control's): opens that one file's changes in Ken.
+- **Open in Ken Markdown** at the top of the right-click menu anywhere in a Markdown file's diff, text diffs and each file inside a multi-file diff alike (the chat's session and turn changes, Source Control's): opens that one file's changes in Ken.
 - The chat's (and other agents' and review tools') diffs of a Markdown file open in Ken when it is your default Markdown editor: a changed file, or the session's or a request's changes when they are all Markdown files (a tab for each) (pending edits in the Ken editor, earlier versions in the rendered comparison). In a diff of several files, **Compare in Ken Markdown** in the title bar opens the Markdown ones you pick; **Open Markdown Source** and **Open in Ken Markdown Editor** switch between it and the text editor's own view of the edits.
 
 ### Fixed

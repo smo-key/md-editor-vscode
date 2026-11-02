@@ -129,7 +129,7 @@
       },
       {
         "command": "kenMarkdown.openDiffFileInKen",
-        "title": "Open Changes in Ken Markdown",
+        "title": "Open in Ken Markdown",
         "category": "Ken Markdown",
         "icon": "$(preview)"
       },
@@ -856,8 +856,8 @@
       "editor/context": [
         {
           "command": "kenMarkdown.openDiffFileInKen",
-          "when": "isInDiffEditor && resourceLangId == markdown",
-          "group": "navigation@0"
+          "when": "(editorLangId == markdown || resourceExtname == .md || resourceExtname == .markdown) && (isInDiffEditor || activeEditor == multiDiffEditor)",
+          "group": "navigation@-1000"
         }
       ]
     },

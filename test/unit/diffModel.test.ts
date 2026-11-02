@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { editorViewCtx, parserCtx } from "@milkdown/kit/core";
 import type { Node as ProseNode } from "@milkdown/kit/prose/model";
 
+import { Transform } from "@milkdown/kit/prose/transform";
 import { combinedWidgets, diffBlocks, layoutDiff, syncedScrollTop } from "../../webview/diffModel";
 import { mountEditor, stubLayout } from "./editorEnv";
 
@@ -30,6 +31,22 @@ describe("diff model", () => {
     await withParser((parse) => {
       const entries = diffBlocks(parse("# Title\n\nold text\n\ngone\n\nend\n"), parse("# Title\n\nnew text\n\nend\n\nadded\n"));
       expect(summary(entries)).toEqual(["=Title", "-~old text", "+~new text", "-gone", "=end", "+added"]);
+    });
+  });
+
+  it("ignores how a link was written (the table of contents the editor rebuilds)", async () => {
+    await withParser((parse) => {
+      const old = parse("- [One](#one)\n- [Two](#two)\n");
+      // Rebuilt by the editor: the same links, without the syntax they were read in.
+      const tr = new Transform(old);
+      old.descendants((n, pos) => {
+        const link = n.marks.find((m) => m.type.name === "link");
+        if (n.isText && link) tr.addMark(pos, pos + n.nodeSize, link.type.create({ ...link.attrs, form: null }));
+        return true;
+      });
+      const newDoc = tr.doc;
+      expect(old.firstChild!.firstChild!.firstChild!.firstChild!.marks[0]!.attrs.form).not.toBeNull();
+      expect(summary(diffBlocks(old, newDoc))).toEqual(["=OneTwo"]);
     });
   });
 

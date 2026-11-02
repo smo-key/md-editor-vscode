@@ -284,3 +284,49 @@ body[data-toolbar="bottom"] .ken-agent-bar {
   border-radius: 3px;
   user-select: none;
 }
+
+/* A table of contents' caption is its own ::before, so its margin bar is a shadow instead. */
+.milkdown .ProseMirror ul.ken-toc.ken-diff-added::before,
+.milkdown .ProseMirror ul.ken-toc.ken-diff-removed::before {
+  position: static;
+  width: auto;
+  background: none;
+}
+.milkdown .ProseMirror ul.ken-toc:is(.ken-diff-added, .ken-diff-removed) {
+  --toc-edge: var(--diff-added-edge);
+  --toc-bg: var(--diff-added-bg);
+  margin-left: -14px;
+  padding-left: 14px;
+  background:
+    linear-gradient(var(--toc-edge), var(--toc-edge)) 0 0 / 3px 100% no-repeat,
+    linear-gradient(var(--toc-bg), var(--toc-bg)) 4px 0 / calc(100% - 4px) 100% no-repeat;
+  box-shadow: 10px 0 0 0 var(--toc-bg);
+}
+.milkdown .ProseMirror ul.ken-toc.ken-diff-removed {
+  --toc-edge: var(--diff-removed-edge);
+  --toc-bg: var(--diff-removed-bg);
+}
+/* A removed table of contents: an index, not a bulleted list; its links read as gone without each being struck through. */
+.milkdown .ProseMirror .ken-diff-widget ul.ken-toc li {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.milkdown .ProseMirror .ken-diff-widget ul.ken-toc {
+  padding-left: 0;
+}
+.milkdown .ProseMirror .ken-diff-widget ul.ken-toc ul {
+  padding-left: 1.75em;
+}
+/* Spaced as the live table of contents is (Crepe's paragraph rules apply there). */
+.measure .milkdown .ProseMirror .ken-diff-widget ul.ken-toc p {
+  margin: 0;
+  padding: 1px 0;
+  line-height: 1.6;
+}
+.milkdown .ProseMirror .ken-diff-widget:has(> ul.ken-toc) {
+  text-decoration: none;
+}
+.milkdown .ProseMirror .ken-diff-widget:has(> ul.ken-toc) .ken-diff-removed-text {
+  text-decoration: line-through;
+}

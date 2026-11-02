@@ -9,7 +9,7 @@
  * inside them (via Milkdown's `computeDocDiff`), the rest are wholly new or
  * wholly gone.
  */
-import type { Node as ProseNode } from "@milkdown/kit/prose/model";
+import { Fragment, type Node as ProseNode } from "@milkdown/kit/prose/model";
 import { computeDocDiff } from "@milkdown/kit/plugin/diff";
 
 export type BlockKind = "same" | "removed" | "added";
@@ -61,6 +61,30 @@ function blocksOf(doc: ProseNode): ProseNode[] {
  */
 const DERIVED: Record<string, string[]> = { heading: ["id"], list_item: ["label", "listType"] };
 
+/** Mark attributes that record how a mark was written, not what it means (a link's syntax). */
+const DERIVED_MARKS: Record<string, string[]> = { link: ["form"] };
+
+/** `n` with its marks' derived attributes cleared, so blocks differing only in those compare equal. */
+function withoutDerivedMarks(n: ProseNode): ProseNode {
+  if (n.isText) {
+    const marks = n.marks.map((m) => {
+      const drop = DERIVED_MARKS[m.type.name];
+      if (!drop || drop.every((k) => m.attrs[k] == null)) return m;
+      return m.type.create({ ...m.attrs, ...Object.fromEntries(drop.map((k) => [k, null])) });
+    });
+    return marks.every((m, i) => m === n.marks[i]) ? n : n.mark(marks);
+  }
+  if (!n.childCount) return n;
+  const children: ProseNode[] = [];
+  let changed = false;
+  n.forEach((c) => {
+    const d = withoutDerivedMarks(c);
+    changed ||= d !== c;
+    children.push(d);
+  });
+  return changed ? n.copy(Fragment.from(children)) : n;
+}
+
 function keyJson(n: ProseNode): unknown {
   const json = n.toJSON() as { attrs?: Record<string, unknown>; content?: unknown[] };
   const drop = DERIVED[n.type.name];
@@ -73,7 +97,7 @@ function keyJson(n: ProseNode): unknown {
   return json;
 }
 
-const keyOf = (n: ProseNode) => JSON.stringify(keyJson(n));
+const keyOf = (n: ProseNode) => JSON.stringify(keyJson(withoutDerivedMarks(n)));
 
 /** How alike two blocks' text is: shared words over all words (0…1). */
 function similarity(a: ProseNode, b: ProseNode): number {
@@ -226,7 +250,7 @@ export function innerChanges(entry: BlockEntry): { from: number; to: number }[] 
   const [oldNode, newNode] = entry.kind === "removed" ? [entry.node, entry.pair] : [entry.pair, entry.node];
   let changes;
   try {
-    changes = computeDocDiff(docType.create(null, oldNode), docType.create(null, newNode), { ignoreAttrs: DERIVED });
+    changes = computeDocDiff(docType.create(null, withoutDerivedMarks(oldNode)), docType.create(null, withoutDerivedMarks(newNode)), { ignoreAttrs: DERIVED });
   } catch {
     return [];
   }

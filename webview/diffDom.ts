@@ -31,7 +31,10 @@ export function removedBlock(serializer: DOMSerializer, w: RemovedWidget): HTMLE
   const box = document.createElement("div");
   box.className = `ken-diff-removed ken-diff-widget${w.entry.pair ? " ken-diff-edited" : ""}`;
   box.contentEditable = "false";
-  box.append(serializer.serializeNode(w.entry.node));
+  const dom = serializer.serializeNode(w.entry.node);
+  // A table of contents looks as it does in the editor (its class comes from a decoration there).
+  if (w.entry.node.type.name === "bullet_list" && w.entry.node.attrs.toc === true && dom instanceof HTMLElement) dom.classList.add("ken-toc");
+  box.append(dom);
   highlightText(box, w.words, "ken-diff-removed-text");
   return box;
 }

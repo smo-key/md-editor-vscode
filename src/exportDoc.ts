@@ -146,6 +146,8 @@ export interface ExportRequest {
   /** The print page (no print dialog), from the webview. */
   html: string;
   document: vscode.TextDocument;
+  /** The Markdown a Word export writes, when not the document's own text (e.g. a version in a diff). */
+  markdown?: string;
   extensionUri: vscode.Uri;
   /** Opens an http(s) or file URL outside VS Code. */
   openExternal: (url: string) => Thenable<boolean>;
@@ -187,7 +189,7 @@ export async function writeExport(req: ExportRequest): Promise<boolean> {
   const template = await vscode.workspace.fs.readFile(vscode.Uri.joinPath(req.extensionUri, "media", "export-template.docx"));
   const title = path.posix.basename(document.uri.path).replace(/\.(md|markdown)$/i, "");
   const assets = req.assets;
-  const bytes = await markdownToDocx(document.getText(), template, {
+  const bytes = await markdownToDocx(req.markdown ?? document.getText(), template, {
     title,
     loadImage: async (src) => asImage(assets?.images[src]) ?? (await loadImage(document.uri, src)),
     diagram: (i) => asImage(assets?.diagrams[i]),

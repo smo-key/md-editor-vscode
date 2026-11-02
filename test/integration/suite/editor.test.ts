@@ -525,6 +525,35 @@ describe("Ken Markdown Editor", function () {
       await vscode.commands.executeCommand("workbench.action.closeAllEditors");
     });
 
+    it("exports a comparison: the page as shown (HTML), the newer version clean (Word)", async function () {
+      this.timeout(120000);
+      const a = fixture("move.md");
+      const b = fixture("undo.md");
+      await openEditor(a);
+      await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+      await vscode.commands.executeCommand("kenMarkdown.compare", b, [a, b]);
+      const query = () => vscode.commands.executeCommand<number[]>("kenMarkdown._testDiffQuery", [".ken-diff-added, .ken-diff-removed"]);
+      await until("highlights", query, (r) => (r?.[0] ?? 0) > 0);
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ken-diff-export-"));
+      try {
+        const html = path.join(dir, "changes.html");
+        assert.ok(await vscode.commands.executeCommand("kenMarkdown._testDiffExport", "html", html));
+        const page = fs.readFileSync(html, "utf8");
+        assert.match(page, /class="[^"]*ken-diff-(added|removed)/, "changes are marked");
+        assert.ok(page.includes('class="ken-diff-pane"'), "laid out as the view");
+        const docx = path.join(dir, "doc.docx");
+        assert.ok(await vscode.commands.executeCommand("kenMarkdown._testDiffExport", "docx", docx));
+        const JSZip = (await import("jszip")).default;
+        const xml = await (await JSZip.loadAsync(fs.readFileSync(docx))).file("word/document.xml")!.async("string");
+        const newer = fs.readFileSync(b.fsPath, "utf8").split("\n").find((l) => /^[A-Za-z]/.test(l))!.slice(0, 20);
+        assert.ok(xml.includes(newer.replace(/&/g, "&amp;")), `has the newer version's text (${newer})`);
+        assert.ok(!/strike|w:del\b|w:ins\b/.test(xml), "no change markup");
+      } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+        await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+      }
+    });
+
     it("links a project file picked from the @ menu by its relative path", async () => {
       const uri = fixture("move.md");
       const doc = await openEditor(uri);

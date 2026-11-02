@@ -16,6 +16,7 @@ import * as vscode from "vscode";
 import * as path from "path";
 
 import { VIEW_TYPE, openPrintPage, readConfig } from "./provider";
+import { pickFormat, pickTarget, writeExport, type ExportFormat } from "./exportDoc";
 import { ORIGINAL_SCHEME, SNAPSHOT_SCHEME, hasPendingEdits } from "./agentEditsHost";
 import { isDefaultEditor } from "./editorAssociation";
 import { minimalChange, toEOL, toLF } from "./sync";
@@ -389,6 +390,78 @@ class DiffPanel {
     return { oldText: toLF(this.oldText), newText: newText ?? "", oldLabel: commit ? `HEAD (${commit})` : "HEAD", newLabel: "Working Tree", status };
   }
 
+  private requestSeq = 0;
+  private readonly pending = new Map<number, (value: unknown) => void>();
+
+  /** Ask the view for something (the export page, the Word pictures) and wait for it. */
+  private request<T>(build: (id: number) => DiffHostMessage, fallback: T): Promise<T> {
+    const id = ++this.requestSeq;
+    return new Promise<T>((resolve) => {
+      const timer = setTimeout(() => resolve(fallback), 60000);
+      this.pending.set(id, ((v: T) => {
+        clearTimeout(timer);
+        resolve(v);
+      }) as (value: unknown) => void);
+      this.post(build(id));
+    });
+  }
+
+  /** Tests: export without the dialogs. */
+  testExport: { format: ExportFormat; target: vscode.Uri; done: (ok: boolean) => void } | undefined;
+
+  /**
+   * Export the comparison: HTML and PDF as the view shows it (both versions,
+   * changes in red and green); Word as the newer version alone (the older one
+   * when the file was deleted), a clean document.
+   */
+  private async export(): Promise<void> {
+    const preset = this.testExport;
+    this.testExport = undefined;
+    const format = preset?.format ?? (await pickFormat());
+    if (!format) return preset?.done(false);
+    const content = await this.content(false);
+    const side: DiffSideName = content.status === "deleted" ? "old" : "new";
+    const uri = this.sideUri(side) ?? this.uri;
+    const target = preset?.target ?? (await pickTarget(this.uri.with({ path: this.uri.path.replace(/(\.(md|markdown))?$/i, format === "docx" ? "$1" : " (changes)$1") }), format));
+    if (!target) return preset?.done(false);
+    try {
+      const document = await vscode.workspace.openTextDocument(isFile(uri) ? uri : this.uri).then(
+        (d) => d,
+        () => vscode.workspace.openTextDocument({ content: content[`${side}Text`], language: "markdown" }),
+      );
+      const complete = await vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Notification, title: `Exporting ${path.posix.basename(target.path)}…` },
+        async () =>
+          writeExport({
+            format,
+            target,
+            html: format === "docx" ? "" : await this.request((id) => ({ type: "exportPage", id }), ""),
+            assets:
+              format === "docx"
+                ? await this.request((id) => ({ type: "exportAssets", id, side }), { images: {}, diagrams: [] as null[] })
+                : undefined,
+            document,
+            markdown: content[`${side}Text`],
+            extensionUri: this.extensionUri,
+            openExternal: (url) => this.host.openExternal(url),
+          }),
+      );
+      preset?.done(complete);
+      if (preset) return;
+      if (!complete) {
+        void vscode.window.showInformationMessage("Ken Markdown: no Chrome, Edge or Chromium was found to make the PDF, so the page opened in your browser: choose “Save as PDF” in its print dialog.");
+        return;
+      }
+      const reveal = process.platform === "darwin" ? "Show in Finder" : process.platform === "win32" ? "Show in File Explorer" : "Open Folder";
+      const choice = await vscode.window.showInformationMessage(`Exported ${path.posix.basename(target.path)}`, "Open", reveal);
+      if (choice === "Open") await this.host.openExternal(target.toString());
+      else if (choice === reveal) await vscode.commands.executeCommand("revealFileInOS", target);
+    } catch (err) {
+      preset?.done(false);
+      void vscode.window.showErrorMessage(`Ken Markdown: could not export: ${err instanceof Error ? err.message : err}`);
+    }
+  }
+
   private async refresh(head: boolean) {
     if (!this.ready) return;
     this.post({ type: "diffUpdate", ...(await this.content(head)) });
@@ -439,6 +512,17 @@ class DiffPanel {
         return;
       case "diffLayout":
         this.layout = m.layout;
+        return;
+      case "export":
+        await this.export();
+        return;
+      case "exportPageReady":
+        this.pending.get(m.id)?.(m.html);
+        this.pending.delete(m.id);
+        return;
+      case "exportAssetsReady":
+        this.pending.get(m.id)?.({ images: m.images, diagrams: m.diagrams });
+        this.pending.delete(m.id);
         return;
       case "openTextDiff": {
         if (this.source.kind === "added") {
@@ -805,6 +889,16 @@ export class DiffPanels implements vscode.Disposable {
   /** Tests: handle `m` as if the newest diff view had posted it. */
   async testMessage(m: DiffWebviewMessage): Promise<void> {
     await [...this.open.values()].pop()?.onMessage(m);
+  }
+
+  /** Tests: export the newest diff view without the dialogs; resolves with whether it completed. */
+  testExport(format: ExportFormat, target: vscode.Uri): Promise<boolean> {
+    const panel = [...this.open.values()].pop();
+    if (!panel) return Promise.resolve(false);
+    return new Promise((done) => {
+      panel.testExport = { format, target, done };
+      void panel.onMessage({ type: "export" });
+    });
   }
 
   /** Tests: query the newest diff view. */

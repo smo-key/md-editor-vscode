@@ -170,9 +170,10 @@
 .milkdown .ProseMirror .ken-diff-widget li::before {
   display: none;
 }
-/* Export works on a document in its own editor, not on a comparison. */
-.ken-diff-bar .ken-toolbar-button[data-id="export"] {
-  display: none;
+/* Printed and exported (print.ts): each pane's column, without the editor's chrome. */
+body.ken-print .ken-diff-pane {
+  display: block;
+  border: none;
 }
 
 /* A chat agent's pending edits in the editor (agentEdits.ts), as VS Code's text editor shows them. */

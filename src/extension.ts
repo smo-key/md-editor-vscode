@@ -112,6 +112,7 @@ export function activate(context: vscode.ExtensionContext) {
       vscode.commands.registerCommand("kenMarkdown._testDiffs", () => diffs.count),
       vscode.commands.registerCommand("kenMarkdown._testDiffMessage", (m: DiffWebviewMessage) => diffs.testMessage(m)),
       vscode.commands.registerCommand("kenMarkdown._testDiffQuery", (selectors: string[]) => diffs.testQuery(selectors)),
+      vscode.commands.registerCommand("kenMarkdown._testDiffExport", (format: "html" | "pdf" | "docx", file: string) => diffs.testExport(format, vscode.Uri.file(file))),
       // URLs the host would have opened in the browser (openExternal is stubbed in tests).
       vscode.commands.registerCommand("kenMarkdown._testExternalOpened", () => [...provider.externalOpened]),
       vscode.commands.registerCommand("kenMarkdown._testEditors", (uri: string) => provider.sessionsFor(uri).length),

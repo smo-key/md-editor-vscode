@@ -255,6 +255,10 @@ export type DiffHostMessage =
   | { type: "command"; id: string }
   | { type: "shortcuts"; labels: ShortcutLabels; keys: ShortcutKeys }
   | { type: "clipboardText"; id: number; text: string }
+  /** Export: the page as the view shows it (HTML, PDF). */
+  | { type: "exportPage"; id: number }
+  /** Export: pictures for the Word export of the newer version (`side`). */
+  | { type: "exportAssets"; id: number; side: DiffSideName }
   /** Tests: what the view shows (counts of elements matching selectors). */
   | { type: "test"; id: number; selectors: string[] };
 
@@ -266,6 +270,10 @@ export type DiffWebviewMessage =
   | { type: "focus"; focused: boolean }
   | { type: "readClipboard"; id: number }
   | { type: "print"; html: string; name: string }
+  /** The Export button: HTML and PDF as the view shows it (red/green), Word as the newer version. */
+  | { type: "export" }
+  | { type: "exportPageReady"; id: number; html: string }
+  | { type: "exportAssetsReady"; id: number; images: Record<string, ExportAsset>; diagrams: (ExportAsset | null)[] }
   | { type: "openTextDiff" }
   | { type: "testResult"; id: number; result: unknown }
   | { type: "error"; message: string };

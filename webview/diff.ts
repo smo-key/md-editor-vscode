@@ -37,9 +37,10 @@ import { combinedWidgets, diffBlocks, layoutDiff, syncedScrollTop, type DiffMark
 import { normalizeTrailingNewlines } from "./markdown/gfmFidelity";
 import { applyTypography, trackScreenHeight } from "./theme";
 import { isHostMessage } from "./hostMessage";
-import { COMMANDS, command, execute, setClipboardReader, setPrintHandler, setShortcutLabels } from "./commands";
+import { COMMANDS, command, execute, setClipboardReader, setExportHandler, setPrintHandler, setShortcutLabels } from "./commands";
 import { inEditorText, installKeyRouting, setBoundKeys } from "./keys";
-import { printablePage } from "./print";
+import { printableColumns, type PrintColumn } from "./print";
+import { collectExportAssets } from "./exportAssets";
 import type { DiffContent, DiffHostMessage, DiffLayoutMode, DiffReadOnly, DiffSideName, DiffWebviewMessage, HostMessage } from "../src/protocol";
 
 declare function acquireVsCodeApi(): { postMessage(message: unknown): void };
@@ -142,6 +143,14 @@ document.body.append(bar, banner, panes);
 
 let layout: DiffLayoutMode = "combined";
 let status: DiffContent["status"];
+/** What each version is (e.g. "HEAD (abc1234)", "Working Tree"), and the page's title. */
+let labels: Record<DiffSideName, string> = { old: "", new: "" };
+let title = "Document";
+function setLabels(m: DiffContent) {
+  labels = { old: m.oldLabel, new: m.newLabel };
+  const name = (m.newLabel || m.oldLabel).replace(/\s*\(.*\)$/, "");
+  title = name.slice(name.lastIndexOf("/") + 1).replace(/\.(md|markdown)$/i, "") || "Document";
+}
 let readOnly: DiffReadOnly = { old: true, new: false };
 let base = { old: "", new: "" };
 /** Each version's full text: the latest from the host or from an edit here. */
@@ -460,13 +469,27 @@ setClipboardReader(
       post({ type: "readClipboard", id });
     }),
 );
+/** The page as the view shows it: one column, or both versions side by side, changes marked. */
+function page(autoPrint: boolean): Promise<string> {
+  const columns: PrintColumn[] = sides.map((s) => ({
+    content: s.scroll.querySelector<HTMLElement>(".measure")!,
+    view: s.view,
+    wrap: { className: "ken-diff-pane", attrs: { "data-side": s.mode } },
+    label: sides.length > 1 ? labels[s.role] : undefined,
+  }));
+  return printableColumns(columns, title, document, autoPrint);
+}
+
 setPrintHandler(() => {
-  const side = active;
-  if (!side) return;
-  void printablePage(side.scroll.querySelector<HTMLElement>(".measure")!, "Document", document, true, side.view).then((html) => post({ type: "print", html, name: "Document" }));
+  void page(true).then(
+    (html) => post({ type: "print", html, name: title }),
+    (err) => post({ type: "error", message: `print: ${err}` }),
+  );
 });
+setExportHandler(() => post({ type: "export" }));
 
 function onContent(m: DiffContent) {
+  setLabels(m);
   if (m.status !== status) {
     // Now new or gone, or back to two versions: redraw.
     status = m.status;
@@ -499,6 +522,7 @@ window.addEventListener("message", (event: MessageEvent<DiffHostMessage | HostMe
         texts.old = m.oldText;
         texts.new = m.newText;
         status = m.status;
+        setLabels(m);
         void render();
         return;
       case "diffUpdate":
@@ -521,6 +545,28 @@ window.addEventListener("message", (event: MessageEvent<DiffHostMessage | HostMe
       case "test":
         post({ type: "testResult", id: m.id, result: m.selectors.map((s) => document.querySelectorAll(s).length) });
         return;
+      case "exportPage":
+        void page(false).then(
+          (html) => post({ type: "exportPageReady", id: m.id, html }),
+          (err) => {
+            post({ type: "error", message: `export: ${err}` });
+            post({ type: "exportPageReady", id: m.id, html: "" });
+          },
+        );
+        return;
+      case "exportAssets": {
+        // The newer version's pictures, from a side that shows it (or the version's own document).
+        const side = sides.find((s) => s.role === m.side);
+        const doc = side ? side.view.state.doc : parseIn(sides[0]!, parts(texts[m.side]).markdown);
+        void collectExportAssets(doc, proxyFor(m.side)).then(
+          ({ images, diagrams }) => post({ type: "exportAssetsReady", id: m.id, images, diagrams }),
+          (err) => {
+            post({ type: "error", message: `export: ${err}` });
+            post({ type: "exportAssetsReady", id: m.id, images: {}, diagrams: [] });
+          },
+        );
+        return;
+      }
     }
   } catch (err) {
     post({ type: "error", message: String(err) });

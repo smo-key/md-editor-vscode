@@ -257,6 +257,9 @@ async function collectCss(doc: Document, cache: Map<string, Promise<string>>): P
 const PRINT_CSS = `
 html, body { height: auto !important; overflow: visible !important; display: block !important; }
 body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.ken-print-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: 32px; padding: 0 24px; }
+.ken-print-columns .measure { max-width: none !important; }
+.ken-print-label { font-family: var(--font-sans); font-size: 12px; color: var(--ink-secondary); margin: 16px 0 0; padding-bottom: 4px; border-bottom: 1px solid var(--border); }
 .editor-scroll { overflow: visible !important; height: auto !important; }
 .measure { padding-bottom: 24px !important; }
 @page { margin: 14mm; }
@@ -285,15 +288,18 @@ body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
 const escapeHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-/** A standalone page of `content` (the editor's `.measure` element) as shown now. */
-export async function printablePage(
-  content: HTMLElement,
-  title: string,
-  doc: Document = document,
-  autoPrint = true,
-  view?: EditorView,
-): Promise<string> {
-  const cache = new Map<string, Promise<string>>();
+/** One column of a page: an editor's `.measure` element and its view. */
+export interface PrintColumn {
+  content: HTMLElement;
+  view?: EditorView;
+  /** Wraps the column (e.g. the diff view's pane, for its styles); the column's own class otherwise. */
+  wrap?: { className: string; attrs?: Record<string, string> };
+  /** A caption above the column (e.g. which version it is). */
+  label?: string;
+}
+
+/** A clean copy of a column's content as shown now: chrome removed, previews rendered, images inlined. */
+async function printableClone(content: HTMLElement, doc: Document, cache: Map<string, Promise<string>>, view?: EditorView): Promise<HTMLElement> {
   if (view) await buildCodeBlocks(view);
   await diagramsReady(content);
   const unlabel = view ? labelCodeBlocks(view) : () => undefined;
@@ -343,6 +349,28 @@ export async function printablePage(
   );
   // Live embeds (Lucid, draw.io editor) can't be printed from a file.
   for (const frame of Array.from(clone.querySelectorAll("iframe"))) frame.remove();
+  return clone;
+}
+
+/** A standalone page of `content` (the editor's `.measure` element) as shown now. */
+export function printablePage(content: HTMLElement, title: string, doc: Document = document, autoPrint = true, view?: EditorView): Promise<string> {
+  return printableColumns([{ content, view }], title, doc, autoPrint);
+}
+
+/** A standalone page of one column, or several side by side (the split diff view). */
+export async function printableColumns(columns: PrintColumn[], title: string, doc: Document = document, autoPrint = true): Promise<string> {
+  const cache = new Map<string, Promise<string>>();
+  const parts: string[] = [];
+  for (const col of columns) {
+    const clone = await printableClone(col.content, doc, cache, col.view);
+    const label = col.label ? `<div class="ken-print-label">${escapeHtml(col.label)}</div>` : "";
+    const inner = `${label}<div class="${escapeHtml(col.content.className)}">${clone.innerHTML}</div>`;
+    const attrs = Object.entries(col.wrap?.attrs ?? {})
+      .map(([k, v]) => ` ${k}="${escapeHtml(v)}"`)
+      .join("");
+    parts.push(col.wrap ? `<div class="${escapeHtml(col.wrap.className)}"${attrs}>${inner}</div>` : inner);
+  }
+  const body = columns.length > 1 ? `<div class="ken-print-columns">${parts.join("")}</div>` : parts.join("");
   const css = await collectCss(doc, cache);
   // The page's own colour reaches the paper's edges too (the margins outside
   // the content are painted by @page, not by the document).
@@ -360,7 +388,7 @@ export async function printablePage(
 <style>${PRINT_CSS}${pageRule}</style>
 </head>
 <body class="${escapeHtml(bodyClass)} ready ken-print">
-<div class="editor-scroll"><div class="${escapeHtml(content.className)}">${clone.innerHTML}</div></div>
+<div class="editor-scroll">${body}</div>
 ${autoPrint ? AUTO_PRINT_SCRIPT : ""}
 </body>
 </html>`;

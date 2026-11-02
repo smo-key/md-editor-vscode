@@ -4,6 +4,10 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 
 ## [Unreleased]
 
+### Fixed
+
+- Horizontal rules are clearly visible: a 2px line in the theme's text color instead of a faint hairline.
+
 ## [0.10.0] - 2026-11-02
 
 ### Added

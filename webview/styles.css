@@ -927,8 +927,18 @@ body {
 .measure .milkdown .milkdown-code-block .cm-editor {
   font-size: 0.875em;
 }
-.measure .milkdown hr {
-  border-color: var(--vscode-textSeparator-foreground, var(--border-strong));
+/* Crepe draws the rule as a 1px line at 20% opacity, nearly invisible on
+   most themes: draw a 2px line from the theme's foreground instead. */
+.measure .milkdown .ProseMirror hr {
+  box-sizing: border-box;
+  height: 14px;
+  padding: 6px 0;
+  background-color: color-mix(in srgb, var(--vscode-foreground, currentColor) 40%, transparent);
+  background-clip: content-box;
+  border-radius: 1px;
+}
+.measure .milkdown .ProseMirror hr.ProseMirror-selectednode {
+  background-color: var(--vscode-focusBorder, var(--vscode-foreground));
 }
 
 /* Scrollbars in VS Code's style. */

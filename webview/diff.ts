@@ -128,7 +128,12 @@ controls.className = "ken-diff-controls";
 const toggle = document.createElement("span");
 toggle.className = "ken-diff-toggle";
 toggle.append(combinedBtn, splitBtn);
-controls.append(toggle, textBtn);
+const prevBtn = button("↑", "Previous change", () => goToChange(-1));
+const nextBtn = button("↓", "Next change", () => goToChange(1));
+const nav = document.createElement("span");
+nav.className = "ken-diff-nav";
+nav.append(prevBtn, nextBtn);
+controls.append(nav, toggle, textBtn);
 bar.append(toolbars, controls);
 
 const panes = document.createElement("div");
@@ -360,6 +365,7 @@ async function render() {
   combinedBtn.setAttribute("aria-pressed", String(layout === "combined"));
   splitBtn.setAttribute("aria-pressed", String(layout === "split"));
   toggle.hidden = !!status;
+  nav.hidden = !!status;
   banner.hidden = !status;
   banner.dataset.status = status ?? "";
   banner.textContent = status === "added" ? "This file was added." : status === "deleted" ? "This file was deleted." : "";
@@ -374,8 +380,14 @@ async function render() {
   setActive(sides.find((s) => s.role === "new") ?? sides[0]!);
   highlightAll();
   sides.forEach((s, i) => (s.scroll.scrollTop = tops[i] ?? tops[0] ?? 0));
+  setScrollLeader = () => undefined;
   if (sides.length === 2) linkScrolling(sides[0]!.scroll, sides[1]!.scroll);
   document.body.classList.add("ready");
+  // Opened: start at the first change (a layout switch keeps its place).
+  if (!opened) {
+    opened = true;
+    requestAnimationFrame(() => requestAnimationFrame(() => goToChange(1, true)));
+  }
 }
 
 function setLayout(next: DiffLayoutMode) {
@@ -412,6 +424,53 @@ function anchorSpans(scroll: HTMLElement): { anchor: string; top: number; bottom
   return [...spans.values()].sort((x, y) => x.top - y.top);
 }
 
+/** Set once the view has shown its first change. */
+let opened = false;
+/** The pane the other follows in split view (linkScrolling). */
+let setScrollLeader: (pane: HTMLElement) => void = () => undefined;
+
+const CHANGE = ".ken-diff-added, .ken-diff-removed, .ken-diff-widget, .ken-diff-front";
+/** Space left above a change scrolled to. */
+const CHANGE_MARGIN = 60;
+
+/** The first element of each run of changed blocks in a pane, top to bottom. */
+function changeRuns(scroll: HTMLElement): HTMLElement[] {
+  const pm = scroll.querySelector(".ProseMirror");
+  if (!pm) return [];
+  const runs: HTMLElement[] = [];
+  let inRun = false;
+  for (const el of Array.from(pm.children) as HTMLElement[]) {
+    const changed = el.matches(CHANGE) || el.classList.contains("ken-diff-front");
+    if (changed && !inRun) runs.push(el);
+    // Widgets ProseMirror adds (cursor wrappers, separators) don't end a run.
+    if (el.classList.contains("ProseMirror-widget") && !changed) continue;
+    inRun = changed;
+  }
+  return runs;
+}
+
+/**
+ * Scroll to the next (1) or previous (-1) run of changes, wrapping around; in
+ * split view the pane in use leads and the other follows. `first`: the first
+ * change, from the top.
+ */
+function goToChange(dir: 1 | -1, first = false) {
+  const side = (sides.length > 1 ? active : null) ?? sides.find((s) => s.role === "new") ?? sides[0];
+  if (!side) return;
+  const scroll = side.scroll;
+  const base = scroll.getBoundingClientRect().top - scroll.scrollTop;
+  const max = scroll.scrollHeight - scroll.clientHeight;
+  // A change near the end can only be scrolled to as far as the end goes.
+  const tops = [...new Set(changeRuns(scroll).map((el) => Math.min(max, Math.max(0, Math.round(el.getBoundingClientRect().top - base - CHANGE_MARGIN)))))];
+  if (!tops.length) return;
+  const here = first ? -1 : scroll.scrollTop;
+  let top: number;
+  if (dir > 0) top = tops.find((t) => t > here + 2) ?? tops[0]!;
+  else top = [...tops].reverse().find((t) => t < here - 2) ?? tops[tops.length - 1]!;
+  setScrollLeader(scroll);
+  scroll.scrollTo({ top, behavior: first ? "instant" : "smooth" });
+}
+
 /**
  * Scroll the two split panes together. Only the pane the user is working in
  * leads (the last one wheeled, touched, clicked or typed in); the other just
@@ -420,6 +479,7 @@ function anchorSpans(scroll: HTMLElement): { anchor: string; top: number; bottom
  */
 function linkScrolling(a: HTMLElement, b: HTMLElement) {
   let leader: HTMLElement | null = null;
+  setScrollLeader = (pane) => (leader = pane);
   for (const pane of [a, b]) {
     for (const type of ["wheel", "pointerdown", "touchstart", "keydown", "focusin"]) {
       pane.addEventListener(type, () => (leader = pane), { passive: true, capture: true });

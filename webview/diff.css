@@ -48,8 +48,22 @@
 .ken-diff-controls button:hover {
   background: var(--vscode-button-secondaryHoverBackground, var(--sunken));
 }
-.ken-diff-toggle {
+.ken-diff-toggle,
+.ken-diff-nav {
   display: inline-flex;
+}
+.ken-diff-nav[hidden] {
+  display: none;
+}
+.ken-diff-nav button {
+  padding: 2px 8px;
+}
+.ken-diff-nav button:first-child {
+  border-radius: var(--radius-control) 0 0 var(--radius-control);
+}
+.ken-diff-nav button:last-child {
+  border-radius: 0 var(--radius-control) var(--radius-control) 0;
+  border-left: none;
 }
 .ken-diff-toggle button:first-child {
   border-radius: var(--radius-control) 0 0 var(--radius-control);

@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import * as crypto from "crypto";
 import * as fs from "fs";
 import * as path from "path";
-import { parseChangelog, sectionsFor, shouldShowWhatsNew, whatsNewHtml } from "./whatsNew";
+import { changelogName, parseChangelog, sectionsFor, shouldShowWhatsNew, whatsNewHtml } from "./whatsNew";
 
 /** The version that last ran, to tell an update from a first install. */
 export const LAST_VERSION_KEY = "kenMarkdown.lastVersion";
@@ -30,13 +30,16 @@ export function showWhatsNew(
   viewColumn = vscode.ViewColumn.Active,
 ): vscode.WebviewPanel {
   const version: string = context.extension.packageJSON.version;
-  const changelog = vscode.Uri.joinPath(context.extensionUri, "CHANGELOG.md");
+  const root = context.extensionUri.fsPath;
+  let name = "CHANGELOG.md";
   let text = "";
   try {
-    text = fs.readFileSync(path.join(context.extensionUri.fsPath, "CHANGELOG.md"), "utf8");
+    name = changelogName(fs.readdirSync(root)) ?? name;
+    text = fs.readFileSync(path.join(root, name), "utf8");
   } catch {
     // No changelog in the package: the page says there are no notes.
   }
+  const changelog = vscode.Uri.joinPath(context.extensionUri, name);
   const title = `What's New in Ken Markdown Editor ${version}`;
   if (panel) {
     panel.title = title;

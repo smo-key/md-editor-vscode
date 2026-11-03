@@ -43,6 +43,15 @@ export interface ChangelogSection {
   body: string;
 }
 
+/**
+ * The changelog among an extension folder's file names. vsce packages
+ * CHANGELOG.md as `changelog.md`, which only case-insensitive file systems
+ * (macOS, Windows) find under its original name.
+ */
+export function changelogName(files: readonly string[]): string | undefined {
+  return files.find((f) => f === "CHANGELOG.md") ?? files.find((f) => f.toLowerCase() === "changelog.md");
+}
+
 /** The released version sections of a Keep a Changelog file, newest first as written. */
 export function parseChangelog(text: string): ChangelogSection[] {
   const sections: ChangelogSection[] = [];

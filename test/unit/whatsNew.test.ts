@@ -2,6 +2,7 @@ import { readFileSync } from "fs";
 import { describe, expect, it } from "vitest";
 
 import {
+  changelogName,
   compareVersions,
   parseChangelog,
   parseVersion,
@@ -73,6 +74,12 @@ Intro text.
 `;
 
 describe("changelog", () => {
+  it("finds the changelog vsce packages in lower case", () => {
+    expect(changelogName(["package.json", "changelog.md", "readme.md"])).toBe("changelog.md");
+    expect(changelogName(["CHANGELOG.md", "package.json"])).toBe("CHANGELOG.md");
+    expect(changelogName(["package.json"])).toBeUndefined();
+  });
+
   it("parses version sections and skips Unreleased", () => {
     const sections = parseChangelog(SAMPLE);
     expect(sections.map((s) => [s.version, s.date])).toEqual([

@@ -345,3 +345,52 @@ body[data-toolbar="bottom"] .ken-agent-bar {
 .milkdown .ProseMirror .ken-diff-widget:has(> ul.ken-toc) .ken-diff-removed-text {
   text-decoration: line-through;
 }
+
+/* An edited table (diffModel's table diff): only the rows, columns and cells that changed are marked, not the table. */
+.milkdown .ProseMirror .ken-diff-table:is(.ken-diff-added, .ken-diff-removed) {
+  background: none;
+  box-shadow: none;
+  border-radius: 0;
+}
+.milkdown .ProseMirror .ken-diff-table:is(.ken-diff-added, .ken-diff-removed)::before {
+  display: none;
+}
+.milkdown .ProseMirror :is(td, th).ken-diff-added-part,
+.milkdown .ProseMirror tr.ken-diff-added-part > :is(td, th) {
+  background: var(--diff-added-bg);
+  box-shadow: inset 0 0 0 1px var(--diff-added-edge);
+}
+.milkdown .ProseMirror :is(td, th).ken-diff-removed-part,
+.milkdown .ProseMirror tr.ken-diff-removed-part > :is(td, th) {
+  background: var(--diff-removed-bg);
+  box-shadow: inset 0 0 0 1px var(--diff-removed-edge);
+}
+/* An edited cell: tinted, its changed words stronger; whole rows and columns only added or removed get the edge too. */
+.milkdown .ProseMirror :is(td, th).ken-diff-cell-edited {
+  box-shadow: none;
+}
+.milkdown .ProseMirror tr.ken-diff-row > :is(td, th).ken-diff-gap {
+  background: var(--diff-removed-bg);
+}
+.milkdown .ProseMirror :is(td, th).ken-diff-gap {
+  background: transparent;
+  box-shadow: none;
+}
+/* The old version's rows, cells and cell text in the combined view: shown, not edited, and read as gone. */
+.milkdown .ProseMirror .ken-diff-widget-part {
+  user-select: none;
+}
+.ken-diff-pane[data-side="combined"] .milkdown .ProseMirror :is(.ken-diff-widget-part, .ken-diff-widget-part > *) {
+  text-decoration: line-through;
+  opacity: 0.85;
+}
+.milkdown .ProseMirror .ken-diff-cell-old {
+  user-select: none;
+  margin-bottom: 2px;
+  padding: 0 2px;
+  border-radius: 2px;
+  background: var(--diff-removed-bg);
+}
+.milkdown .ProseMirror .ken-diff-cell-old p {
+  margin: 0;
+}

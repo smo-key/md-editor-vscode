@@ -106,6 +106,102 @@ describe("diff model", () => {
 });
 
 
+describe("table diff", () => {
+  const table = (rows: string[][]) => rows.map((r, i) => `| ${r.join(" | ")} |` + (i === 0 ? `\n|${r.map(() => " --- ").join("|")}|` : "")).join("\n") + "\n";
+  const base = [
+    ["Name", "Role", "City"],
+    ["Ada", "Engineer", "London"],
+    ["Bob", "Designer", "Paris"],
+    ["Cy", "Manager", "Rome"],
+  ];
+  const ops = (o: { old: number | null; new: number | null }[]) => o.map((x) => (x.old == null ? "+" : x.new == null ? "-" : "="));
+  /** The text of each changed row/cell mark, and of each changed run, on one side. */
+  const changed = (doc: ProseNode, marks: { from: number; to: number; block: boolean; className: string }[]) =>
+    marks.filter((m) => /-part|-text/.test(m.className)).map((m) => `${m.className.split(" ")[0]}${m.className.includes("cell-edited") ? "~" : ""}${m.className.includes("row") ? "#" : ""}:${doc.textBetween(m.from, m.to, " ", " ")}`);
+
+  function check(oldRows: string[][], newRows: string[][], fn: (r: { entries: ReturnType<typeof diffBlocks>; oldDoc: ProseNode; newDoc: ProseNode }) => void) {
+    return withParser((parse) => {
+      const oldDoc = parse(table(oldRows));
+      const newDoc = parse(table(newRows));
+      fn({ entries: diffBlocks(oldDoc, newDoc), oldDoc, newDoc });
+    });
+  }
+
+  it("marks only the cells that changed", async () => {
+    const next = base.map((r) => [...r]);
+    next[2]![2] = "Berlin";
+    await check(base, next, ({ entries, oldDoc, newDoc }) => {
+      const t = entries[0]!.table!;
+      expect(ops(t.rows)).toEqual(["=", "=", "=", "="]);
+      expect(ops(t.cols)).toEqual(["=", "=", "="]);
+      expect(changed(newDoc, layoutDiff(entries, "new").marks)).toEqual(["ken-diff-added-part~:Berlin", "ken-diff-added-text:Berlin"]);
+      expect(changed(oldDoc, layoutDiff(entries, "old").marks)).toEqual(["ken-diff-removed-part~:Paris", "ken-diff-removed-text:Paris"]);
+      const w = combinedWidgets(entries);
+      expect(w.map((x) => [x.part?.kind, x.part?.kind === "cell-old" ? x.part.cell.textContent : ""])).toEqual([["cell-old", "Paris"]]);
+      expect(w[0]!.words).toEqual([[0, 5]]);
+      // Inside the new cell, before its text.
+      expect(newDoc.resolve(w[0]!.pos).parent.type.name).toBe("table_cell");
+      expect(newDoc.textBetween(w[0]!.pos, w[0]!.pos + 7)).toBe("Berlin");
+    });
+  });
+
+  it("marks a removed and an added row", async () => {
+    const next = [base[0]!, base[1]!, base[3]!, ["Dee", "Analyst", "Oslo"]];
+    await check(base, next, ({ entries, oldDoc, newDoc }) => {
+      expect(ops(entries[0]!.table!.rows)).toEqual(["=", "=", "-", "=", "+"]);
+      expect(changed(oldDoc, layoutDiff(entries, "old").marks)).toEqual(["ken-diff-removed-part#:Bob Designer Paris"]);
+      expect(changed(newDoc, layoutDiff(entries, "new").marks)).toEqual(["ken-diff-added-part#:Dee Analyst Oslo"]);
+      const w = combinedWidgets(entries);
+      expect(w).toHaveLength(1);
+      expect(w[0]!.part).toMatchObject({ kind: "row" });
+      expect((w[0]!.part as { cells: ProseNode[] }).cells.map((c) => c.textContent)).toEqual(["Bob", "Designer", "Paris"]);
+      // Before the row it was above (Cy's).
+      const $pos = newDoc.resolve(w[0]!.pos);
+      expect($pos.parent.type.name).toBe("table");
+      expect($pos.nodeAfter!.textContent).toBe("CyManagerRome");
+    });
+  });
+
+  it("marks a removed and an added column", async () => {
+    const next = base.map(([name, , city], i) => [name!, city!, i === 0 ? "Team" : `T${i}`]);
+    await check(base, next, ({ entries, oldDoc, newDoc }) => {
+      const t = entries[0]!.table!;
+      expect(ops(t.cols)).toEqual(["=", "-", "=", "+"]);
+      expect(ops(t.rows)).toEqual(["=", "=", "=", "="]);
+      expect(changed(oldDoc, layoutDiff(entries, "old").marks)).toEqual(["Role", "Engineer", "Designer", "Manager"].map((x) => `ken-diff-removed-part:${x}`));
+      expect(changed(newDoc, layoutDiff(entries, "new").marks)).toEqual(["Team", "T1", "T2", "T3"].map((x) => `ken-diff-added-part:${x}`));
+      const w = combinedWidgets(entries);
+      expect(w.map((x) => (x.part?.kind === "cell" ? [x.part.cell?.textContent, x.part.header, newDoc.resolve(x.pos).nodeAfter?.textContent] : null))).toEqual([
+        ["Role", true, "City"],
+        ["Engineer", false, "London"],
+        ["Designer", false, "Paris"],
+        ["Manager", false, "Rome"],
+      ]);
+    });
+  });
+
+  it("leaves gaps in a removed row for an added column", async () => {
+    const next = [
+      [...base[0]!, "Team"],
+      [...base[1]!, "A"],
+      [...base[3]!, "C"],
+    ];
+    await check(base, next, ({ entries }) => {
+      const row = combinedWidgets(entries).find((w) => w.part?.kind === "row")!;
+      expect((row.part as { cells: (ProseNode | null)[] }).cells.map((c) => c?.textContent ?? null)).toEqual(["Bob", "Designer", "Paris", null]);
+    });
+  });
+
+  it("keeps a row whose label is the same while its values change", async () => {
+    const next = base.map((r) => [...r]);
+    next[1] = ["Ada", "Director", "Madrid"];
+    await check(base, next, ({ entries }) => {
+      expect(ops(entries[0]!.table!.rows)).toEqual(["=", "=", "=", "="]);
+    });
+  });
+});
+
+
 describe("split view scrolling", () => {
   const left = [
     { anchor: "s0", top: 0, bottom: 100 },

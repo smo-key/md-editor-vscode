@@ -19,6 +19,20 @@ export interface BlockEntry {
   node: ProseNode;
   /** The other half of an edited block: the added block for a removed one, and vice versa. */
   pair?: ProseNode;
+  /** An edited table: which rows and columns were kept, removed and added (shared by both halves). */
+  table?: TableDiff;
+}
+
+/** A row or column of an edited table: its index in the old table, the new one, or both (kept). */
+export interface TableOp {
+  old: number | null;
+  new: number | null;
+}
+
+/** An edited table, row by row and column by column, in the merged order. */
+export interface TableDiff {
+  rows: TableOp[];
+  cols: TableOp[];
 }
 
 /** Which blocks the view shows: both versions interleaved, or one side. */
@@ -101,7 +115,8 @@ const keyOf = (n: ProseNode) => JSON.stringify(keyJson(withoutDerivedMarks(n)));
 
 /** How alike two blocks' text is: shared words over all words (0…1). */
 function similarity(a: ProseNode, b: ProseNode): number {
-  const words = (n: ProseNode) => n.textContent.toLowerCase().split(/\s+/).filter(Boolean);
+  // Nested blocks (table cells, list items) are separate words, not run together.
+  const words = (n: ProseNode) => n.textBetween(0, n.content.size, " ", " ").toLowerCase().split(/\s+/).filter(Boolean);
   const wa = words(a);
   const wb = words(b);
   if (!wa.length && !wb.length) return 1;
@@ -140,37 +155,210 @@ function pairRun(removed: ProseNode[], added: ProseNode[], out: BlockEntry[]) {
     const a = added[j]!;
     if (r.type !== a.type) return -1;
     const sim = similarity(r, a);
-    return sim >= EDIT_THRESHOLD ? sim : -1;
+    if (sim >= EDIT_THRESHOLD) return sim;
+    // Two tables whose columns line up are one table edited, however much of it changed.
+    return r.type.name === "table" && diffTables(r, a) ? EDIT_THRESHOLD : -1;
   };
-  // best[i][j]: the best total over removed[i..] and added[j..].
+  for (const [i, j] of align(n, m, score)) {
+    if (i != null && j != null) {
+      const r = removed[i]!;
+      const a = added[j]!;
+      const table = r.type.name === "table" ? diffTables(r, a) : null;
+      const extra = table ? { table } : {};
+      out.push({ kind: "removed", node: r, pair: a, ...extra }, { kind: "added", node: a, pair: r, ...extra });
+    } else if (i != null) out.push({ kind: "removed", node: removed[i]! });
+    else out.push({ kind: "added", node: added[j!]! });
+  }
+}
+
+/**
+ * Line up `n` old items with `m` new ones in order, pairing those `score`
+ * allows (>= 0) so the pairs score best overall. Unpaired items come out
+ * between the pairs, the old ones first.
+ */
+function align(n: number, m: number, score: (i: number, j: number) => number): [number | null, number | null][] {
+  const scores: Float64Array[] = Array.from({ length: n }, (_, i) => Float64Array.from({ length: m }, (_, j) => score(i, j)));
+  // best[i][j]: the best total over old[i..] and new[j..].
   const best: Float64Array[] = Array.from({ length: n + 1 }, () => new Float64Array(m + 1));
   for (let i = n - 1; i >= 0; i--) {
     for (let j = m - 1; j >= 0; j--) {
-      const s = score(i, j);
+      const s = scores[i]![j]!;
       best[i]![j] = Math.max(best[i + 1]![j]!, best[i]![j + 1]!, s >= 0 ? s + best[i + 1]![j + 1]! : -Infinity);
     }
   }
+  const out: [number | null, number | null][] = [];
   let i = 0;
   let j = 0;
   while (i < n || j < m) {
     if (i < n && j < m) {
-      const s = score(i, j);
+      const s = scores[i]![j]!;
       if (s >= 0 && best[i]![j] === s + best[i + 1]![j + 1]!) {
-        out.push({ kind: "removed", node: removed[i]!, pair: added[j]! }, { kind: "added", node: added[j]!, pair: removed[i]! });
-        i++;
-        j++;
+        out.push([i++, j++]);
         continue;
       }
       if (best[i]![j] === best[i + 1]![j]) {
-        out.push({ kind: "removed", node: removed[i++]! });
+        out.push([i++, null]);
         continue;
       }
-      out.push({ kind: "added", node: added[j++]! });
+      out.push([null, j++]);
       continue;
     }
-    if (i < n) out.push({ kind: "removed", node: removed[i++]! });
-    else out.push({ kind: "added", node: added[j++]! });
+    if (i < n) out.push([i++, null]);
+    else out.push([null, j++]);
   }
+  return out;
+}
+
+// --- Tables ----------------------------------------------------------------------
+
+/** A table's cells, row by row (rows may be ragged). */
+function gridOf(table: ProseNode): ProseNode[][] {
+  const rows: ProseNode[][] = [];
+  table.forEach((row) => {
+    const cells: ProseNode[] = [];
+    row.forEach((c) => cells.push(c));
+    rows.push(cells);
+  });
+  return rows;
+}
+
+const cellText = (c: ProseNode | undefined) => (c ? c.textBetween(0, c.content.size, " ", " ").trim().toLowerCase() : "");
+
+/** Above this many row pairs (or column pairs) an edited table is shown as one block, as other blocks are. */
+const TABLE_LIMIT = 40_000;
+
+/** A row (or column) pair this alike is one row edited; less alike, one removed and one added. */
+const ROW_THRESHOLD = 0.4;
+
+/**
+ * Match the rows and columns of two versions of a table: columns by their
+ * header and contents, then rows by their cells in the matched columns. The
+ * header rows always match. Null when the two have no column in common (the
+ * table is then shown as one block edited).
+ */
+export function diffTables(oldTable: ProseNode, newTable: ProseNode): TableDiff | null {
+  const a = gridOf(oldTable);
+  const b = gridOf(newTable);
+  if (!a.length || !b.length) return null;
+  const width = (g: ProseNode[][]) => g.reduce((w, r) => Math.max(w, r.length), 0);
+  const na = width(a);
+  const nb = width(b);
+  if (na * nb > TABLE_LIMIT || a.length * b.length > TABLE_LIMIT) return null;
+
+  // Columns: the same header, or mostly the same cells; position breaks ties when the count is unchanged.
+  const column = (g: ProseNode[][], c: number) => g.slice(1).map((r) => cellText(r[c]));
+  const colsA = Array.from({ length: na }, (_, c) => column(a, c));
+  const colsB = Array.from({ length: nb }, (_, c) => column(b, c));
+  const colScore = (i: number, j: number) => {
+    const ha = cellText(a[0]![i]);
+    const hb = cellText(b[0]![j]);
+    const shared = sharedShare(colsA[i]!, colsB[j]!);
+    const header = ha === hb ? 1 : wordShare(ha, hb);
+    const sim = (header + shared) / 2;
+    if ((ha === hb && ha) || sim >= ROW_THRESHOLD) return sim + (na === nb && i === j ? 0.01 : 0);
+    return na === nb && i === j ? 0.01 : -1;
+  };
+  const cols = align(na, nb, colScore).map(([o, n]) => ({ old: o, new: n }));
+  const kept = cols.filter((c) => c.old != null && c.new != null);
+  if (!kept.length) return null;
+
+  // Rows: how alike their cells in the kept columns are.
+  const keysA = a.map((r) => r.map((c) => keyOf(c)));
+  const keysB = b.map((r) => r.map((c) => keyOf(c)));
+  const rowScore = (i: number, j: number) => {
+    let total = 0;
+    for (const c of kept) {
+      const ca = a[i]![c.old!];
+      const cb = b[j]![c.new!];
+      if (!ca || !cb) continue;
+      total += keysA[i]![c.old!] === keysB[j]![c.new!] ? 1 : 0.9 * similarity(ca, cb);
+    }
+    const sim = total / kept.length;
+    if (sim >= ROW_THRESHOLD) return sim;
+    // The same label in the first kept column: the same row, its values changed.
+    const first = kept[0]!;
+    if (cellText(a[i]![first.old!]) && cellText(a[i]![first.old!]) === cellText(b[j]![first.new!])) return sim + 0.01;
+    return a.length === b.length && i === j ? 0.001 : -1;
+  };
+  const body = align(a.length - 1, b.length - 1, (i, j) => rowScore(i + 1, j + 1));
+  const rows: TableOp[] = [{ old: 0, new: 0 }, ...body.map(([o, n]) => ({ old: o == null ? null : o + 1, new: n == null ? null : n + 1 }))];
+  return { rows, cols };
+}
+
+/** Shared items over all items of two lists (0…1; two empty lists are alike). */
+function sharedShare(a: string[], b: string[]): number {
+  if (!a.length && !b.length) return 1;
+  const counts = new Map<string, number>();
+  for (const w of a) counts.set(w, (counts.get(w) ?? 0) + 1);
+  let shared = 0;
+  for (const w of b) {
+    const c = counts.get(w) ?? 0;
+    if (c > 0) {
+      shared++;
+      counts.set(w, c - 1);
+    }
+  }
+  return (2 * shared) / (a.length + b.length);
+}
+
+const wordShare = (a: string, b: string) => sharedShare(a.split(/\s+/).filter(Boolean), b.split(/\s+/).filter(Boolean));
+
+/** The changed runs inside a cell, against the other version's cell, in the cell's own coordinates (0 = before the cell). */
+function cellChanges(cell: ProseNode, other: ProseNode, isOld: boolean): { from: number; to: number }[] {
+  const docType = cell.type.schema.topNodeType;
+  const [oldCell, newCell] = isOld ? [cell, other] : [other, cell];
+  try {
+    const changes = computeDocDiff(docType.create(null, withoutDerivedMarks(oldCell).content), docType.create(null, withoutDerivedMarks(newCell).content), {
+      ignoreAttrs: DERIVED,
+    });
+    return changes
+      .map((c) => (isOld ? { from: c.fromA + 1, to: c.toA + 1 } : { from: c.fromB + 1, to: c.toB + 1 }))
+      .filter((r) => r.to > r.from);
+  } catch {
+    return [];
+  }
+}
+
+/** One cell (or row) of an edited table and how it changed, with its span in the table (0 = before the table). */
+interface TablePiece {
+  from: number;
+  to: number;
+  /** A whole row or cell only this version has, or a cell both have that was edited. */
+  change: "only" | "edited";
+  row: boolean;
+  /** For an edited cell: the runs that changed, in table coordinates. */
+  words: { from: number; to: number }[];
+}
+
+/** The rows and cells of one version of an edited table that changed. */
+function tablePieces(table: ProseNode, other: ProseNode, diff: TableDiff, isOld: boolean): TablePiece[] {
+  const side = isOld ? "old" : "new";
+  const otherSide = isOld ? "new" : "old";
+  const grid = gridOf(other);
+  const rowAt = new Map(diff.rows.filter((r) => r[side] != null).map((r) => [r[side]!, r[otherSide]]));
+  const colAt = new Map(diff.cols.filter((c) => c[side] != null).map((c) => [c[side]!, c[otherSide]]));
+  const out: TablePiece[] = [];
+  table.forEach((row, rowOffset, ri) => {
+    const rowStart = rowOffset + 1;
+    const otherRow = rowAt.get(ri);
+    if (otherRow == null) {
+      out.push({ from: rowStart, to: rowStart + row.nodeSize, change: "only", row: true, words: [] });
+      return;
+    }
+    row.forEach((cell, cellOffset, ci) => {
+      const from = rowStart + 1 + cellOffset;
+      const otherCol = colAt.get(ci);
+      const otherCell = otherCol == null ? undefined : grid[otherRow]?.[otherCol];
+      if (!otherCell) {
+        out.push({ from, to: from + cell.nodeSize, change: "only", row: false, words: [] });
+        return;
+      }
+      if (keyOf(cell) === keyOf(otherCell)) return;
+      const words = cellChanges(cell, otherCell, isOld).map((r) => ({ from: from + r.from, to: from + r.to }));
+      out.push({ from, to: from + cell.nodeSize, change: "edited", row: false, words });
+    });
+  });
+  return out;
 }
 
 /** Above this many cells the LCS table is skipped: everything between is replaced. */
@@ -282,10 +470,19 @@ export function layoutDiff(entries: BlockEntry[], side: DiffSide): DiffLayout {
     const anchor = entry.kind === "same" ? `s${index}` : `c${run}`;
     if (entry.kind === "same") marks.push({ from: pos, to: pos + entry.node.nodeSize, block: true, className: "", anchor });
     else {
-      const edited = entry.pair ? " ken-diff-edited" : "";
+      const edited = entry.pair ? ` ken-diff-edited${entry.table ? " ken-diff-table" : ""}` : "";
       marks.push({ from: pos, to: pos + entry.node.nodeSize, block: true, className: `ken-diff-${entry.kind}${edited}`, anchor });
-      for (const r of innerChanges(entry)) {
-        marks.push({ from: pos + r.from, to: pos + r.to, block: false, className: `ken-diff-${entry.kind}-text` });
+      if (entry.table) {
+        // An edited table: its own rows, columns and cells that changed.
+        for (const p of tablePieces(entry.node, entry.pair!, entry.table, entry.kind === "removed")) {
+          const cls = `ken-diff-${entry.kind}-part${p.row ? " ken-diff-row" : ""}${p.change === "edited" ? " ken-diff-cell-edited" : ""}`;
+          marks.push({ from: pos + p.from, to: pos + p.to, block: true, className: cls });
+          for (const r of p.words) marks.push({ from: pos + r.from, to: pos + r.to, block: false, className: `ken-diff-${entry.kind}-text` });
+        }
+      } else {
+        for (const r of innerChanges(entry)) {
+          marks.push({ from: pos + r.from, to: pos + r.to, block: false, className: `ken-diff-${entry.kind}-text` });
+        }
       }
     }
     pos += entry.node.nodeSize;
@@ -293,29 +490,98 @@ export function layoutDiff(entries: BlockEntry[], side: DiffSide): DiffLayout {
   return { nodes, marks, added, removed, edited };
 }
 
+/**
+ * What of an edited table's old version the combined view shows inside the
+ * new table: a removed row (`cells` in the merged column order, null where
+ * only the new table has the column), a removed column's cell (null in a row
+ * only the new table has), or the old content of an edited cell.
+ */
+export type TablePart =
+  | { kind: "row"; cells: (ProseNode | null)[]; header: boolean }
+  | { kind: "cell"; cell: ProseNode | null; header: boolean }
+  | { kind: "cell-old"; cell: ProseNode };
+
 /** A removed block shown, in the combined view, as a widget before position `pos` of the new document. */
 export interface RemovedWidget {
   pos: number;
   entry: BlockEntry;
-  /** Text offsets (in the block's text) of the words removed from an edited block. */
+  /** Text offsets (in the block's text, or the cell's for `cell-old`) of the words removed from an edited block. */
   words: [number, number][];
+  /** Set for a piece of an edited table, placed inside the new table; the whole block otherwise. */
+  part?: TablePart;
+}
+
+/** Text offsets of `ranges` (positions in `doc`). */
+const textOffsets = (doc: ProseNode, ranges: { from: number; to: number }[]) =>
+  ranges.map((r) => [doc.textBetween(0, r.from, "", ""), doc.textBetween(0, r.to, "", "")].map((t) => t.length) as [number, number]);
+
+/** The old table's removed rows, removed columns and edited cells, placed in the new table (which starts at `start`). */
+function tableWidgets(entry: BlockEntry, start: number, out: RemovedWidget[]) {
+  const diff = entry.table!;
+  const oldGrid = gridOf(entry.pair!);
+  const newTable = entry.node;
+  const isHeader = (row: ProseNode) => row.type.name === "table_header_row";
+  const headerOld = (i: number) => entry.pair!.child(i).type.name === "table_header_row";
+  const rowStarts: number[] = [];
+  let p = start + 1;
+  newTable.forEach((row) => {
+    rowStarts.push(p);
+    p += row.nodeSize;
+  });
+  const tableEnd = p;
+  let next = 0;
+  for (const r of diff.rows) {
+    const at = r.new != null ? rowStarts[r.new]! : next < rowStarts.length ? rowStarts[next]! : tableEnd;
+    if (r.new == null) {
+      const cells = diff.cols.map((c) => (c.old == null ? null : (oldGrid[r.old!]![c.old] ?? null)));
+      out.push({ pos: at, entry, words: [], part: { kind: "row", cells, header: headerOld(r.old!) } });
+      continue;
+    }
+    next = r.new + 1;
+    const row = newTable.child(r.new);
+    const cellStarts: number[] = [];
+    let q = at + 1;
+    row.forEach((cell) => {
+      cellStarts.push(q);
+      q += cell.nodeSize;
+    });
+    let nextCell = 0;
+    for (const c of diff.cols) {
+      if (c.new != null) {
+        nextCell = c.new + 1;
+        if (r.old == null || c.old == null) continue;
+        const cell = oldGrid[r.old]![c.old];
+        const now = row.maybeChild(c.new);
+        if (!cell || !now || keyOf(cell) === keyOf(now)) continue;
+        const doc = cell.type.schema.topNodeType.create(null, cell.content);
+        const words = textOffsets(doc, cellChanges(cell, now, true).map((x) => ({ from: x.from - 1, to: x.to - 1 })));
+        out.push({ pos: (cellStarts[c.new] ?? q) + 1, entry, words, part: { kind: "cell-old", cell } });
+        continue;
+      }
+      const cell = r.old == null ? null : (oldGrid[r.old]![c.old!] ?? null);
+      const pos = nextCell < cellStarts.length ? cellStarts[nextCell]! : q;
+      out.push({ pos, entry, words: [], part: { kind: "cell", cell, header: isHeader(row) } });
+    }
+  }
 }
 
 /**
  * The combined view: the new document as it is (editable), with the removed
- * blocks shown before the block that follows them.
+ * blocks shown before the block that follows them. An edited table shows its
+ * removed rows, columns and old cell text inside the new table instead.
  */
 export function combinedWidgets(entries: BlockEntry[]): RemovedWidget[] {
   const out: RemovedWidget[] = [];
   let pos = 0;
   for (const entry of entries) {
     if (entry.kind === "removed") {
+      if (entry.table) continue;
       const doc = entry.node.type.schema.topNodeType.create(null, entry.node);
-      const words = innerChanges(entry).map(
-        (r) => [doc.textBetween(0, r.from, "", ""), doc.textBetween(0, r.to, "", "")].map((t) => t.length) as [number, number],
-      );
-      out.push({ pos, entry, words });
-    } else pos += entry.node.nodeSize;
+      out.push({ pos, entry, words: textOffsets(doc, innerChanges(entry)) });
+    } else {
+      if (entry.table) tableWidgets(entry, pos, out);
+      pos += entry.node.nodeSize;
+    }
   }
   return out;
 }

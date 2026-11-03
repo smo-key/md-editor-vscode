@@ -94,7 +94,7 @@ function decorations(view: EditorView, h: Highlights, side: DiffSideName | "comb
       Decoration.widget(
         pos,
         () => removedBlock(serializer, w),
-        { side: -1, key: `rm-${i}-${w.entry.node.textContent.length}-${w.entry.node.type.name}`, ignoreSelection: true },
+        { side: -1, key: `rm-${i}-${w.part?.kind ?? "block"}-${w.entry.node.textContent.length}-${w.entry.node.type.name}`, ignoreSelection: true },
       ),
     );
   });

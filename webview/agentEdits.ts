@@ -186,7 +186,7 @@ function compute(v: EditorView): State {
     decos.push(
       Decoration.widget(Math.min(w.pos, size), () => skipInPrint(removedBlock(serializer, w)), {
         side: -1,
-        key: `agent-rm-${i}-${w.entry.node.textContent.length}-${w.entry.node.type.name}`,
+        key: `agent-rm-${i}-${w.part?.kind ?? "block"}-${w.entry.node.textContent.length}-${w.entry.node.type.name}`,
         ignoreSelection: true,
       }),
     );

@@ -44,6 +44,8 @@ export interface DiffMark {
   /** A whole block (node decoration) or a run of text (inline decoration). */
   block: boolean;
   className: string;
+  /** What changed, for a change the text doesn't show (a modified run). */
+  title?: string;
   /**
    * Shared by the two sides of a split view: `s<n>` for the n-th entry when it
    * is unchanged, `c<n>` for the n-th run of changes. Blocks only.
@@ -303,20 +305,98 @@ function sharedShare(a: string[], b: string[]): number {
 
 const wordShare = (a: string, b: string) => sharedShare(a.split(/\s+/).filter(Boolean), b.split(/\s+/).filter(Boolean));
 
-/** The changed runs inside a cell, against the other version's cell, in the cell's own coordinates (0 = before the cell). */
-function cellChanges(cell: ProseNode, other: ProseNode, isOld: boolean): { from: number; to: number }[] {
-  const docType = cell.type.schema.topNodeType;
-  const [oldCell, newCell] = isOld ? [cell, other] : [other, cell];
+/**
+ * A changed run inside an edited block. `modified`: its text is the same in
+ * both versions, so what changed is hidden (a link's address, an image's
+ * source, formatting, a code block's language, a cell's alignment): the view
+ * marks it yellow, on both sides, with `title` saying what changed. `node`:
+ * the run is a whole node whose attributes changed (no text of its own).
+ */
+export interface Change {
+  from: number;
+  to: number;
+  modified?: boolean;
+  node?: boolean;
+  title?: string;
+}
+
+const textOf = (doc: ProseNode, from: number, to: number) => doc.textBetween(from, to, "\n", "\uFFFC");
+
+const label = (name: string) => name.replace(/_/g, " ");
+
+function shown(v: unknown): string {
+  if (v == null || v === "") return "none";
+  const t = typeof v === "string" ? v : JSON.stringify(v);
+  return t.length > 80 ? `${t.slice(0, 77)}…` : t;
+}
+
+/** The marks and nodes (with their attributes) a run covers. */
+function itemsIn(doc: ProseNode, from: number, to: number) {
+  const out: { name: string; mark: boolean; attrs: Record<string, unknown> }[] = [];
+  doc.nodesBetween(from, Math.max(to, from + 1), (n) => {
+    if (n.isText) for (const m of n.marks) out.push({ name: m.type.name, mark: true, attrs: m.attrs });
+    else if (n.type !== doc.type) out.push({ name: n.type.name, mark: false, attrs: n.attrs });
+  });
+  return out;
+}
+
+/** What changed in a run whose text didn't: formatting, and attributes such as a link's address. */
+function describeChange(a: ProseNode, fa: number, ta: number, b: ProseNode, fb: number, tb: number): string {
+  const ia = itemsIn(a, fa, ta);
+  const ib = itemsIn(b, fb, tb);
+  const parts: string[] = [];
+  const marks = (items: typeof ia) => [...new Set(items.filter((x) => x.mark).map((x) => label(x.name)))].sort().join(", ");
+  if (marks(ia) !== marks(ib)) parts.push(`Formatting: ${marks(ia) || "none"} → ${marks(ib) || "none"}`);
+  const used = new Set<number>();
+  for (const x of ia) {
+    const k = ib.findIndex((y, i) => !used.has(i) && y.name === x.name && y.mark === x.mark);
+    if (k < 0) continue;
+    used.add(k);
+    const y = ib[k]!;
+    const skip = (x.mark ? DERIVED_MARKS : DERIVED)[x.name] ?? [];
+    for (const key of new Set([...Object.keys(x.attrs), ...Object.keys(y.attrs)])) {
+      if (skip.includes(key) || JSON.stringify(x.attrs[key] ?? null) === JSON.stringify(y.attrs[key] ?? null)) continue;
+      parts.push(`${label(x.name)} ${key}: ${shown(x.attrs[key])} → ${shown(y.attrs[key])}`);
+    }
+  }
+  return [...new Set(parts)].join("\n") || "Changed";
+}
+
+/**
+ * One side's runs of `changes` (between `oldDoc` and `newDoc`), shifted by
+ * `offset`: changed text as it is, runs whose text is the same as modified.
+ */
+function sideChanges(oldDoc: ProseNode, newDoc: ProseNode, isOld: boolean, offset = 0): Change[] {
+  let changes;
   try {
-    const changes = computeDocDiff(docType.create(null, withoutDerivedMarks(oldCell).content), docType.create(null, withoutDerivedMarks(newCell).content), {
-      ignoreAttrs: DERIVED,
-    });
-    return changes
-      .map((c) => (isOld ? { from: c.fromA + 1, to: c.toA + 1 } : { from: c.fromB + 1, to: c.toB + 1 }))
-      .filter((r) => r.to > r.from);
+    changes = computeDocDiff(oldDoc, newDoc, { ignoreAttrs: DERIVED });
   } catch {
     return [];
   }
+  const out: Change[] = [];
+  for (const c of changes) {
+    const [doc, from, to] = isOld ? [oldDoc, c.fromA, c.toA] : [newDoc, c.fromB, c.toB];
+    if (textOf(oldDoc, c.fromA, c.toA) !== textOf(newDoc, c.fromB, c.toB)) {
+      if (to > from) out.push({ from: from + offset, to: to + offset });
+      continue;
+    }
+    const title = describeChange(oldDoc, c.fromA, c.toA, newDoc, c.fromB, c.toB);
+    if (to > from && textOf(doc, from, to)) {
+      out.push({ from: from + offset, to: to + offset, modified: true, title });
+      continue;
+    }
+    // No text of its own: the node it starts at changed (a code block's language, a cell's alignment).
+    const node = doc.nodeAt(from);
+    if (node && !node.isText) out.push({ from: from + offset, to: from + node.nodeSize + offset, modified: true, node: true, title });
+  }
+  return out;
+}
+
+/** The changed runs inside a cell, against the other version's cell, in the cell's own coordinates (0 = before the cell). */
+function cellChanges(cell: ProseNode, other: ProseNode, isOld: boolean): Change[] {
+  const docType = cell.type.schema.topNodeType;
+  const [oldCell, newCell] = isOld ? [cell, other] : [other, cell];
+  return sideChanges(docType.create(null, withoutDerivedMarks(oldCell).content), docType.create(null, withoutDerivedMarks(newCell).content), isOld, 1);
 }
 
 /** One cell (or row) of an edited table and how it changed, with its span in the table (0 = before the table). */
@@ -327,7 +407,9 @@ interface TablePiece {
   change: "only" | "edited";
   row: boolean;
   /** For an edited cell: the runs that changed, in table coordinates. */
-  words: { from: number; to: number }[];
+  words: Change[];
+  /** An edited cell whose content is the same (its alignment changed): what changed. */
+  modified?: string;
 }
 
 /** The rows and cells of one version of an edited table that changed. */
@@ -354,8 +436,15 @@ function tablePieces(table: ProseNode, other: ProseNode, diff: TableDiff, isOld:
         return;
       }
       if (keyOf(cell) === keyOf(otherCell)) return;
-      const words = cellChanges(cell, otherCell, isOld).map((r) => ({ from: from + r.from, to: from + r.to }));
-      out.push({ from, to: from + cell.nodeSize, change: "edited", row: false, words });
+      const words = cellChanges(cell, otherCell, isOld).map((r) => ({ ...r, from: from + r.from, to: from + r.to }));
+      const piece: TablePiece = { from, to: from + cell.nodeSize, change: "edited", row: false, words };
+      if (!words.length) {
+        // The same content: the cell's own attributes changed.
+        const doc = cell.type.schema.topNodeType;
+        const [a, b] = isOld ? [cell, otherCell] : [otherCell, cell];
+        piece.modified = describeChange(doc.create(null, a), 0, 1, doc.create(null, b), 0, 1);
+      }
+      out.push(piece);
     });
   });
   return out;
@@ -432,19 +521,17 @@ export function diffBlocks(oldDoc: ProseNode, newDoc: ProseNode): BlockEntry[] {
 }
 
 /** The changed runs inside an edited block, in its own coordinates (0 = before the block). */
-export function innerChanges(entry: BlockEntry): { from: number; to: number }[] {
+export function innerChanges(entry: BlockEntry): Change[] {
   if (!entry.pair) return [];
   const docType = entry.node.type.schema.topNodeType;
   const [oldNode, newNode] = entry.kind === "removed" ? [entry.node, entry.pair] : [entry.pair, entry.node];
-  let changes;
-  try {
-    changes = computeDocDiff(docType.create(null, withoutDerivedMarks(oldNode)), docType.create(null, withoutDerivedMarks(newNode)), { ignoreAttrs: DERIVED });
-  } catch {
-    return [];
-  }
-  return changes
-    .map((c) => (entry.kind === "removed" ? { from: c.fromA, to: c.toA } : { from: c.fromB, to: c.toB }))
-    .filter((r) => r.to > r.from);
+  return sideChanges(docType.create(null, withoutDerivedMarks(oldNode)), docType.create(null, withoutDerivedMarks(newNode)), entry.kind === "removed");
+}
+
+/** The decoration marking a changed run of a block at `pos`, on the side of `kind`. */
+export function changeMark(r: Change, pos: number, kind: "added" | "removed"): DiffMark {
+  if (!r.modified) return { from: pos + r.from, to: pos + r.to, block: false, className: `ken-diff-${kind}-text` };
+  return { from: pos + r.from, to: pos + r.to, block: !!r.node, className: r.node ? "ken-diff-modified" : "ken-diff-modified-text", title: r.title };
 }
 
 /** The blocks a side shows, with the decorations that mark what changed. */
@@ -475,14 +562,12 @@ export function layoutDiff(entries: BlockEntry[], side: DiffSide): DiffLayout {
       if (entry.table) {
         // An edited table: its own rows, columns and cells that changed.
         for (const p of tablePieces(entry.node, entry.pair!, entry.table, entry.kind === "removed")) {
-          const cls = `ken-diff-${entry.kind}-part${p.row ? " ken-diff-row" : ""}${p.change === "edited" ? " ken-diff-cell-edited" : ""}`;
-          marks.push({ from: pos + p.from, to: pos + p.to, block: true, className: cls });
-          for (const r of p.words) marks.push({ from: pos + r.from, to: pos + r.to, block: false, className: `ken-diff-${entry.kind}-text` });
+          const cls = `ken-diff-${entry.kind}-part${p.row ? " ken-diff-row" : ""}${p.change === "edited" ? " ken-diff-cell-edited" : ""}${p.modified ? " ken-diff-modified" : ""}`;
+          marks.push({ from: pos + p.from, to: pos + p.to, block: true, className: cls, ...(p.modified ? { title: p.modified } : {}) });
+          for (const r of p.words) marks.push(changeMark(r, pos, entry.kind));
         }
       } else {
-        for (const r of innerChanges(entry)) {
-          marks.push({ from: pos + r.from, to: pos + r.to, block: false, className: `ken-diff-${entry.kind}-text` });
-        }
+        for (const r of innerChanges(entry)) marks.push(changeMark(r, pos, entry.kind));
       }
     }
     pos += entry.node.nodeSize;
@@ -507,8 +592,10 @@ export interface RemovedWidget {
   entry: BlockEntry;
   /** Text offsets (in the block's text, or the cell's for `cell-old`) of the words removed from an edited block. */
   words: [number, number][];
-  /** The same words as positions in the block (0 = before it). */
-  changes?: { from: number; to: number }[];
+  /** The same words as positions in the block (0 = before it), with the modified runs. */
+  changes?: Change[];
+  /** For `cell-old`: which of `words` are modified (the same text, changed otherwise). */
+  modified?: boolean[];
   /** The block shown just before this one in the combined view (for the spacing that depends on it). */
   before?: ProseNode;
   /** Set for a piece of an edited table, placed inside the new table; the whole block otherwise. */
@@ -516,7 +603,7 @@ export interface RemovedWidget {
 }
 
 /** Text offsets of `ranges` (positions in `doc`). */
-const textOffsets = (doc: ProseNode, ranges: { from: number; to: number }[]) =>
+const textOffsets = (doc: ProseNode, ranges: Change[]) =>
   ranges.map((r) => [doc.textBetween(0, r.from, "", ""), doc.textBetween(0, r.to, "", "")].map((t) => t.length) as [number, number]);
 
 /** The old table's removed rows, removed columns and edited cells, placed in the new table (which starts at `start`). */
@@ -558,8 +645,10 @@ function tableWidgets(entry: BlockEntry, start: number, out: RemovedWidget[]) {
         const now = row.maybeChild(c.new);
         if (!cell || !now || keyOf(cell) === keyOf(now)) continue;
         const doc = cell.type.schema.topNodeType.create(null, cell.content);
-        const words = textOffsets(doc, cellChanges(cell, now, true).map((x) => ({ from: x.from - 1, to: x.to - 1 })));
-        out.push({ pos: (cellStarts[c.new] ?? q) + 1, entry, words, part: { kind: "cell-old", cell } });
+        const runs = cellChanges(cell, now, true).filter((x) => !x.node);
+        if (!runs.length) continue;
+        const words = textOffsets(doc, runs.map((x) => ({ from: x.from - 1, to: x.to - 1 })));
+        out.push({ pos: (cellStarts[c.new] ?? q) + 1, entry, words, modified: runs.map((x) => !!x.modified), part: { kind: "cell-old", cell } });
         continue;
       }
       const cell = r.old == null ? null : (oldGrid[r.old]![c.old!] ?? null);
@@ -583,7 +672,7 @@ export function combinedWidgets(entries: BlockEntry[]): RemovedWidget[] {
       if (entry.table) continue;
       const doc = entry.node.type.schema.topNodeType.create(null, entry.node);
       const changes = innerChanges(entry);
-      out.push({ pos, entry, words: textOffsets(doc, changes), changes, ...(before ? { before } : {}) });
+      out.push({ pos, entry, words: textOffsets(doc, changes.filter((c) => !c.node && !c.modified)), changes, ...(before ? { before } : {}) });
     } else {
       if (entry.table) tableWidgets(entry, pos, out);
       pos += entry.node.nodeSize;

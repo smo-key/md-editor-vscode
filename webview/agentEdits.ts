@@ -178,7 +178,8 @@ function compute(v: EditorView): State {
   const size = doc.content.size;
   for (const m of layoutDiff(entries, "new").marks) {
     if (!m.className || m.to > size || m.from >= m.to) continue;
-    const attrs = { class: `${m.className} ken-agent-mark` };
+    const attrs: Record<string, string> = { class: `${m.className} ken-agent-mark` };
+    if (m.title) attrs.title = m.title;
     decos.push(m.block ? Decoration.node(m.from, m.to, attrs) : Decoration.inline(m.from, m.to, attrs));
   }
   decos.push(...removedWidgets(v, combinedWidgets(entries), "agent-rm", [key], skipInPrint));

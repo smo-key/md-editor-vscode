@@ -3,7 +3,7 @@
 import { DOMSerializer, type Node as ProseNode } from "@milkdown/kit/prose/model";
 import { EditorState, Plugin, TextSelection, type PluginKey } from "@milkdown/kit/prose/state";
 import { Decoration, DecorationSet, EditorView } from "@milkdown/kit/prose/view";
-import type { RemovedWidget, TablePart } from "./diffModel";
+import { changeMark, type RemovedWidget, type TablePart } from "./diffModel";
 
 /** Wrap the text between offsets `[from, to)` of `root`'s text in spans of `className`. */
 function highlightText(root: HTMLElement, ranges: [number, number][], className: string) {
@@ -40,7 +40,7 @@ function oldCell(serializer: DOMSerializer, cell: ProseNode | null, header: bool
 }
 
 /** A piece of an edited table's old version, shown inside the new table: a row, a cell, or a cell's old text. */
-function tablePart(serializer: DOMSerializer, part: TablePart, words: [number, number][]): HTMLElement {
+function tablePart(serializer: DOMSerializer, part: TablePart, words: [number, number][], modified?: boolean[]): HTMLElement {
   if (part.kind === "row") {
     const tr = document.createElement("tr");
     tr.className = "ken-diff-removed-part ken-diff-row ken-diff-widget-part";
@@ -55,7 +55,8 @@ function tablePart(serializer: DOMSerializer, part: TablePart, words: [number, n
   const box = document.createElement("div");
   box.className = "ken-diff-cell-old";
   box.append(serializer.serializeFragment(part.cell.content));
-  highlightText(box, words, "ken-diff-removed-text");
+  highlightText(box, words.filter((_, i) => !modified?.[i]), "ken-diff-removed-text");
+  highlightText(box, words.filter((_, i) => modified?.[i]), "ken-diff-modified-text");
   return box;
 }
 
@@ -73,7 +74,7 @@ const keyName = (k: Plugin | PluginKey) => (k as unknown as { key: string }).key
  */
 export function removedBlock(host: EditorView, w: RemovedWidget, skip: PluginKey[] = []): HTMLElement {
   if (w.part) {
-    const el = tablePart(DOMSerializer.fromSchema(host.state.schema), w.part, w.words);
+    const el = tablePart(DOMSerializer.fromSchema(host.state.schema), w.part, w.words, w.modified);
     el.contentEditable = "false";
     return el;
   }
@@ -100,7 +101,14 @@ export function removedBlock(host: EditorView, w: RemovedWidget, skip: PluginKey
     ...(before ? [Decoration.node(0, at, { class: "ken-diff-context" })] : []),
     Decoration.node(end, end + after.nodeSize, { class: "ken-diff-context" }),
     Decoration.node(at, at + node.nodeSize, { class: cls }),
-    ...(w.changes ?? []).filter((r) => r.to > r.from).map((r) => Decoration.inline(at + r.from, at + r.to, { class: "ken-diff-removed-text" })),
+    ...(w.changes ?? [])
+      .filter((r) => r.to > r.from)
+      .map((r) => {
+        const m = changeMark(r, at, "removed");
+        const attrs: Record<string, string> = { class: m.className };
+        if (m.title) attrs.title = m.title;
+        return m.block ? Decoration.node(m.from, m.to, attrs) : Decoration.inline(m.from, m.to, attrs);
+      }),
   ]);
   const view = new EditorView(box, {
     state,
@@ -197,7 +205,7 @@ export function removedWidgets(host: EditorView, widgets: RemovedWidget[], prefi
 }
 
 /** Marks of words (or other content) changed inside a block. */
-const CHANGED_TEXT = ".ken-diff-added-text, .ken-diff-removed-text, .ken-diff-cell-old";
+const CHANGED_TEXT = ".ken-diff-added-text, .ken-diff-removed-text, .ken-diff-modified-text, .ken-diff-modified, .ken-diff-cell-old";
 
 /**
  * The stops inside an edited table: each run of added or removed rows, the
@@ -221,7 +229,7 @@ export function tableStops(block: HTMLElement): HTMLElement[] {
       const column = /ken-diff-(added|removed)-part/.test(cell.className) && !cell.classList.contains("ken-diff-cell-edited");
       if (column) {
         if (i === 0 && !stops.includes(table)) stops.push(table);
-      } else if (cell.querySelector(CHANGED_TEXT)) stops.push(cell);
+      } else if (cell.matches(".ken-diff-modified") || cell.querySelector(CHANGED_TEXT)) stops.push(cell);
     }
   });
   return stops;

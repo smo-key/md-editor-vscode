@@ -85,6 +85,7 @@ function decorations(view: EditorView, h: Highlights, side: DiffSideName | "comb
     const attrs: Record<string, string> = {};
     if (m.className) attrs.class = m.className;
     if (m.anchor) attrs["data-diff-anchor"] = m.anchor;
+    if (m.title) attrs.title = m.title;
     decos.push(m.block ? Decoration.node(m.from, m.to, attrs) : Decoration.inline(m.from, m.to, attrs));
   }
   decos.push(...removedWidgets(view, h.widgets, "rm", [diffKey]));

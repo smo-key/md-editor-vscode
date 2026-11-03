@@ -202,6 +202,52 @@ describe("table diff", () => {
 });
 
 
+describe("changes the text doesn't show", () => {
+  /** Each side's yellow marks: their text (or node type) and tooltip. */
+  function modified(oldMd: string, newMd: string) {
+    let out: { old: string[]; new: string[]; plain: string[] } = { old: [], new: [], plain: [] };
+    return withParser((parse) => {
+      const oldDoc = parse(oldMd);
+      const newDoc = parse(newMd);
+      const entries = diffBlocks(oldDoc, newDoc);
+      const read = (doc: ProseNode, side: "old" | "new") =>
+        layoutDiff(entries, side)
+          .marks.filter((m) => m.className.includes("ken-diff-modified"))
+          .map((m) => `${m.block ? doc.nodeAt(m.from)!.type.name : doc.textBetween(m.from, m.to, " ", "[img]")} | ${m.title}`);
+      out = {
+        old: read(oldDoc, "old"),
+        new: read(newDoc, "new"),
+        plain: layoutDiff(entries, "new").marks.filter((m) => /-(added|removed)-text/.test(m.className)).map((m) => newDoc.textBetween(m.from, m.to)),
+      };
+    }).then(() => out);
+  }
+
+  it("marks a link whose address changed, not its words", async () => {
+    const r = await modified("See [the docs](https://a.com) now.\n", "See [the docs](https://b.com) now.\n");
+    expect(r.new).toEqual(["the docs | link href: https://a.com → https://b.com"]);
+    expect(r.old).toEqual(r.new);
+    expect(r.plain).toEqual([]);
+  });
+
+  it("marks an image whose source changed, and formatting that changed", async () => {
+    expect((await modified("See ![alt](a.png) now.\n", "See ![alt](b.png) now.\n")).new).toEqual(["[img] | image src: a.png → b.png"]);
+    expect((await modified("Some **bold** text.\n", "Some *bold* text.\n")).new).toEqual(["bold | Formatting: strong → emphasis"]);
+  });
+
+  it("marks a code block whose language changed, and a cell whose alignment changed", async () => {
+    expect((await modified("```js\nx\n```\n", "```ts\nx\n```\n")).new).toEqual(["code_block | code block language: js → ts"]);
+    const cells = await modified("| a | b |\n|:--|--|\n| 1 | 2 |\n", "| a | b |\n|--:|--|\n| 1 | 2 |\n");
+    expect(cells.new).toEqual(["table_header | table header alignment: left → right", "table_cell | table cell alignment: left → right"]);
+  });
+
+  it("keeps changed words as they were, beside a changed link", async () => {
+    const r = await modified("Words [x](u) here and there\n", "Words [x](v) here, there\n");
+    expect(r.new).toEqual(["x | link href: u → v"]);
+    expect(r.plain).toEqual([","]);
+  });
+});
+
+
 describe("split view scrolling", () => {
   const left = [
     { anchor: "s0", top: 0, bottom: 100 },

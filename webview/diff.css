@@ -146,6 +146,30 @@
 .measure .milkdown .ProseMirror .ken-diff-removed:is(blockquote, .milkdown-code-block) {
   background: var(--diff-removed-bg);
 }
+/* A change the text doesn't show (a link's address, an image's source,
+   formatting, a code block's language, a cell's alignment): yellow, on both
+   sides, with what changed in its tooltip. */
+:root {
+  --diff-modified-bg: color-mix(in srgb, var(--vscode-editorWarning-foreground, var(--vscode-list-warningForeground)) 28%, transparent);
+  --diff-modified-edge: var(--vscode-editorWarning-foreground, var(--vscode-list-warningForeground));
+}
+.milkdown .ProseMirror .ken-diff-modified-text {
+  background: var(--diff-modified-bg);
+  border-radius: 2px;
+  box-shadow: inset 0 -1px 0 var(--diff-modified-edge);
+  text-decoration: none;
+}
+.milkdown .ProseMirror .ken-diff-modified,
+.measure .milkdown .ProseMirror :is(td, th).ken-diff-modified {
+  background: var(--diff-modified-bg);
+  box-shadow: inset 0 0 0 1px var(--diff-modified-edge);
+}
+.measure .milkdown .ProseMirror .ken-diff-modified:is(blockquote, .milkdown-code-block) {
+  background: var(--diff-modified-bg);
+}
+.measure .milkdown .ProseMirror th.ken-diff-modified {
+  background: linear-gradient(var(--diff-modified-bg), var(--diff-modified-bg)), var(--surface);
+}
 /* An edited block's own changes stand out more than the band. */
 .milkdown .ProseMirror .ken-diff-added-text {
   background: var(--diff-added-text);

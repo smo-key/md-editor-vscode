@@ -346,6 +346,10 @@ body {
     min-width: 0;
     max-width: 100%;
     table-layout: auto;
+    /* ProseMirror's `hidden` makes the table a scroll container, which pins the
+       sticky header row (below) to the table instead of the pane. `clip` clips
+       the same without that. */
+    overflow: clip;
   }
   .measure
     .milkdown .milkdown-table-block[data-full-width="true"] table.children {
@@ -367,9 +371,19 @@ body {
     overflow-wrap: anywhere;
     word-break: normal;
   }
+  /* The header row stays at the top of the pane (under the toolbar) while a
+     long table scrolls past. Its fill is made opaque over the page (`--sunken`
+     can be translucent), and its bottom rule is a shadow, since a collapsed
+     border stays behind with the table. */
   .measure .milkdown .milkdown-table-block th {
-    background: var(--sunken);
+    position: sticky;
+    /* -1px: the collapsed top border goes under the pane's edge, so no sliver
+       of the rows scrolling past shows above the header. */
+    top: -1px;
+    z-index: 2;
+    background: linear-gradient(var(--sunken), var(--sunken)), var(--surface);
     border-bottom-color: var(--ink-tertiary);
+    box-shadow: inset 0 -1px 0 var(--ink-tertiary);
   }
   /* A total row (markdown/tableFullWidth.ts: `total`): set apart like a
      spreadsheet's, with a double rule above and bold figures. */

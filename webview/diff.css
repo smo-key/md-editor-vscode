@@ -365,9 +365,20 @@ body[data-toolbar="bottom"] .ken-agent-bar {
   background: var(--diff-removed-bg);
   box-shadow: inset 0 0 0 1px var(--diff-removed-edge);
 }
-/* An edited cell: tinted, its changed words stronger; whole rows and columns only added or removed get the edge too. */
+/* An edited cell is not tinted: its changed words are marked, and that is enough. */
 .milkdown .ProseMirror :is(td, th).ken-diff-cell-edited {
+  background: none;
   box-shadow: none;
+}
+/* A sticky header cell (styles.css) needs an opaque fill under its tint, or the rows scroll through it. */
+.measure .milkdown .ProseMirror th.ken-diff-added-part:not(.ken-diff-cell-edited) {
+  background: linear-gradient(var(--diff-added-bg), var(--diff-added-bg)), var(--surface);
+}
+.measure .milkdown .ProseMirror th.ken-diff-removed-part:not(.ken-diff-cell-edited) {
+  background: linear-gradient(var(--diff-removed-bg), var(--diff-removed-bg)), var(--surface);
+}
+.measure .milkdown .ProseMirror th.ken-diff-cell-edited {
+  background: linear-gradient(var(--sunken), var(--sunken)), var(--surface);
 }
 .milkdown .ProseMirror tr.ken-diff-row > :is(td, th).ken-diff-gap {
   background: var(--diff-removed-bg);
@@ -380,16 +391,14 @@ body[data-toolbar="bottom"] .ken-agent-bar {
 .milkdown .ProseMirror .ken-diff-widget-part {
   user-select: none;
 }
+/* Faded by colour, not opacity: a sticky header cell has to stay opaque. */
 .ken-diff-pane[data-side="combined"] .milkdown .ProseMirror :is(.ken-diff-widget-part, .ken-diff-widget-part > *) {
   text-decoration: line-through;
-  opacity: 0.85;
+  color: var(--ink-secondary);
 }
 .milkdown .ProseMirror .ken-diff-cell-old {
   user-select: none;
   margin-bottom: 2px;
-  padding: 0 2px;
-  border-radius: 2px;
-  background: var(--diff-removed-bg);
 }
 .milkdown .ProseMirror .ken-diff-cell-old p {
   margin: 0;

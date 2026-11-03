@@ -2,6 +2,8 @@
 // theme. Usage:
 //   node harness/screenshot-diff.mjs <theme.json> <old.md> <new.md> <out.png> [combined|split] [width]
 // KEN_STATUS=added|deleted shows a file with only one version.
+// KEN_SCROLL=<px> keeps the window 900px high and scrolls each pane that far
+// first (to check what stays put, such as a table's sticky header row).
 import { chromium } from "playwright";
 import { readFileSync } from "fs";
 import { createServer } from "http";
@@ -55,8 +57,12 @@ page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
 await page.goto(`http://localhost:${server.address().port}/`);
 await page.waitForSelector("body.ready .milkdown .ProseMirror");
 await page.waitForTimeout(1200);
-const height = await page.evaluate(() => Math.max(...[...document.querySelectorAll(".editor-scroll")].map((s) => s.scrollHeight)));
-await page.setViewportSize({ width: Number(width), height: Math.min(height + 120, 5000) });
+if (process.env.KEN_SCROLL) {
+  await page.evaluate((y) => document.querySelectorAll(".editor-scroll").forEach((s) => (s.scrollTop = y)), Number(process.env.KEN_SCROLL));
+} else {
+  const height = await page.evaluate(() => Math.max(...[...document.querySelectorAll(".editor-scroll")].map((s) => s.scrollHeight)));
+  await page.setViewportSize({ width: Number(width), height: Math.min(height + 120, 5000) });
+}
 await page.waitForTimeout(300);
 await page.screenshot({ path: out });
 // Edit the newer version (the last pane) and check the edit is posted.

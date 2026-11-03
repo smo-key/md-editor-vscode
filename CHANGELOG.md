@@ -4,6 +4,10 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 
 ## [Unreleased]
 
+### Changed
+
+- Typed bare domains such as `google.com` or `google.com/test` now become links (saved as `[google.com](https://google.com)`, since GitHub doesn't link them bare). A domain must end in a real top-level domain, so `notes.md`, `setup.py` and `e.g.` stay text; with a protocol, only `http://` and `https://` link.
+
 ### Fixed
 
 - What's New showed no release notes, and "See the full changelog" couldn't find the file, on Linux.

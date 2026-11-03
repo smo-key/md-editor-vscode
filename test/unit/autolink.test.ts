@@ -19,13 +19,37 @@ describe("GFM extended autolink rules", () => {
     ["(see https://example.com/x)", "https://example.com/x", "https://example.com/x"],
     ["mail me@example.org", "me@example.org", "mailto:me@example.org"],
     ["*https://x.io*", "https://x.io", "https://x.io"],
+    ["visit google.com", "google.com", "https://google.com"],
+    ["visit google.com/test.", "google.com/test", "https://google.com/test"],
+    ["at Docs.Example.co.uk:8080/a#b", "Docs.Example.co.uk:8080/a#b", "https://Docs.Example.co.uk:8080/a#b"],
+    ["see https://google.com/test?q=blah&t=blah", "https://google.com/test?q=blah&t=blah", "https://google.com/test?q=blah&t=blah"],
+    ["host http://127.0.0.1:3000/x", "http://127.0.0.1:3000/x", "http://127.0.0.1:3000/x"],
+    ["file github.com/a/README.md", "github.com/a/README.md", "https://github.com/a/README.md"],
   ])("%s → %s", (text, linked, href) => {
     const found = autolinkAtEnd(text)!;
     expect(text.slice(found.start, found.end)).toBe(linked);
     expect(found.href).toBe(href);
   });
 
-  it.each(["plain words", "https://localhost", "www.example_x.com", "http://", "me@nodot"])("leaves %s alone", (text) => {
+  it.each([
+    "plain words",
+    "https://localhost",
+    "www.example_x.com",
+    "http://",
+    "me@nodot",
+    "me@example.notatld",
+    "https://example.notatld/x",
+    "www.example.notatld",
+    "example.notatld",
+    "ftp://google.com",
+    "file://google.com/x",
+    "javascript://google.com",
+    "README.md",
+    "setup.py",
+    "e.g.",
+    "v1.2.3",
+    "@google.com",
+  ])("leaves %s alone", (text) => {
     expect(autolinkAtEnd(text)).toBeNull();
   });
 
@@ -70,16 +94,28 @@ describe("typing a URL", () => {
     });
   });
 
-  it("links www. addresses and emails, not text that isn't a URL", async () => {
+  it("links www. addresses, emails and bare domains, not text that isn't a URL", async () => {
     await withEditor("x\n", (view) => {
       caretAtEnd(view);
-      type(view, " www.example.com and me@example.org and example.com ");
+      type(view, " www.example.com and me@example.org and example.com and notes.md and a.notatld ");
       const links: string[] = [];
       view.state.doc.descendants((n) => {
         const l = n.marks.find((m) => m.type.name === "link");
         if (l) links.push(`${n.text}→${l.attrs.href}`);
       });
-      expect(links).toEqual(["www.example.com→http://www.example.com", "me@example.org→mailto:me@example.org"]);
+      expect(links).toEqual([
+        "www.example.com→http://www.example.com",
+        "me@example.org→mailto:me@example.org",
+        "example.com→https://example.com",
+      ]);
+    });
+  });
+
+  it("saves a bare domain as an inline link, so it stays a link", async () => {
+    await withEditor("Go\n", (view, md) => {
+      caretAtEnd(view);
+      type(view, " google.com/test?q=1 now");
+      expect(md()).toBe("Go [google.com/test?q=1](https://google.com/test?q=1) now\n");
     });
   });
 

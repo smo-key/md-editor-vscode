@@ -1,36 +1,64 @@
 /**
- * Typed URLs become links, the way GitHub-flavoured Markdown finds them
- * (extended autolinks): `https://…`, `http://…`, `www.…` and email
- * addresses, turned into links once the URL is finished, i.e. when a space,
- * a new line or `<` follows it. Trailing punctuation that ends a sentence
- * (`.`, `,`, `:`, `!`, `?`, `*`, `_`, `~`), an unbalanced `)` and a trailing
- * entity reference stay outside the link, as GFM has it.
+ * Typed URLs become links once the URL is finished, i.e. when a space, a new
+ * line or `<` follows it: `https://…`, `http://…`, `www.…`, bare domains
+ * (`example.com`, `example.com/a?b=1`) and email addresses. Their domain
+ * must end in a real top-level domain (the IANA list, from the `tlds`
+ * package); with a protocol, only http and https. Trailing punctuation that
+ * ends a sentence (`.`, `,`, `:`, `!`, `?`, `*`, `_`, `~`), an unbalanced
+ * `)` and a trailing entity reference stay outside the link, as GFM has it.
  *
- * The link is marked as a literal (markdown/linkFidelity.ts), so it is saved
- * bare, just as it was typed, and GitHub links it the same way.
+ * GitHub links the protocol, `www.` and email forms by itself (GFM extended
+ * autolinks), so those are marked as literals (markdown/linkFidelity.ts) and
+ * saved bare, just as typed. GitHub doesn't link a bare domain, so that is
+ * saved as `[example.com](https://example.com)` to stay a link.
  */
 import type { Ctx } from "@milkdown/kit/ctx";
 import { Plugin, PluginKey, type EditorState, type Transaction } from "@milkdown/kit/prose/state";
 import { editorViewOptionsCtx } from "@milkdown/kit/core";
 import { $prose } from "@milkdown/kit/utils";
+import TLD_LIST from "tlds";
 
 export interface FoundLink {
   /** Offsets of the link text in the scanned string. */
   start: number;
   end: number;
   href: string;
+  /** A bare domain, which GFM doesn't link, so it must be saved as `[text](href)`. */
+  bare?: boolean;
 }
 
 const TRAILING = /[?!.,:*_~]$/;
 /** Characters GFM allows directly before an extended autolink. */
 const LEAD = /[*_~(]/;
+const TLDS = new Set(TLD_LIST.map((t) => t.toLowerCase()));
+/**
+ * Top-level domains that are also common file extensions: `README.md` or
+ * `setup.py` typed bare is a file name, not a site. With a path, `www.` or a
+ * protocol they still link.
+ */
+const FILE_TLDS = new Set(["md", "py", "rs", "sh", "pl", "pm", "ps", "zip", "mov", "cc", "mk", "ml", "am", "ac", "in", "so", "java"]);
 
-/** A valid GFM domain: segments of letters, digits, `_` and `-`, at least one period, no `_` in the last two. */
-function validDomain(domain: string): boolean {
+/** Whether `domain` ends in a real top-level domain. */
+export function hasTld(domain: string): boolean {
+  const tld = domain.slice(domain.lastIndexOf(".") + 1).toLowerCase();
+  return TLDS.has(tld);
+}
+
+/**
+ * A valid GFM domain (segments of letters, digits, `_` and `-`, at least one
+ * period, no `_` in the last two) ending in a real top-level domain, or,
+ * where `ip` allows it, an IPv4 address.
+ */
+function validDomain(domain: string, ip = false): boolean {
   const parts = domain.split(".");
   if (parts.length < 2 || parts.some((p) => !/^[\w-]+$/.test(p))) return false;
-  return !parts.slice(-2).some((p) => p.includes("_"));
+  if (parts.slice(-2).some((p) => p.includes("_"))) return false;
+  if (ip && parts.length === 4 && parts.every((p) => /^\d{1,3}$/.test(p) && Number(p) < 256)) return true;
+  return hasTld(domain);
 }
+
+/** A bare domain with an optional port and path: `example.com`, `example.com:8080/a?b=1#c`. */
+const BARE = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+(?::\d{1,5})?(?:[/?#]\S*)?$/i;
 
 /** GFM's extended autolink path end: drop trailing punctuation, unbalanced `)`, entity references. */
 export function trimAutolink(text: string): string {
@@ -69,17 +97,27 @@ export function autolinkAtEnd(text: string): FoundLink | null {
   if (url) {
     const trimmed = trimAutolink(word);
     const rest = trimmed.slice(url[0].length);
+    const www = url[0].toLowerCase() === "www.";
     const domain = /^[\w.-]*/.exec(rest)![0];
-    if (!validDomain(domain)) return null;
-    const href = url[0].toLowerCase() === "www." ? `http://${trimmed}` : trimmed;
+    if (!validDomain(www ? `www.${domain}` : domain, !www)) return null;
+    const href = www ? `http://${trimmed}` : trimmed;
     return { start, end: start + trimmed.length, href };
   }
+  // Any other protocol (ftp:, file:, javascript:, …) is never linked.
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(word)) return null;
   // Email: local part, @, a domain with a period; not ending in - or _.
   const email = /^[\w.+-]+@[\w-]+(?:\.[\w-]+)+/.exec(word.replace(/\.+$/, ""));
   if (email && email[0].length === word.replace(/\.+$/, "").length && !/[-_]$/.test(email[0])) {
+    if (!hasTld(email[0])) return null;
     return { start, end: start + email[0].length, href: `mailto:${email[0]}` };
   }
-  return null;
+  const trimmed = trimAutolink(word);
+  if (!BARE.test(trimmed)) return null;
+  const domain = /^[^:/?#]*/.exec(trimmed)![0];
+  if (!hasTld(domain)) return null;
+  const tld = domain.slice(domain.lastIndexOf(".") + 1).toLowerCase();
+  if (trimmed === domain && FILE_TLDS.has(tld)) return null;
+  return { start, end: start + trimmed.length, href: `https://${trimmed}`, bare: true };
 }
 
 /** Link the URL that ends at `pos` (the caret) in `state`, adding to `tr`. Returns whether it did. */
@@ -102,7 +140,8 @@ export function linkUrlBefore(state: EditorState, tr: Transaction, pos: number):
     return false;
   });
   if (blocked) return false;
-  tr.addMark(from, to, link.create({ href: found.href, ...("form" in (link.spec.attrs ?? {}) ? { form: "literal" } : {}) }));
+  const form = found.bare ? "inline" : "literal";
+  tr.addMark(from, to, link.create({ href: found.href, ...("form" in (link.spec.attrs ?? {}) ? { form } : {}) }));
   return true;
 }
 

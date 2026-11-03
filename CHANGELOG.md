@@ -13,6 +13,7 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 
 ### Fixed
 
+- A chat agent's Keep/Undo is never offered on a file that can't be written.
 - Removed blocks in the combined diff view, and in a chat agent's pending edits, now look exactly like the editor's: list markers, checkboxes, highlighted code, math, tables and the spacing between paragraphs, just not editable. Block quotes and math blocks now get their red or green band too.
 
 ## [0.11.0] - 2026-11-03

@@ -238,7 +238,8 @@ class EditorSession {
   /** Tell the webview about a chat agent's pending edits to the file, when that changed. */
   private pushAgentEdits(): void {
     if (!this.ready || this.agentBusy) return;
-    const original = originalOf(this.document);
+    // Keep/Undo edit the file: none on a file that can't be written.
+    const original = vscode.workspace.fs.isWritableFileSystem(this.document.uri.scheme) === false ? undefined : originalOf(this.document);
     const text = original ? toLF(original.getText()) : null;
     const next = text !== null && text !== toLF(this.document.getText()) ? text : null;
     if (next === this.agentSent) return;

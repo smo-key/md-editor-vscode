@@ -7,6 +7,7 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 ### Changed
 
 - The diff view compares tables cell by cell. Only the rows and columns added or removed are highlighted (an edited cell just marks its changed words), not the whole table, and the combined view shows one table: removed rows and columns are shown struck through in place, and an edited cell shows its old text above the new.
+- The diff view's ↑/↓ buttons step through the changes inside a table: each run of added or removed rows once, the added or removed columns once, and each cell whose text changed.
 - A table's header row stays at the top of the pane, under the toolbar, while you scroll through a long table (in the editor and the diff view).
 
 ### Fixed

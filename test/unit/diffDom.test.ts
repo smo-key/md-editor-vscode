@@ -5,7 +5,7 @@ import { editorViewCtx, parserCtx } from "@milkdown/kit/core";
 import type { EditorView } from "@milkdown/kit/prose/view";
 
 import { combinedWidgets, diffBlocks } from "../../webview/diffModel";
-import { destroyRemovedBlock, removedBlock, removedWidgets, withRemovedViews } from "../../webview/diffDom";
+import { destroyRemovedBlock, removedBlock, removedWidgets, tableStops, withRemovedViews } from "../../webview/diffDom";
 import { mountEditor, stubLayout } from "./editorEnv";
 
 stubLayout();
@@ -65,5 +65,31 @@ describe("removed blocks", () => {
     } finally {
       await ed.destroy();
     }
+  });
+});
+
+describe("change stops in an edited table", () => {
+  const html = (rows: string) => {
+    const block = document.createElement("div");
+    block.className = "milkdown-table-block ken-diff-added ken-diff-edited ken-diff-table";
+    block.innerHTML = `<table></table><table class="children"><tbody>${rows}</tbody></table>`;
+    return block;
+  };
+
+  it("stops once per run of rows, once for the columns, and at each cell whose text changed", () => {
+    const block = html(`
+      <tr><th>A</th><th class="ken-diff-added-part">New</th><th class="ken-diff-removed-part">Old</th></tr>
+      <tr><td>1</td><td class="ken-diff-added-part">x</td><td class="ken-diff-removed-part">y</td></tr>
+      <tr class="ken-diff-added-part ken-diff-row"><td>2</td><td>a</td><td></td></tr>
+      <tr class="ken-diff-added-part ken-diff-row"><td>3</td><td>b</td><td></td></tr>
+      <tr><td class="ken-diff-added-part ken-diff-cell-edited"><p><span class="ken-diff-added-text">4</span></p></td><td class="ken-diff-added-part ken-diff-cell-edited"><p>same text, other alignment</p></td><td></td></tr>
+      <tr class="ken-diff-removed-part ken-diff-row"><td>5</td><td></td><td>c</td></tr>`);
+    const stops = tableStops(block);
+    expect(stops.map((e) => (e.tagName === "TABLE" ? "columns" : e.tagName === "TR" ? `row ${e.textContent!.trim()[0]}` : `cell ${e.textContent}`))).toEqual([
+      "columns",
+      "row 2",
+      "cell 4",
+      "row 5",
+    ]);
   });
 });

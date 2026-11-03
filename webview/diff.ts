@@ -32,7 +32,7 @@ import "./diff.css";
 import { buildEditor } from "./editorSetup";
 import { joinDocument, splitDocument } from "./frontmatterModel";
 import { splitThreads } from "./comments/store";
-import { removedWidgets } from "./diffDom";
+import { removedWidgets, tableStops } from "./diffDom";
 import { combinedWidgets, diffBlocks, layoutDiff, syncedScrollTop, type DiffMark, type RemovedWidget } from "./diffModel";
 import { normalizeTrailingNewlines } from "./markdown/gfmFidelity";
 import { applyTypography, trackScreenHeight } from "./theme";
@@ -424,13 +424,18 @@ const CHANGE = ".ken-diff-added, .ken-diff-removed, .ken-diff-widget, .ken-diff-
 /** Space left above a change scrolled to. */
 const CHANGE_MARGIN = 60;
 
-/** The first element of each run of changed blocks in a pane, top to bottom. */
+/** The first element of each run of changed blocks in a pane, top to bottom (an edited table's own stops inside it). */
 function changeRuns(scroll: HTMLElement): HTMLElement[] {
   const pm = scroll.querySelector(".ProseMirror");
   if (!pm) return [];
   const runs: HTMLElement[] = [];
   let inRun = false;
   for (const el of Array.from(pm.children) as HTMLElement[]) {
+    if (el.classList.contains("ken-diff-table")) {
+      runs.push(...tableStops(el));
+      inRun = false;
+      continue;
+    }
     const changed = el.matches(CHANGE) || el.classList.contains("ken-diff-front");
     if (changed && !inRun) runs.push(el);
     // Widgets ProseMirror adds (cursor wrappers, separators) don't end a run.

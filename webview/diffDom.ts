@@ -195,3 +195,34 @@ export function removedWidgets(host: EditorView, widgets: RemovedWidget[], prefi
   });
   return out;
 }
+
+/** Marks of words (or other content) changed inside a block. */
+const CHANGED_TEXT = ".ken-diff-added-text, .ken-diff-removed-text, .ken-diff-cell-old";
+
+/**
+ * The stops inside an edited table: each run of added or removed rows, the
+ * table itself for its added or removed columns (their header cells stick to
+ * the top, so the table is where they are), and each cell whose text changed.
+ * A row or column wholly added or removed is one stop, not one per cell.
+ */
+export function tableStops(block: HTMLElement): HTMLElement[] {
+  const table = block.querySelector<HTMLElement>("table.children");
+  if (!table) return [block];
+  const stops: HTMLElement[] = [];
+  let inRows = false;
+  Array.from(table.querySelectorAll<HTMLTableRowElement>(":scope > tbody > tr, :scope > tr")).forEach((tr, i) => {
+    if (tr.classList.contains("ken-diff-row")) {
+      if (!inRows) stops.push(tr);
+      inRows = true;
+      return;
+    }
+    inRows = false;
+    for (const cell of Array.from(tr.children) as HTMLElement[]) {
+      const column = /ken-diff-(added|removed)-part/.test(cell.className) && !cell.classList.contains("ken-diff-cell-edited");
+      if (column) {
+        if (i === 0 && !stops.includes(table)) stops.push(table);
+      } else if (cell.querySelector(CHANGED_TEXT)) stops.push(cell);
+    }
+  });
+  return stops;
+}

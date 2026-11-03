@@ -61,7 +61,7 @@ describe("agent edits in the editor (webview/agentEdits.ts)", () => {
     setAgentOriginal(ORIGINAL);
     expect(agentEdits.pending()).toBe(true);
     expect(root.querySelectorAll(".ken-agent-hunk")).toHaveLength(2);
-    expect(root.querySelectorAll(".ken-diff-widget.ken-diff-removed")).toHaveLength(2);
+    expect(root.querySelectorAll(".ken-diff-widget .ken-diff-removed")).toHaveLength(2);
     expect(root.querySelectorAll(".ken-diff-added")).toHaveLength(2);
     expect(document.querySelector(".ken-agent-count")?.textContent).toBe("1 of 2");
 

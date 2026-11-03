@@ -17,6 +17,7 @@ import type { EditorView } from "@milkdown/kit/prose/view";
 import { AUTO_PRINT_SCRIPT } from "../src/printScript";
 import { isMathLanguage, renderMathPreview } from "./markdown/math";
 import { renderMermaidPreview } from "./markdown/mermaid";
+import { withRemovedViews } from "./diffDom";
 
 /** Editor chrome that is not part of the document. */
 const CHROME = [
@@ -300,9 +301,12 @@ export interface PrintColumn {
 
 /** A clean copy of a column's content as shown now: chrome removed, previews rendered, images inlined. */
 async function printableClone(content: HTMLElement, doc: Document, cache: Map<string, Promise<string>>, view?: EditorView): Promise<HTMLElement> {
-  if (view) await buildCodeBlocks(view);
+  // The diff view's removed blocks are views of their own, inside the column's.
+  const views = view ? withRemovedViews(view) : [];
+  await Promise.all(views.map((v) => buildCodeBlocks(v)));
   await diagramsReady(content);
-  const unlabel = view ? labelCodeBlocks(view) : () => undefined;
+  const unlabels = views.map(labelCodeBlocks);
+  const unlabel = () => unlabels.forEach((u) => u());
   const clone = content.cloneNode(true) as HTMLElement;
   unlabel();
   await renderMissingPreviews(clone);

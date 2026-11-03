@@ -42,7 +42,7 @@ async function openEditor(uri: vscode.Uri): Promise<vscode.TextDocument> {
     90000,
   );
   // The editor mounts asynchronously after the webview reports ready.
-  await until("editor mounted", () => webview(uri, { kind: "count", selector: ".milkdown .ProseMirror" }), (n) => n === 1);
+  await until("editor mounted", () => webview(uri, { kind: "count", selector: ".milkdown .ProseMirror:not(.ken-diff-widget-view)" }), (n) => n === 1);
   return vscode.workspace.openTextDocument(uri);
 }
 
@@ -234,7 +234,7 @@ describe("Ken Markdown Editor", function () {
       );
       const doc = await openEditor(uri);
       await until("changes shown", () => webview(uri, { kind: "count", selector: ".ken-agent-hunk" }), (n) => n === 2);
-      assert.strictEqual(await webview(uri, { kind: "count", selector: ".ken-diff-widget.ken-diff-removed" }), 2);
+      assert.strictEqual(await webview(uri, { kind: "count", selector: ".ken-diff-widget .ken-diff-removed" }), 2);
       assert.strictEqual(await webview(uri, { kind: "getText", selector: ".ken-agent-count" }), "1 of 2");
 
       // Undo the second change (the added paragraph): the file loses just that.

@@ -8,7 +8,7 @@
 import type { Crepe } from "@milkdown/crepe";
 import { editorViewCtx, parserCtx, serializerCtx } from "@milkdown/kit/core";
 import type { Ctx } from "@milkdown/kit/ctx";
-import { DOMSerializer, type Node as ProseNode } from "@milkdown/kit/prose/model";
+import type { Node as ProseNode } from "@milkdown/kit/prose/model";
 import { Plugin, PluginKey } from "@milkdown/kit/prose/state";
 import { Decoration, DecorationSet, type EditorView } from "@milkdown/kit/prose/view";
 import { $prose } from "@milkdown/kit/utils";
@@ -32,7 +32,7 @@ import "./diff.css";
 import { buildEditor } from "./editorSetup";
 import { joinDocument, splitDocument } from "./frontmatterModel";
 import { splitThreads } from "./comments/store";
-import { removedBlock } from "./diffDom";
+import { removedWidgets } from "./diffDom";
 import { combinedWidgets, diffBlocks, layoutDiff, syncedScrollTop, type DiffMark, type RemovedWidget } from "./diffModel";
 import { normalizeTrailingNewlines } from "./markdown/gfmFidelity";
 import { applyTypography, trackScreenHeight } from "./theme";
@@ -87,17 +87,7 @@ function decorations(view: EditorView, h: Highlights, side: DiffSideName | "comb
     if (m.anchor) attrs["data-diff-anchor"] = m.anchor;
     decos.push(m.block ? Decoration.node(m.from, m.to, attrs) : Decoration.inline(m.from, m.to, attrs));
   }
-  const serializer = DOMSerializer.fromSchema(schema);
-  h.widgets.forEach((w, i) => {
-    const pos = Math.min(w.pos, size);
-    decos.push(
-      Decoration.widget(
-        pos,
-        () => removedBlock(serializer, w),
-        { side: -1, key: `rm-${i}-${w.part?.kind ?? "block"}-${w.entry.node.textContent.length}-${w.entry.node.type.name}`, ignoreSelection: true },
-      ),
-    );
-  });
+  decos.push(...removedWidgets(view, h.widgets, "rm", [diffKey]));
   if (h.front && h.front.show.length) {
     decos.push(Decoration.widget(0, () => frontWidget(h.front!, side), { side: -10, key: `front-${h.front.old.length}-${h.front.new.length}` }));
   }

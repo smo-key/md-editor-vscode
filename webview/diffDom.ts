@@ -1,6 +1,8 @@
 // DOM pieces shared by the diff view (diff.ts) and a chat agent's pending
 // edits in the editor (agentEdits.ts).
-import type { DOMSerializer, Node as ProseNode } from "@milkdown/kit/prose/model";
+import { DOMSerializer, type Node as ProseNode } from "@milkdown/kit/prose/model";
+import { EditorState, Plugin, TextSelection, type PluginKey } from "@milkdown/kit/prose/state";
+import { Decoration, DecorationSet, EditorView } from "@milkdown/kit/prose/view";
 import type { RemovedWidget, TablePart } from "./diffModel";
 
 /** Wrap the text between offsets `[from, to)` of `root`'s text in spans of `className`. */
@@ -57,20 +59,139 @@ function tablePart(serializer: DOMSerializer, part: TablePart, words: [number, n
   return box;
 }
 
-/** A removed block, drawn as it was (not editable), its removed words marked. */
-export function removedBlock(serializer: DOMSerializer, w: RemovedWidget): HTMLElement {
+/** The read-only views drawing removed blocks, by their widget's element, to destroy with it. */
+const blockViews = new WeakMap<HTMLElement, EditorView>();
+
+const keyName = (k: Plugin | PluginKey) => (k as unknown as { key: string }).key;
+
+/**
+ * A removed block, drawn exactly as the editor draws it (the same node views,
+ * decorations and styles) but not editable, its removed words marked: a
+ * read-only view of a document holding only that block, with the plugins of
+ * `host` (without their views) except `skip` (the caller's own diff highlights).
+ * Pieces of an edited table are table rows and cells, drawn as plain HTML.
+ */
+export function removedBlock(host: EditorView, w: RemovedWidget, skip: PluginKey[] = []): HTMLElement {
   if (w.part) {
-    const el = tablePart(serializer, w.part, w.words);
+    const el = tablePart(DOMSerializer.fromSchema(host.state.schema), w.part, w.words);
     el.contentEditable = "false";
     return el;
   }
   const box = document.createElement("div");
-  box.className = `ken-diff-removed ken-diff-widget${w.entry.pair ? " ken-diff-edited" : ""}`;
+  box.className = "ken-diff-widget";
   box.contentEditable = "false";
-  const dom = serializer.serializeNode(w.entry.node);
-  // A table of contents looks as it does in the editor (its class comes from a decoration there).
-  if (w.entry.node.type.name === "bullet_list" && w.entry.node.attrs.toc === true && dom instanceof HTMLElement) dom.classList.add("ken-toc");
-  box.append(dom);
-  highlightText(box, w.words, "ken-diff-removed-text");
+  const node = w.entry.node;
+  const skipped = new Set(skip.map(keyName));
+  // A plugin's view is its UI (menus, toolbars, handles): copies without one keep its decorations and attributes.
+  const plugins = host.state.plugins.filter((p) => !skipped.has(keyName(p))).map((p) => (p.spec.view ? new Plugin({ ...p.spec, view: undefined }) : p));
+  // The block before it, hidden, so the rules that space a block by what precedes it (`p + h2`) apply as in the editor.
+  // Not a block with a view of its own (a table, code): those are costly to draw, and no such rule depends on them.
+  const before = w.before && !host.props.nodeViews?.[w.before.type.name] ? w.before : null;
+  // And a hidden paragraph after it to hold the caret, which would otherwise be in the block (opening a math block's source).
+  const { schema } = host.state;
+  const after = schema.nodes.paragraph!.create();
+  const blocks = before ? [before, node, after] : [node, after];
+  const doc = schema.topNodeType.create(null, blocks);
+  const state = EditorState.create({ schema, doc, plugins, selection: TextSelection.create(doc, doc.content.size - 1) });
+  const at = before ? before.nodeSize : 0;
+  const end = at + node.nodeSize;
+  const cls = `ken-diff-removed${w.entry.pair ? " ken-diff-edited" : ""}`;
+  const decos = DecorationSet.create(state.doc, [
+    ...(before ? [Decoration.node(0, at, { class: "ken-diff-context" })] : []),
+    Decoration.node(end, end + after.nodeSize, { class: "ken-diff-context" }),
+    Decoration.node(at, at + node.nodeSize, { class: cls }),
+    ...(w.changes ?? []).filter((r) => r.to > r.from).map((r) => Decoration.inline(at + r.from, at + r.to, { class: "ken-diff-removed-text" })),
+  ]);
+  const view = new EditorView(box, {
+    state,
+    editable: () => false,
+    // Nothing typed, toggled or dropped here changes anything.
+    dispatchTransaction: () => {},
+    nodeViews: host.props.nodeViews,
+    markViews: host.props.markViews,
+    decorations: () => decos,
+  });
+  view.dom.classList.add("ken-diff-widget-view");
+  blockViews.set(box, view);
   return box;
+}
+
+/** `view` and the views drawing removed blocks inside it (for printing, which builds and labels their code blocks too). */
+export function withRemovedViews(view: EditorView): EditorView[] {
+  const inner = Array.from(view.dom.querySelectorAll<HTMLElement>(".ken-diff-widget"), (box) => blockViews.get(box));
+  return [view, ...inner.filter((v): v is EditorView => !!v)];
+}
+
+/** Release a removed block's view: the widget's `destroy`. */
+export function destroyRemovedBlock(dom: Node) {
+  if (!(dom instanceof HTMLElement)) return;
+  blockViews.get(dom)?.destroy();
+  blockViews.delete(dom);
+}
+
+/** A widget key that changes whenever what the widget draws does (so its view is rebuilt), and only then. */
+export function removedKey(prefix: string, i: number, w: RemovedWidget): string {
+  const text = `${w.part?.kind ?? "block"}|${w.before?.type.name ?? ""}|${w.entry.node.toString()}|${JSON.stringify(w.words)}`;
+  let h = 0;
+  for (let k = 0; k < text.length; k++) h = (Math.imul(h, 31) + text.charCodeAt(k)) | 0;
+  return `${prefix}-${i}-${(h >>> 0).toString(36)}`;
+}
+
+/** The element a block is drawn as, for the rules that match on it: `p`, `ul`, `h2`… */
+function tagOf(node: ProseNode): string {
+  switch (node.type.name) {
+    case "paragraph":
+      return "p";
+    case "heading":
+      return `h${Math.min(6, Math.max(1, Number(node.attrs.level) || 1))}`;
+    case "bullet_list":
+      return "ul";
+    case "ordered_list":
+      return "ol";
+    case "blockquote":
+      return "blockquote";
+    case "hr":
+      return "hr";
+    default:
+      return "div";
+  }
+}
+
+/**
+ * The combined view's removed blocks as widgets of `host`. After the last of
+ * them at a position goes a hidden stand-in for it (the element it is drawn
+ * as), so the block after it is spaced as if the removed block were there.
+ * `wrap` adjusts each element (the agent edits mark theirs to skip printing).
+ */
+export function removedWidgets(host: EditorView, widgets: RemovedWidget[], prefix: string, skip: PluginKey[], wrap: (el: HTMLElement) => HTMLElement = (el) => el): Decoration[] {
+  const size = host.state.doc.content.size;
+  const out: Decoration[] = [];
+  widgets.forEach((w, i) => {
+    const pos = Math.min(w.pos, size);
+    out.push(
+      Decoration.widget(pos, () => wrap(removedBlock(host, w, skip)), {
+        side: -1,
+        key: removedKey(prefix, i, w),
+        ignoreSelection: true,
+        stopEvent: () => true,
+        destroy: destroyRemovedBlock,
+      }),
+    );
+    const next = widgets[i + 1];
+    if (w.part || (next && Math.min(next.pos, size) === pos && !next.part)) return;
+    const tag = tagOf(w.entry.node);
+    out.push(
+      Decoration.widget(
+        pos,
+        () => {
+          const el = document.createElement(tag);
+          el.className = "ken-diff-standin";
+          el.hidden = true;
+          return el;
+        },
+        { side: -0.5, key: `${prefix}-standin-${i}-${tag}`, ignoreSelection: true },
+      ),
+    );
+  });
+  return out;
 }

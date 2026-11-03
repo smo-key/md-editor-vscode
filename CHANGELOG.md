@@ -9,6 +9,10 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 - The diff view compares tables cell by cell. Only the rows and columns added or removed are highlighted (an edited cell just marks its changed words), not the whole table, and the combined view shows one table: removed rows and columns are shown struck through in place, and an edited cell shows its old text above the new.
 - A table's header row stays at the top of the pane, under the toolbar, while you scroll through a long table (in the editor and the diff view).
 
+### Fixed
+
+- Removed blocks in the combined diff view, and in a chat agent's pending edits, now look exactly like the editor's: list markers, checkboxes, highlighted code, math, tables and the spacing between paragraphs, just not editable. Block quotes and math blocks now get their red or green band too.
+
 ## [0.11.0] - 2026-11-03
 
 ### Changed

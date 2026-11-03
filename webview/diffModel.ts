@@ -507,6 +507,10 @@ export interface RemovedWidget {
   entry: BlockEntry;
   /** Text offsets (in the block's text, or the cell's for `cell-old`) of the words removed from an edited block. */
   words: [number, number][];
+  /** The same words as positions in the block (0 = before it). */
+  changes?: { from: number; to: number }[];
+  /** The block shown just before this one in the combined view (for the spacing that depends on it). */
+  before?: ProseNode;
   /** Set for a piece of an edited table, placed inside the new table; the whole block otherwise. */
   part?: TablePart;
 }
@@ -573,15 +577,18 @@ function tableWidgets(entry: BlockEntry, start: number, out: RemovedWidget[]) {
 export function combinedWidgets(entries: BlockEntry[]): RemovedWidget[] {
   const out: RemovedWidget[] = [];
   let pos = 0;
+  let before: ProseNode | undefined;
   for (const entry of entries) {
     if (entry.kind === "removed") {
       if (entry.table) continue;
       const doc = entry.node.type.schema.topNodeType.create(null, entry.node);
-      out.push({ pos, entry, words: textOffsets(doc, innerChanges(entry)) });
+      const changes = innerChanges(entry);
+      out.push({ pos, entry, words: textOffsets(doc, changes), changes, ...(before ? { before } : {}) });
     } else {
       if (entry.table) tableWidgets(entry, pos, out);
       pos += entry.node.nodeSize;
     }
+    before = entry.node;
   }
   return out;
 }

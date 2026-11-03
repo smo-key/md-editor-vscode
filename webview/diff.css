@@ -139,6 +139,13 @@
 .milkdown .ProseMirror .ken-diff-removed::before {
   background: var(--diff-removed-edge);
 }
+/* Block quotes and math blocks are otherwise transparent (styles.css): the band still shows. */
+.measure .milkdown .ProseMirror .ken-diff-added:is(blockquote, .milkdown-code-block) {
+  background: var(--diff-added-bg);
+}
+.measure .milkdown .ProseMirror .ken-diff-removed:is(blockquote, .milkdown-code-block) {
+  background: var(--diff-removed-bg);
+}
 /* An edited block's own changes stand out more than the band. */
 .milkdown .ProseMirror .ken-diff-added-text {
   background: var(--diff-added-text);
@@ -154,15 +161,20 @@
   text-decoration: line-through;
   opacity: 0.8;
 }
-/* Removed blocks in the combined view, and changed frontmatter: shown, not edited. */
+/* A removed block in the combined view: a read-only view of its own (diffDom.ts), drawn as the editor draws it. */
 .milkdown .ProseMirror .ken-diff-widget {
-  margin: 4px 0;
   user-select: none;
 }
-.ken-diff-pane[data-side="combined"] .milkdown .ProseMirror .ken-diff-widget:not(.ken-diff-edited) {
-  text-decoration: line-through;
-  opacity: 0.8;
+.milkdown .ProseMirror .ken-diff-widget > .ken-diff-widget-view {
+  padding: 0;
+  margin: 0;
+  outline: none;
 }
+/* Hidden blocks that are only there for the rules spacing a block by its neighbour. */
+.milkdown .ProseMirror :is(.ken-diff-context, .ken-diff-standin) {
+  display: none !important;
+}
+/* Changed frontmatter: shown, not edited. */
 .milkdown .ProseMirror .ken-diff-front pre {
   position: relative;
   margin: 4px 0;
@@ -170,19 +182,6 @@
   font-family: var(--font-mono);
   font-size: 0.85em;
   white-space: pre-wrap;
-}
-/* A removed list is plain HTML (no list item views): give it its markers back. */
-.milkdown .ProseMirror .ken-diff-widget :is(ul, ol) {
-  padding-left: 1.6em;
-}
-.milkdown .ProseMirror .ken-diff-widget ul > li {
-  list-style: disc;
-}
-.milkdown .ProseMirror .ken-diff-widget ol > li {
-  list-style: decimal;
-}
-.milkdown .ProseMirror .ken-diff-widget li::before {
-  display: none;
 }
 /* Printed and exported (print.ts): each pane's column, without the editor's chrome. */
 body.ken-print .ken-diff-pane {
@@ -320,30 +319,6 @@ body[data-toolbar="bottom"] .ken-agent-bar {
 .milkdown .ProseMirror ul.ken-toc.ken-diff-removed {
   --toc-edge: var(--diff-removed-edge);
   --toc-bg: var(--diff-removed-bg);
-}
-/* A removed table of contents: an index, not a bulleted list; its links read as gone without each being struck through. */
-.milkdown .ProseMirror .ken-diff-widget ul.ken-toc li {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-.milkdown .ProseMirror .ken-diff-widget ul.ken-toc {
-  padding-left: 0;
-}
-.milkdown .ProseMirror .ken-diff-widget ul.ken-toc ul {
-  padding-left: 1.75em;
-}
-/* Spaced as the live table of contents is (Crepe's paragraph rules apply there). */
-.measure .milkdown .ProseMirror .ken-diff-widget ul.ken-toc p {
-  margin: 0;
-  padding: 1px 0;
-  line-height: 1.6;
-}
-.milkdown .ProseMirror .ken-diff-widget:has(> ul.ken-toc) {
-  text-decoration: none;
-}
-.milkdown .ProseMirror .ken-diff-widget:has(> ul.ken-toc) .ken-diff-removed-text {
-  text-decoration: line-through;
 }
 
 /* An edited table (diffModel's table diff): only the rows, columns and cells that changed are marked, not the table. */

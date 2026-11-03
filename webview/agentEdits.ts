@@ -4,12 +4,12 @@
 // run of changes with its own Keep/Undo, and a bar for the whole file with
 // Keep, Undo and the way from change to change. The host (src/agentEditsHost.ts)
 // does the keeping and undoing, through VS Code, so the chat stays in step.
-import { DOMSerializer, type Node as ProseNode } from "@milkdown/kit/prose/model";
+import type { Node as ProseNode } from "@milkdown/kit/prose/model";
 import { Plugin, PluginKey } from "@milkdown/kit/prose/state";
 import { Decoration, DecorationSet, type EditorView } from "@milkdown/kit/prose/view";
 import { $prose } from "@milkdown/kit/utils";
 import { combinedWidgets, diffBlocks, layoutDiff, type BlockEntry } from "./diffModel";
-import { removedBlock } from "./diffDom";
+import { removedWidgets } from "./diffDom";
 import { scrollParent, scrollQuickly } from "./smoothScroll";
 import "./diff.css";
 
@@ -158,7 +158,7 @@ function frontBox(front: NonNullable<AgentHunk["front"]>): HTMLElement {
 
 function compute(v: EditorView): State {
   if (!original) return { decos: DecorationSet.empty, hunks: [] };
-  const { doc, schema } = v.state;
+  const { doc } = v.state;
   if (!original.front && !original.doc.textContent && original.doc.childCount <= 1 && (doc.textContent || host!.front())) {
     const banner = () => {
       const el = document.createElement("div");
@@ -181,16 +181,7 @@ function compute(v: EditorView): State {
     const attrs = { class: `${m.className} ken-agent-mark` };
     decos.push(m.block ? Decoration.node(m.from, m.to, attrs) : Decoration.inline(m.from, m.to, attrs));
   }
-  const serializer = DOMSerializer.fromSchema(schema);
-  combinedWidgets(entries).forEach((w, i) => {
-    decos.push(
-      Decoration.widget(Math.min(w.pos, size), () => skipInPrint(removedBlock(serializer, w)), {
-        side: -1,
-        key: `agent-rm-${i}-${w.part?.kind ?? "block"}-${w.entry.node.textContent.length}-${w.entry.node.type.name}`,
-        ignoreSelection: true,
-      }),
-    );
-  });
+  decos.push(...removedWidgets(v, combinedWidgets(entries), "agent-rm", [key], skipInPrint));
   list.forEach((h, i) => {
     const at = Math.min(h.from, size);
     // The run's Keep/Undo first, over the top of what changed.

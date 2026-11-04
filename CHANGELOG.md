@@ -4,6 +4,8 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-11-04
+
 ### Changed
 
 - The diff view compares tables cell by cell. Only the rows and columns added or removed are highlighted (an edited cell just marks its changed words), not the whole table, and the combined view shows one table: removed rows and columns are shown struck through in place, and an edited cell shows its old text above the new.

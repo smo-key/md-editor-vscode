@@ -368,6 +368,59 @@ describe("Ken Markdown Editor", function () {
     }
   });
 
+  it("keeps an agent's version steady in the comparison while the file is edited", async function () {
+    this.timeout(60000);
+    const original = "# Agent\n\nAlpha one.\n\nBeta two.\n";
+    const edited = "# Agent\n\nAlpha one changed.\n\nBeta two.\n";
+    const uri = fixture("agent-host-typing.md");
+    fs.writeFileSync(uri.fsPath, edited);
+    // An agent host's version of the file, which may read back differently
+    // (empty, or as the file is now) while the file is being edited.
+    let served = original;
+    const changed = new vscode.EventEmitter<vscode.FileChangeEvent[]>();
+    const enc = new TextEncoder();
+    const hostFs = vscode.workspace.registerFileSystemProvider(
+      "ken-test-agent-host-typing",
+      {
+        onDidChangeFile: changed.event,
+        watch: () => new vscode.Disposable(() => undefined),
+        stat: () => ({ type: vscode.FileType.File, ctime: 0, mtime: Date.now(), size: enc.encode(served).length }),
+        readFile: () => enc.encode(served),
+        readDirectory: () => [],
+        createDirectory: () => undefined,
+        writeFile: () => undefined,
+        delete: () => undefined,
+        rename: () => undefined,
+      },
+      { isReadonly: true },
+    );
+    const old = vscode.Uri.from({ scheme: "ken-test-agent-host-typing", path: uri.path, query: "_v=baseline" });
+    const query = () => vscode.commands.executeCommand<number[]>("kenMarkdown._testDiffQuery", [".ken-diff-banner:not([hidden])", ".ken-diff-added, .ken-diff-removed"]);
+    try {
+      await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+      await vscode.commands.executeCommand("kenMarkdown.compare", old, [old, uri]);
+      await until("marked", query, (r) => r?.[0] === 0 && (r?.[1] ?? 0) > 0);
+      const doc = await vscode.workspace.openTextDocument(uri);
+      let n = 0;
+      for (const next of ["", () => doc.getText()]) {
+        served = typeof next === "string" ? next : next();
+        changed.fire([{ type: vscode.FileChangeType.Changed, uri: old }]);
+        const edit = new vscode.WorkspaceEdit();
+        edit.insert(uri, doc.positionAt(doc.getText().length), `Typed ${++n}.\n`);
+        await vscode.workspace.applyEdit(edit);
+        await sleep(1200);
+        const r = await query();
+        assert.strictEqual(r?.[0], 0, `no banner after the version read ${JSON.stringify(served)}`);
+        assert.ok((r?.[1] ?? 0) > 0, `still marked after the version read ${JSON.stringify(served)}`);
+      }
+    } finally {
+      hostFs.dispose();
+      changed.dispose();
+      await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+      fs.rmSync(uri.fsPath, { force: true });
+    }
+  });
+
   it("shows a change written to the file on disk", async function () {
     this.timeout(180000);
     const fs = await import("fs");

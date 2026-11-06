@@ -356,6 +356,27 @@ class DiffPanel {
     this.timer = setTimeout(() => void this.refresh(head), head ? 0 : 300);
   }
 
+  /** The tool versions read so far (by URI), each kept as it first read. */
+  private readonly versions = new Map<string, string>();
+
+  /**
+   * A side's text. A tool's version (an agent's or a chat's snapshot of the
+   * file) is fixed, so it is read once: re-read while the file is edited, an
+   * agent host's version can come back empty or as the file is now, which
+   * flipped the view to "added" or to no changes and back as the user typed.
+   * The chat's original (Keep/Undo) does change; it is read each time.
+   */
+  private async readVersion(u: vscode.Uri, read: (u: vscode.Uri) => Promise<string | null>): Promise<string | null> {
+    if (isFile(u) || u.scheme === ORIGINAL_SCHEME) return read(u);
+    const key = u.toString();
+    const kept = this.versions.get(key);
+    if (kept !== undefined) return kept;
+    const text = await read(u);
+    // Empty may be a read that came too early; kept only once it has text.
+    if (text) this.versions.set(key, text);
+    return text;
+  }
+
   private async content(head: boolean): Promise<DiffContent> {
     /** A document's text, or null when it doesn't exist. */
     const read = async (u: vscode.Uri) => {
@@ -370,7 +391,7 @@ class DiffPanel {
       return { oldText: "", newText, oldLabel: "", newLabel: describe(this.uri), status: "added" };
     }
     if (this.source.kind === "pair") {
-      const [oldText, newText] = await Promise.all([read(this.source.old), read(this.source.new)]);
+      const [oldText, newText] = await Promise.all([this.readVersion(this.source.old, read), this.readVersion(this.source.new, read)]);
       return {
         oldText: oldText ?? "",
         newText: newText ?? "",

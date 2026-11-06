@@ -47,6 +47,11 @@ import type { DiffContent, DiffHostMessage, DiffLayoutMode, DiffReadOnly, DiffSi
 declare function acquireVsCodeApi(): { postMessage(message: unknown): void };
 const vscode = acquireVsCodeApi();
 const post = (m: DiffWebviewMessage) => vscode.postMessage(m);
+/** Each side's edits sent to the host, counted. */
+const sent: Record<DiffSideName, number> = { old: 0, new: 0 };
+function sendEdit(side: DiffSideName, text: string) {
+  post({ type: "diffEdit", side, text, seq: ++sent[side] });
+}
 
 trackScreenHeight();
 
@@ -235,7 +240,7 @@ function edited(side: Side) {
     if (text !== side.shown) {
       side.shown = text;
       texts[side.role] = text;
-      post({ type: "diffEdit", side: side.role, text });
+      sendEdit(side.role, text);
     }
     highlightAll();
   }, 250);
@@ -390,7 +395,7 @@ function setLayout(next: DiffLayoutMode) {
     const text = serialize(s);
     if (text !== s.shown) {
       texts[s.role] = text;
-      post({ type: "diffEdit", side: s.role, text });
+      sendEdit(s.role, text);
     }
   }
   layout = next;
@@ -546,8 +551,11 @@ setPrintHandler(() => {
 });
 setExportHandler(() => post({ type: "export" }));
 
-function onContent(m: DiffContent) {
+function onContent(m: DiffContent & { seen?: Record<DiffSideName, number> }) {
   setLabels(m);
+  // A side edited here since the host read it shows newer text than this; the
+  // host sends the update for that edit once it has applied it.
+  const stale = (role: DiffSideName) => !!m.seen && m.seen[role] < sent[role];
   if (m.status !== status) {
     // Now new or gone, or back to two versions: redraw.
     status = m.status;
@@ -557,6 +565,7 @@ function onContent(m: DiffContent) {
     return;
   }
   for (const role of ["old", "new"] as const) {
+    if (stale(role)) continue;
     texts[role] = m[`${role}Text`];
     for (const s of sides) if (s.role === role) applyText(s, texts[role]);
   }
@@ -641,7 +650,7 @@ window.addEventListener("blur", () => {
     if (text !== s.shown) {
       s.shown = text;
       texts[s.role] = text;
-      post({ type: "diffEdit", side: s.role, text });
+      sendEdit(s.role, text);
     }
   }
 });

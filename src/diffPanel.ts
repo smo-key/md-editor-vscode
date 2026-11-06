@@ -490,9 +490,21 @@ class DiffPanel {
     }
   }
 
+  /** The last edit of each side from the view that has been applied, and how many are on their way. */
+  private readonly seen: Record<DiffSideName, number> = { old: 0, new: 0 };
+  private pendingEdits = 0;
+  /** A refresh put off while edits were on their way (`head`: with the committed version). */
+  private deferred: boolean | undefined;
+
   private async refresh(head: boolean) {
     if (!this.ready) return;
-    this.post({ type: "diffUpdate", ...(await this.content(head)) });
+    // The view's own edits first: text read before they land is older than what it shows.
+    if (this.pendingEdits > 0) {
+      this.deferred = !!this.deferred || head;
+      return;
+    }
+    const seen = { ...this.seen };
+    this.post({ type: "diffUpdate", seen, ...(await this.content(head)) });
   }
 
   async onMessage(m: DiffWebviewMessage) {
@@ -522,9 +534,17 @@ class DiffPanel {
         this.tests.delete(m.id);
         return;
       case "diffEdit":
+        this.pendingEdits++;
         this.editChain = this.editChain
           .then(() => this.applyEdit(m.side, m.text))
-          .catch((err) => void vscode.window.showErrorMessage(`Ken Markdown: could not apply edit: ${err}`));
+          .catch((err) => void vscode.window.showErrorMessage(`Ken Markdown: could not apply edit: ${err}`))
+          .finally(() => {
+            if (m.seq) this.seen[m.side] = Math.max(this.seen[m.side], m.seq);
+            if (--this.pendingEdits > 0 || this.deferred === undefined) return;
+            const head = this.deferred;
+            this.deferred = undefined;
+            this.schedule(head);
+          });
         return;
       case "focus":
         if (this.focused !== m.focused) {

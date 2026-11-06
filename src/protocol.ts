@@ -249,7 +249,11 @@ export type DiffHostMessage =
       shortcuts: ShortcutLabels;
       keys: ShortcutKeys;
     } & DiffContent)
-  | ({ type: "diffUpdate" } & DiffContent)
+  /**
+   * `seen`: the last edit (`diffEdit` seq) of each side the host had applied
+   * when it read the texts; a side the view has edited since is stale.
+   */
+  | ({ type: "diffUpdate"; seen?: Record<DiffSideName, number> } & DiffContent)
   | { type: "config"; config: EditorConfig }
   /** Run an editor command (webview/commands.ts id) in the focused side. */
   | { type: "command"; id: string }
@@ -266,7 +270,8 @@ export type DiffWebviewMessage =
   | { type: "diffReady" }
   | { type: "diffLayout"; layout: DiffLayoutMode }
   /** A side was edited: its full new text (LF). */
-  | { type: "diffEdit"; side: DiffSideName; text: string }
+  /** `seq` counts the side's edits, so the view can tell updates that predate one. */
+  | { type: "diffEdit"; side: DiffSideName; text: string; seq?: number }
   | { type: "focus"; focused: boolean }
   | { type: "readClipboard"; id: number }
   | { type: "print"; html: string; name: string }

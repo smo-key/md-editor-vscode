@@ -7,6 +7,7 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 ### Fixed
 
 - Typing in the comparison of an AI agent's changes (for example Copilot's agent sessions) no longer makes it flash between the marked changes and the plain text: the agent's version is read once and kept, instead of re-read on every pause in typing, when it could briefly come back empty or the same as the file.
+- Typing quickly in the diff view no longer briefly loses the last words typed: an update that predates the view's latest edit is no longer applied over it.
 
 ## [0.12.0] - 2026-11-04
 

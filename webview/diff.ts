@@ -97,7 +97,7 @@ function decorations(view: EditorView, h: Highlights, side: DiffSideName | "comb
   }
   decos.push(...removedWidgets(view, h.widgets, "rm", [diffKey]));
   if (h.front && h.front.show.length) {
-    decos.push(Decoration.widget(0, () => frontWidget(h.front!, side), { side: -10, key: `front-${h.front.old.length}-${h.front.new.length}` }));
+    decos.push(Decoration.widget(0, () => frontWidget(h.front!, side), { side: -10, key: `front-${h.front.old.length}-${h.front.new.length}`, ignoreSelection: true, stopEvent: () => true }));
   }
   return DecorationSet.create(doc, decos);
 }

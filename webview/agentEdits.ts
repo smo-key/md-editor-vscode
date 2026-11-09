@@ -187,7 +187,7 @@ function compute(v: EditorView): State {
     const at = Math.min(h.from, size);
     // The run's Keep/Undo first, over the top of what changed.
     decos.push(Decoration.widget(at, () => actions(i), { side: -3, key: `agent-hunk-${i}-${list.length}`, ignoreSelection: true }));
-    if (h.front) decos.push(Decoration.widget(at, () => frontBox(h.front!), { side: -2, key: `agent-front-${h.front.old.length}-${h.front.new.length}` }));
+    if (h.front) decos.push(Decoration.widget(at, () => frontBox(h.front!), { side: -2, key: `agent-front-${h.front.old.length}-${h.front.new.length}`, ignoreSelection: true, stopEvent: () => true }));
   });
   return { decos: DecorationSet.create(doc, decos), hunks: list };
 }

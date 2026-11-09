@@ -8,6 +8,10 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 
 - An outline of the document's headings, opened from a new toolbar button left of Undo (or **Show or Hide Outline** in the Command Palette). It sits at the left, indented by heading level, and highlights the section you are reading as you scroll; clicking a heading goes to it. The text moves right to make room, and dragging the outline's edge resizes it. Whether it is open and its width are remembered. When the window is too narrow for both, the outline opens over the text instead, with a close button, and closes once you pick a heading, click outside it or press Escape. The diff view shows it in the Combined layout.
 
+### Fixed
+
+- Removed (red) content can be selected and copied: whole removed blocks, removed words, table rows and cells, and old frontmatter, in the diff view and in a chat agent's edits shown in the editor. Keys pressed while it is selected no longer edit the document at the caret elsewhere.
+
 ## [0.12.1] - 2026-11-08
 
 ### Fixed

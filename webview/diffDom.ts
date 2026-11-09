@@ -110,11 +110,15 @@ export function removedBlock(host: EditorView, w: RemovedWidget, skip: PluginKey
         return m.block ? Decoration.node(m.from, m.to, attrs) : Decoration.inline(m.from, m.to, attrs);
       }),
   ]);
-  const view = new EditorView(box, {
+  const view: EditorView = new EditorView(box, {
     state,
     editable: () => false,
-    // Nothing typed, toggled or dropped here changes anything.
-    dispatchTransaction: () => {},
+    // Nothing typed, toggled or dropped here changes anything, but its text can
+    // be selected (and copied): a selection is kept, or the view would put its
+    // own back over the one just made.
+    dispatchTransaction: (tr) => {
+      if (!tr.docChanged) view.updateState(view.state.apply(tr));
+    },
     nodeViews: host.props.nodeViews,
     markViews: host.props.markViews,
     decorations: () => decos,
@@ -172,6 +176,7 @@ function tagOf(node: ProseNode): string {
  * `wrap` adjusts each element (the agent edits mark theirs to skip printing).
  */
 export function removedWidgets(host: EditorView, widgets: RemovedWidget[], prefix: string, skip: PluginKey[], wrap: (el: HTMLElement) => HTMLElement = (el) => el): Decoration[] {
+  guardReadOnlyIslands();
   const size = host.state.doc.content.size;
   const out: Decoration[] = [];
   widgets.forEach((w, i) => {
@@ -233,4 +238,67 @@ export function tableStops(block: HTMLElement): HTMLElement[] {
     }
   });
   return stops;
+}
+
+/**
+ * Removed (red) content shown inside an editable editor: a removed block's
+ * read-only view, an old table row or cell's text, old frontmatter.
+ */
+const READ_ONLY_ISLAND = ".ken-diff-widget, .ken-diff-widget-part, .ken-diff-cell-old, .ken-diff-front";
+
+/** Whether the page's selection starts or ends in removed content inside an editable editor. */
+export function selectionInReadOnlyIsland(): boolean {
+  const sel = document.getSelection();
+  if (!sel || !sel.rangeCount) return false;
+  return [sel.anchorNode, sel.focusNode].some((node) => {
+    const el = node instanceof Element ? node : node?.parentElement;
+    return !!el?.closest(READ_ONLY_ISLAND) && !!el.closest('.ProseMirror[contenteditable="true"]');
+  });
+}
+
+/** Keys that only move or extend the selection, or copy it / select all. */
+function selectionKey(e: KeyboardEvent): boolean {
+  if (/^(Arrow|Page)|^(Home|End|Shift|Control|Alt|Meta|CapsLock)$/.test(e.key)) return true;
+  return (e.metaKey || e.ctrlKey) && !e.altKey && /^[ac]$/i.test(e.key);
+}
+
+let islandsGuarded = false;
+
+/**
+ * Removed content can be selected and copied, never edited: with the
+ * selection in it, the editor (which still has focus) must not act on keys,
+ * typing, cut or paste at its own caret elsewhere, and a copy copies what is
+ * selected (the browser's), not the editor's selection. Escape is left alone.
+ */
+export function guardReadOnlyIslands(): void {
+  if (islandsGuarded) return;
+  islandsGuarded = true;
+  const options = { capture: true };
+  document.addEventListener(
+    "keydown",
+    (e) => {
+      if (e.key === "Escape" || !selectionInReadOnlyIsland()) return;
+      e.stopImmediatePropagation();
+      if (!selectionKey(e)) e.preventDefault();
+    },
+    options,
+  );
+  for (const type of ["beforeinput", "keypress", "cut", "paste", "drop"] as const) {
+    document.addEventListener(
+      type,
+      (e) => {
+        if (!selectionInReadOnlyIsland()) return;
+        e.stopImmediatePropagation();
+        e.preventDefault();
+      },
+      options,
+    );
+  }
+  document.addEventListener(
+    "copy",
+    (e) => {
+      if (selectionInReadOnlyIsland()) e.stopImmediatePropagation();
+    },
+    options,
+  );
 }

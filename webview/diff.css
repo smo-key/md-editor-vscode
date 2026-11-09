@@ -185,9 +185,10 @@
   text-decoration: line-through;
   opacity: 0.8;
 }
-/* A removed block in the combined view: a read-only view of its own (diffDom.ts), drawn as the editor draws it. */
+/* A removed block in the combined view: a read-only view of its own (diffDom.ts), drawn as the editor draws it.
+   Its text can be selected and copied (not edited). */
 .milkdown .ProseMirror .ken-diff-widget {
-  user-select: none;
+  user-select: text;
 }
 .milkdown .ProseMirror .ken-diff-widget > .ken-diff-widget-view {
   padding: 0;
@@ -199,6 +200,9 @@
   display: none !important;
 }
 /* Changed frontmatter: shown, not edited. */
+.milkdown .ProseMirror .ken-diff-front {
+  user-select: text;
+}
 .milkdown .ProseMirror .ken-diff-front pre {
   position: relative;
   margin: 4px 0;
@@ -386,9 +390,9 @@ body[data-toolbar="bottom"] .ken-agent-bar {
   background: transparent;
   box-shadow: none;
 }
-/* The old version's rows, cells and cell text in the combined view: shown, not edited, and read as gone. */
+/* The old version's rows, cells and cell text in the combined view: shown, not edited, and read as gone (but selectable). */
 .milkdown .ProseMirror .ken-diff-widget-part {
-  user-select: none;
+  user-select: text;
 }
 /* Faded by colour, not opacity: a sticky header cell has to stay opaque. */
 .ken-diff-pane[data-side="combined"] .milkdown .ProseMirror :is(.ken-diff-widget-part, .ken-diff-widget-part > *) {
@@ -396,7 +400,7 @@ body[data-toolbar="bottom"] .ken-agent-bar {
   color: var(--ink-secondary);
 }
 .milkdown .ProseMirror .ken-diff-cell-old {
-  user-select: none;
+  user-select: text;
   margin-bottom: 2px;
 }
 .milkdown .ProseMirror .ken-diff-cell-old p {

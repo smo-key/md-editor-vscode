@@ -149,7 +149,17 @@ for (const l of ["combined", "split"]) {
   const page = await context.newPage();
   await page.goto(`http://localhost:${server.address().port}/`);
   await page.waitForSelector("body.ready .milkdown .ProseMirror");
-  await page.waitForTimeout(800);
+  // The view scrolls to its first change once open: drag only once that has settled.
+  await page.waitForFunction(
+    () =>
+      new Promise((done) => {
+        const at = () => [...document.querySelectorAll(".editor-scroll")].map((e) => e.scrollTop).join();
+        const first = at();
+        setTimeout(() => done(at() === first), 300);
+      }),
+    null,
+    { timeout: 10000 },
+  );
   await check(page, `diff ${l}`);
   await page.waitForTimeout(700);
   const edits = await page.evaluate(() => window.__sent.filter((m) => m.type === "diffEdit").length);

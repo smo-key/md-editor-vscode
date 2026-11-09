@@ -2,6 +2,7 @@
 // theme. Usage:
 //   node harness/screenshot-diff.mjs <theme.json> <old.md> <new.md> <out.png> [combined|split] [width]
 // KEN_STATUS=added|deleted shows a file with only one version.
+// KEN_PREFS='{"outline":true}' starts with the editor prefs given (e.g. the outline open).
 // KEN_SCROLL=<px> keeps the window 900px high and scrolls each pane that far
 // first (to check what stays put, such as a table's sticky header row).
 import { chromium } from "playwright";
@@ -19,6 +20,7 @@ const init = {
   readOnly: { old: process.env.KEN_OLD_READONLY === "1", new: false },
   shortcuts: {},
   keys: {},
+  prefs: JSON.parse(process.env.KEN_PREFS || "{}"),
   oldText: readFileSync(oldFile, "utf8"),
   newText: readFileSync(newFile, "utf8"),
   oldLabel: "HEAD (abc1234)",

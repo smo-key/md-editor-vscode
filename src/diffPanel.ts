@@ -20,7 +20,7 @@ import { pickFormat, pickTarget, writeExport, type ExportFormat } from "./export
 import { ORIGINAL_SCHEME, SNAPSHOT_SCHEME, hasPendingEdits } from "./agentEditsHost";
 import { isDefaultEditor } from "./editorAssociation";
 import { minimalChange, toEOL, toLF } from "./sync";
-import type { DiffContent, DiffHostMessage, DiffLayoutMode, DiffReadOnly, DiffSideName, DiffWebviewMessage, ShortcutKeys, ShortcutLabels } from "./protocol";
+import type { DiffContent, DiffHostMessage, DiffLayoutMode, DiffReadOnly, DiffSideName, DiffWebviewMessage, EditorPrefs, ShortcutKeys, ShortcutLabels } from "./protocol";
 
 interface Repository {
   show(ref: string, path: string): Promise<string>;
@@ -150,6 +150,9 @@ export interface DiffHost {
   /** Whether a diff view has keyboard focus (part of `kenMarkdown.editorFocused`). */
   focusChanged(focused: boolean): void;
   openExternal(url: string): Thenable<boolean>;
+  /** The editor's prefs, shared with Markdown editors (the outline's state). */
+  prefs(): EditorPrefs;
+  setPrefs(prefs: EditorPrefs): void;
 }
 
 /** Whether a document can be edited here (a version in git can't). */
@@ -525,6 +528,7 @@ class DiffPanel {
           readOnly: this.readOnly,
           shortcuts: labels,
           keys,
+          prefs: this.host.prefs(),
           ...content,
         });
         return;
@@ -560,6 +564,9 @@ class DiffPanel {
         return;
       case "diffLayout":
         this.layout = m.layout;
+        return;
+      case "setPrefs":
+        this.host.setPrefs(m.prefs);
         return;
       case "export":
         await this.export();

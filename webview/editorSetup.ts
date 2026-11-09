@@ -67,6 +67,8 @@ export interface EditorOptions {
   toolbarHost?: HTMLElement;
   /** The editor's scroll container: shows the outline (toolbar button) when given. */
   outlineScroll?: HTMLElement;
+  /** Where the outline is mounted (fixed to the window by default; the diff view's pane). */
+  outlineContainer?: HTMLElement;
   /** A comment's highlight was clicked (open its thread). */
   onCommentActivate?: (id: string | null) => void;
   /** Lucidchart previews (markdown/lucid.ts): the setting and the Edit/Open actions. */
@@ -199,7 +201,7 @@ export function buildEditor(options: EditorOptions): Crepe {
   crepe.editor.config(keySelectionSync);
   useTaskHandle(crepe.editor);
   if (options.toolbarHost) crepe.editor.use(toolbarPlugin(options.toolbarHost, { outline: !!options.outlineScroll }));
-  if (options.outlineScroll) crepe.editor.use(outlinePlugin(options.outlineScroll));
+  if (options.outlineScroll) crepe.editor.use(outlinePlugin(options.outlineScroll, options.outlineContainer));
   crepe.editor.config(disableHeadingDowngrade);
   crepe.editor.config(configureTabIndent);
   // House style is `- ` bullets; remark-stringify would otherwise write `*`.

@@ -55,6 +55,7 @@ import { Collab, sharedHistory } from "./collab";
 import { Presence } from "./presence";
 import { commentIds, refreshComments } from "./comments/anchors";
 import { CommentsPanel } from "./comments/panel";
+import { onOutlinePref, setOutlinePref } from "./outline";
 import { joinDocument, propertyValue, splitDocument } from "./frontmatterModel";
 import { inEditorText, installKeyRouting, setBoundKeys } from "./keys";
 import { onLastHeadingLevel, setLastHeadingLevel } from "./headingControl";
@@ -851,6 +852,7 @@ installKeyRouting(window, (id) => {
 });
 initShortcutsPanel(post);
 onLastHeadingLevel((level) => post({ type: "setPrefs", prefs: { lastHeading: level } }));
+onOutlinePref((prefs) => post({ type: "setPrefs", prefs }));
 window.addEventListener("focus", () => post({ type: "focus", focused: true }));
 window.addEventListener("blur", () => post({ type: "focus", focused: false }));
 
@@ -875,6 +877,7 @@ window.addEventListener("message", async (event: MessageEvent<HostMessage>) => {
       setShortcutLabels(m.shortcuts ?? {});
       setBoundKeys(m.keys ?? {});
       setLastHeadingLevel(m.prefs?.lastHeading ?? 1);
+      setOutlinePref(m.prefs ?? {});
       threadStore.author = m.config.commentAuthor || "Me";
       applyConfig(m.config);
       if (!crepe) {

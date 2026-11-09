@@ -30,6 +30,7 @@ import "./styles.css";
 import "./diff.css";
 
 import { buildEditor } from "./editorSetup";
+import { onOutlinePref, setOutlinePref } from "./outline";
 import { joinDocument, splitDocument } from "./frontmatterModel";
 import { splitThreads } from "./comments/store";
 import { removedWidgets, tableStops } from "./diffDom";
@@ -47,6 +48,7 @@ import type { DiffContent, DiffHostMessage, DiffLayoutMode, DiffReadOnly, DiffSi
 declare function acquireVsCodeApi(): { postMessage(message: unknown): void };
 const vscode = acquireVsCodeApi();
 const post = (m: DiffWebviewMessage) => vscode.postMessage(m);
+onOutlinePref((prefs) => post({ type: "setPrefs", prefs }));
 /** Each side's edits sent to the host, counted. */
 const sent: Record<DiffSideName, number> = { old: 0, new: 0 };
 function sendEdit(side: DiffSideName, text: string) {
@@ -290,7 +292,8 @@ function proxyFor(role: DiffSideName) {
   };
 }
 
-async function mountSide(role: DiffSideName, mode: Side["mode"]): Promise<Side> {
+/** `outline`: the one column of the combined view (or an added/deleted file) has the outline. */
+async function mountSide(role: DiffSideName, mode: Side["mode"], outline: boolean): Promise<Side> {
   const pane = document.createElement("section");
   pane.className = "ken-diff-pane";
   pane.dataset.side = mode;
@@ -313,7 +316,9 @@ async function mountSide(role: DiffSideName, mode: Side["mode"]): Promise<Side> 
   toolbars.append(toolbar);
 
   const p = parts(texts[role]);
-  const crepe = buildEditor({ root: measure, markdown: p.markdown, proxyDomURL: proxyFor(role), onLink: () => true, toolbarHost: toolbar });
+  const crepe = buildEditor({ root: measure, markdown: p.markdown, proxyDomURL: proxyFor(role), onLink: () => true, toolbarHost: toolbar,
+    ...(outline ? { outlineScroll: scroll, outlineContainer: pane } : {}),
+  });
   // eslint-disable-next-line prefer-const
   let side: Side;
   crepe.editor.use(
@@ -372,7 +377,7 @@ async function render() {
     : layout === "split"
       ? [["old", "old"], ["new", "new"]]
       : [["new", "combined"]];
-  for (const [role, mode] of plan) sides.push(await mountSide(role, mode));
+  for (const [role, mode] of plan) sides.push(await mountSide(role, mode, plan.length === 1));
   if (seq !== renderSeq) return;
   setActive(sides.find((s) => s.role === "new") ?? sides[0]!);
   highlightAll();
@@ -586,6 +591,7 @@ window.addEventListener("message", (event: MessageEvent<DiffHostMessage | HostMe
         readOnly = m.readOnly;
         setShortcutLabels(m.shortcuts ?? {});
         setBoundKeys(m.keys ?? {});
+        setOutlinePref(m.prefs ?? {});
         texts.old = m.oldText;
         texts.new = m.newText;
         status = m.status;

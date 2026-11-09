@@ -18,6 +18,8 @@ export function activate(context: vscode.ExtensionContext) {
       provider.focusChanged();
     },
     openExternal: (url) => provider.openExternal(url),
+    prefs: () => provider.prefs(),
+    setPrefs: (prefs) => provider.setPrefs(prefs),
   });
   const collabContext = () =>
     void vscode.commands.executeCommand("setContext", "kenMarkdown.collaboration", collab.role ?? false);

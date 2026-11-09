@@ -1,10 +1,10 @@
 // The outline sidebar (webview/outline.ts): the toolbar button, the heading
 // list, the current-section rule, and the narrow-window overlay.
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { editorViewCtx } from "@milkdown/kit/core";
 import type { EditorView } from "@milkdown/kit/prose/view";
 
-import { currentHeading, outlineOverlays } from "../../webview/outline";
+import { clampOutlineWidth, currentHeading, onOutlinePref, outlineOverlays, setOutlinePref } from "../../webview/outline";
 import { mountEditor, stubLayout } from "./editorEnv";
 
 stubLayout();
@@ -35,11 +35,26 @@ describe("outlineOverlays", () => {
     // The comments sidebar takes its share too.
     expect(outlineOverlays(1000, false)).toBe(false);
     expect(outlineOverlays(1000, true)).toBe(true);
+    // A wider outline needs more room.
+    expect(outlineOverlays(1000, false, 480)).toBe(true);
+  });
+
+  it("clamps dragged widths", () => {
+    expect(clampOutlineWidth(50)).toBe(160);
+    expect(clampOutlineWidth(300.4)).toBe(300);
+    expect(clampOutlineWidth(2000)).toBe(480);
+    expect(clampOutlineWidth(NaN)).toBe(240);
   });
 });
 
 describe("outline panel", () => {
   let cleanup: (() => Promise<void>) | null = null;
+  let saved: object[] = [];
+  beforeEach(() => {
+    saved = [];
+    setOutlinePref({});
+    onOutlinePref((p) => saved.push(p));
+  });
   afterEach(async () => {
     await cleanup?.();
     cleanup = null;
@@ -120,5 +135,48 @@ describe("outline panel", () => {
     panel().querySelectorAll<HTMLButtonElement>(".ken-outline-item")[1].click();
     expect(panel().hidden).toBe(false);
     expect(view.state.selection.$from.parent.textContent).toBe("Setup");
+  });
+
+  it("remembers being opened and closed from the toolbar", async () => {
+    const { button } = await mount(1400);
+    button.click();
+    button.click();
+    expect(saved).toEqual([{ outline: true }, { outline: false }]);
+  });
+
+  it("reopens a remembered outline where it fits, not as an overlay", async () => {
+    setOutlinePref({ outline: true });
+    const wide = await mount(1400);
+    await Promise.resolve();
+    expect(wide.panel().hidden).toBe(false);
+    await cleanup!();
+    cleanup = null;
+    document.body.className = "";
+    setOutlinePref({ outline: true });
+    const narrow = await mount(600);
+    await Promise.resolve();
+    expect(narrow.panel().hidden).toBe(true);
+  });
+
+  it("closes an overlay with its X without forgetting it was open", async () => {
+    setOutlinePref({ outline: true });
+    const { panel } = await mount(600);
+    panel().querySelector<HTMLButtonElement>(".ken-outline-close")!.click();
+    expect(panel().hidden).toBe(true);
+    expect(saved).toEqual([]);
+  });
+
+  it("resizes from its edge and remembers the width", async () => {
+    setOutlinePref({ outlineWidth: 300 });
+    const { button, panel } = await mount(1400);
+    const width = () => document.documentElement.style.getPropertyValue("--ken-outline-width");
+    expect(width()).toBe("300px");
+    button.click();
+    const handle = panel().querySelector<HTMLElement>(".ken-outline-resize")!;
+    handle.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+    expect(width()).toBe("316px");
+    handle.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+    expect(width()).toBe("240px");
+    expect(saved).toEqual([{ outline: true }, { outlineWidth: 316 }, { outlineWidth: 240 }]);
   });
 });

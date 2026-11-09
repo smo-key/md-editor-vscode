@@ -2778,7 +2778,7 @@ body.ken-drag-selecting .ken-lucid-toolbar {
 /* At the left; the text column makes room for it, unless the window is too
    narrow, when it overlays the text until a heading is picked. */
 body.outline-open:not(.outline-overlay) .editor-scroll {
-  margin-left: 240px;
+  margin-left: var(--ken-outline-width, 240px);
 }
 .ken-outline {
   position: fixed;
@@ -2788,7 +2788,7 @@ body.outline-open:not(.outline-overlay) .editor-scroll {
   z-index: 50;
   display: flex;
   flex-direction: column;
-  width: 240px;
+  width: var(--ken-outline-width, 240px);
   max-width: 85vw;
   box-sizing: border-box;
   border-right: 1px solid var(--vscode-editorGroup-border, var(--vscode-panel-border, transparent));
@@ -2810,23 +2810,14 @@ body[data-toolbar="bottom"] .ken-outline {
 body[data-toolbar="top"] .ken-outline {
   top: 34px;
 }
-.ken-outline header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 8px 8px 12px;
-  border-bottom: 1px solid var(--vscode-editorGroup-border, var(--vscode-panel-border, transparent));
+/* Only the overlay (narrow window) has a close button. */
+.ken-outline-head {
+  display: none;
 }
-.ken-outline h2 {
-  flex: 1;
+body.outline-overlay .ken-outline-head {
   display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  justify-content: flex-end;
+  padding: 4px 6px 0;
 }
 .ken-outline-close {
   display: inline-flex;
@@ -2848,7 +2839,35 @@ body[data-toolbar="top"] .ken-outline {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 6px 0;
+  padding: 8px 0;
+}
+/* The right edge: drag to resize. */
+.ken-outline-resize {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  bottom: 0;
+  width: 6px;
+  z-index: 1;
+  cursor: col-resize;
+  outline: none;
+}
+.ken-outline-resize:hover,
+.ken-outline-resize:focus-visible,
+body.ken-outline-resizing .ken-outline-resize {
+  background: linear-gradient(to right, transparent 2px, var(--vscode-sash-hoverBorder, var(--vscode-focusBorder)) 2px, var(--vscode-sash-hoverBorder, var(--vscode-focusBorder)) 4px, transparent 4px);
+}
+body.ken-outline-resizing,
+body.ken-outline-resizing * {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
+/* In the diff view it sits in the combined view's pane, below the diff bar. */
+body .ken-diff-pane > .ken-outline,
+body[data-toolbar] .ken-diff-pane > .ken-outline {
+  position: absolute;
+  top: 0;
+  bottom: 0;
 }
 .ken-outline-item {
   display: block;

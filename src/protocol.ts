@@ -151,6 +151,10 @@ export type TestAction =
 export interface EditorPrefs {
   /** Heading level the toolbar's heading button applies outside headings. */
   lastHeading?: number;
+  /** Whether the outline sidebar is left open (webview/outline.ts). */
+  outline?: boolean;
+  /** The outline's width in px, as the user dragged it. */
+  outlineWidth?: number;
 }
 
 /** Effective key label per editor command id (and "kenMarkdown.showShortcuts"); "" when unbound. */
@@ -248,6 +252,7 @@ export type DiffHostMessage =
       readOnly: DiffReadOnly;
       shortcuts: ShortcutLabels;
       keys: ShortcutKeys;
+      prefs?: EditorPrefs;
     } & DiffContent)
   /**
    * `seen`: the last edit (`diffEdit` seq) of each side the host had applied
@@ -269,6 +274,7 @@ export type DiffHostMessage =
 export type DiffWebviewMessage =
   | { type: "diffReady" }
   | { type: "diffLayout"; layout: DiffLayoutMode }
+  | { type: "setPrefs"; prefs: EditorPrefs }
   /** A side was edited: its full new text (LF). */
   /** `seq` counts the side's edits, so the view can tell updates that predate one. */
   | { type: "diffEdit"; side: DiffSideName; text: string; seq?: number }

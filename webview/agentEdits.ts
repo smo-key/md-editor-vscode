@@ -5,7 +5,8 @@
 // Keep, Undo and the way from change to change. The host (src/agentEditsHost.ts)
 // does the keeping and undoing, through VS Code, so the chat stays in step.
 import type { Node as ProseNode } from "@milkdown/kit/prose/model";
-import { Plugin, PluginKey } from "@milkdown/kit/prose/state";
+import { Plugin, PluginKey, type Transaction } from "@milkdown/kit/prose/state";
+import { Step } from "@milkdown/kit/prose/transform";
 import { Decoration, DecorationSet, type EditorView } from "@milkdown/kit/prose/view";
 import { $prose } from "@milkdown/kit/utils";
 import { combinedWidgets, diffBlocks, layoutDiff, type BlockEntry } from "./diffModel";
@@ -69,6 +70,50 @@ interface State {
   added?: boolean;
 }
 
+/** Set on a transaction applying the file's text from VS Code (an agent's writes among them): not the user's edit. */
+export const EXTERNAL_META = "kenExternal";
+
+/**
+ * VS Code copies the user's edits of lines the agent didn't change into its
+ * original, so they don't show as the agent's. It does that a moment later
+ * (the host then sends the new original); doing the same here at once keeps
+ * those edits from showing as changes meanwhile.
+ *
+ * Each of `tr`'s steps is copied, moved to where it falls in the original,
+ * unless it touches what the agent added (its edges included: part of its
+ * change, as in VS Code). One beside what the agent only removed is copied
+ * (if VS Code decides otherwise, its original shows the edit once it comes,
+ * rather than the edit showing now and going then), on the side of the
+ * removed blocks the editor keeps it (a removed block's widget stays before
+ * what is inserted at its place, and after what is inserted before it).
+ */
+export function rebaseOriginal(original: ProseNode, tr: Transaction): ProseNode {
+  let doc = original;
+  tr.steps.forEach((step, i) => {
+    const before = tr.docs[i]!;
+    const runs = agentHunks(diffBlocks(doc, before)).filter((h) => !h.front);
+    const toOriginal = (pos: number) =>
+      runs.reduce((at, h) => (h.to <= pos ? at - (h.to - h.from) + h.removed.reduce((n, b) => n + b.nodeSize, 0) : at), pos);
+    let touches = false;
+    step.getMap().forEach((from, to) => {
+      if (runs.some((h) => h.to > h.from && !(to < h.from || from > h.to))) touches = true;
+    });
+    if (touches) return;
+    // The same step at the original's positions (a step that doesn't fit is left out: the host's original settles it).
+    try {
+      const json = step.toJSON() as Record<string, unknown>;
+      for (const k of ["from", "to", "gapFrom", "gapTo", "pos"] as const) {
+        if (typeof json[k] === "number") json[k] = toOriginal(json[k] as number);
+      }
+      doc = Step.fromJSON(doc.type.schema, json).apply(doc).doc ?? doc;
+    } catch {
+      // Left out.
+    }
+  });
+  return doc;
+}
+
+
 const key = new PluginKey<State>("ken-agent-edits");
 const yaml = (front: string) => front.replace(/^---\r?\n/, "").replace(/\r?\n?---[ \t]*\r?\n?$/, "");
 
@@ -130,9 +175,11 @@ function actions(index: number): HTMLElement {
   box.dataset.hunk = String(index);
   const inner = document.createElement("div");
   inner.className = "ken-agent-actions";
+  // The box outlives changes coming and going before it (a stable key): its run is the one it is at now (`showCurrent` numbers them).
+  const at = () => Number(box.dataset.hunk);
   inner.append(
-    button("Keep", "Keep this Change", () => resolveChange("keep", index), "primary"),
-    button("Undo", "Undo this Change", () => resolveChange("undo", index)),
+    button("Keep", "Keep this Change", () => resolveChange("keep", at()), "primary"),
+    button("Undo", "Undo this Change", () => resolveChange("undo", at())),
   );
   box.append(inner);
   return box;
@@ -154,6 +201,12 @@ function frontBox(front: NonNullable<AgentHunk["front"]>): HTMLElement {
     box.append(pre);
   }
   return box;
+}
+
+function hash(text: string): string {
+  let h = 0;
+  for (let k = 0; k < text.length; k++) h = (Math.imul(h, 31) + text.charCodeAt(k)) | 0;
+  return (h >>> 0).toString(36);
 }
 
 function compute(v: EditorView): State {
@@ -183,10 +236,16 @@ function compute(v: EditorView): State {
     decos.push(m.block ? Decoration.node(m.from, m.to, attrs) : Decoration.inline(m.from, m.to, attrs));
   }
   decos.push(...removedWidgets(v, combinedWidgets(entries), "agent-rm", [key], skipInPrint));
+  // Keys follow what a run is, not where it is in the list, so its box survives others coming and going.
+  const seen = new Map<string, number>();
   list.forEach((h, i) => {
     const at = Math.min(h.from, size);
     // The run's Keep/Undo first, over the top of what changed.
-    decos.push(Decoration.widget(at, () => actions(i), { side: -3, key: `agent-hunk-${i}-${list.length}`, ignoreSelection: true }));
+    // By what the run removed (what typing in it leaves alone), and which of the runs alike it is.
+    const base = `agent-hunk-${h.front ? "front" : hash(h.removed.map((n) => n.toString()).join("\n"))}`;
+    const n = seen.get(base) ?? 0;
+    seen.set(base, n + 1);
+    decos.push(Decoration.widget(at, () => actions(i), { side: -3, key: `${base}-${n}`, ignoreSelection: true }));
     if (h.front) decos.push(Decoration.widget(at, () => frontBox(h.front!), { side: -2, key: `agent-front-${h.front.old.length}-${h.front.new.length}`, ignoreSelection: true, stopEvent: () => true }));
   });
   return { decos: DecorationSet.create(doc, decos), hunks: list };
@@ -208,9 +267,11 @@ function showCurrent(scroll: boolean) {
   const list = hunks();
   counter.textContent = list.length ? `${current + 1} of ${list.length}` : "";
   if (!view) return;
-  for (const el of view.dom.querySelectorAll<HTMLElement>(".ken-agent-hunk")) {
-    el.classList.toggle("current", el.dataset.hunk === String(current));
-  }
+  // Boxes kept across refreshes may stand at another index now: number them in document order, which is the list's.
+  view.dom.querySelectorAll<HTMLElement>(".ken-agent-hunk").forEach((el, i) => {
+    el.dataset.hunk = String(i);
+    el.classList.toggle("current", i === current);
+  });
   const hunk = scroll ? view.dom.querySelector<HTMLElement>(`.ken-agent-hunk[data-hunk="${current}"]`) : null;
   if (hunk) {
     const box = scrollParent(hunk);
@@ -289,9 +350,18 @@ export const agentEditsPlugin = $prose(
         },
       },
       props: { decorations: (state) => key.getState(state)?.decos },
+      // The user's edits clear of the agent's changes go into the original too, as VS Code will do.
+      appendTransaction(trs, oldState) {
+        if (!original || key.getState(oldState)?.added) return null;
+        for (const tr of trs) {
+          if (tr.docChanged && !tr.getMeta(EXTERNAL_META) && !tr.getMeta(key)) original = { ...original, doc: rebaseOriginal(original.doc, tr) };
+        }
+        return null;
+      },
       view: () => ({
         update(v, prev) {
           if (!original || v.state.doc.eq(prev.doc)) return;
+          // The user's edit clear of the agent's changes goes into the original too, as VS Code will do.
           clearTimeout(timer);
           timer = setTimeout(refresh, 150);
         },

@@ -59,8 +59,32 @@ describe("removed blocks", () => {
         const widgets = combinedWidgets(diffBlocks(parse("x\n\n- y\n\na\n")!, parse("a\n")!));
         const decos = removedWidgets(view, widgets, "t", []);
         // Two removed blocks, then one stand-in (for the list, the last of them).
-        expect(decos.map((d) => (d.spec as { key: string }).key.split("-")[1])).toEqual(["0", "1", "standin"]);
-        expect((decos[2]!.spec as { key: string }).key).toContain("-ul");
+        const keys = decos.map((d) => (d.spec as { key: string }).key);
+        expect(keys.map((k) => k.includes("standin"))).toEqual([false, false, true]);
+        expect(new Set(keys).size).toBe(3);
+        expect(keys[2]).toContain("-ul");
+      });
+    } finally {
+      await ed.destroy();
+    }
+  });
+
+  it("keeps a removed block's key when other changes come or go before it (its view isn't rebuilt)", async () => {
+    const ed = await mountEditor("a\n\nc\n");
+    try {
+      ed.crepe.editor.action((ctx) => {
+        const view = ctx.get(editorViewCtx);
+        const parse = ctx.get(parserCtx);
+        const key = (old: string) => {
+          const decos = removedWidgets(view, combinedWidgets(diffBlocks(parse(old)!, parse("a\n\nc\n")!)), "t", []);
+          return decos.map((d) => (d.spec as { key: string }).key).filter((k) => !k.includes("standin"));
+        };
+        const alone = key("a\n\nc\n\nlast\n");
+        const withAnother = key("first\n\na\n\nc\n\nlast\n");
+        expect(withAnother).toContain(alone[0]);
+        // Identical removed blocks still get distinct keys.
+        const twins = key("same\n\na\n\nsame\n\nc\n");
+        expect(new Set(twins).size).toBe(2);
       });
     } finally {
       await ed.destroy();

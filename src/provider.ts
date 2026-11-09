@@ -192,14 +192,14 @@ class EditorSession {
     this.disposables.push(
       webview.onDidReceiveMessage((m: WebviewMessage) => this.onMessage(m)),
       vscode.workspace.onDidChangeTextDocument((e) => {
-        if (isOriginal(e.document)) return this.pushAgentEdits();
+        if (isOriginal(e.document)) return this.schedulePushAgentEdits();
         if (e.document.uri.toString() !== this.document.uri.toString()) return;
         if (e.contentChanges.length === 0) return;
         this.pushIfChanged();
-        this.pushAgentEdits();
+        this.schedulePushAgentEdits();
       }),
-      vscode.workspace.onDidOpenTextDocument((d) => isOriginal(d) && this.pushAgentEdits()),
-      vscode.workspace.onDidCloseTextDocument((d) => isOriginal(d) && this.pushAgentEdits()),
+      vscode.workspace.onDidOpenTextDocument((d) => isOriginal(d) && this.schedulePushAgentEdits()),
+      vscode.workspace.onDidCloseTextDocument((d) => isOriginal(d) && this.schedulePushAgentEdits()),
       vscode.workspace.onWillSaveTextDocument((e) => {
         if (e.document.uri.toString() !== this.document.uri.toString()) return;
         e.waitUntil(this.flush());
@@ -235,16 +235,37 @@ class EditorSession {
   private agentSent: string | null = null;
   private agentBusy = false;
 
-  /** Tell the webview about a chat agent's pending edits to the file, when that changed. */
+  private agentTimer: ReturnType<typeof setTimeout> | undefined;
+  /** The file's text sent with the last original. */
+  private agentSentText: string | null = null;
+
+  /**
+   * After the file or its original changed. VS Code copies a user's edit into
+   * the original just after the file's own change: waiting a moment sends the
+   * two together, not the file's new text with the original before the copy.
+   */
+  private schedulePushAgentEdits(): void {
+    clearTimeout(this.agentTimer);
+    this.agentTimer = setTimeout(() => this.pushAgentEdits(), 40);
+  }
+
+  /**
+   * Tell the webview about a chat agent's pending edits to the file, when they
+   * or the file changed, with the file's text they go with (the webview only
+   * takes an original that goes with the text it has).
+   */
   private pushAgentEdits(): void {
+    clearTimeout(this.agentTimer);
     if (!this.ready || this.agentBusy) return;
     // Keep/Undo edit the file: none on a file that can't be written.
     const original = vscode.workspace.fs.isWritableFileSystem(this.document.uri.scheme) === false ? undefined : originalOf(this.document);
+    const file = toLF(this.document.getText());
     const text = original ? toLF(original.getText()) : null;
-    const next = text !== null && text !== toLF(this.document.getText()) ? text : null;
-    if (next === this.agentSent) return;
+    const next = text !== null && text !== file ? text : null;
+    if (next === this.agentSent && (next === null || file === this.agentSentText)) return;
     this.agentSent = next;
-    this.post({ type: "agentEdits", original: next });
+    this.agentSentText = file;
+    this.post({ type: "agentEdits", original: next, text: file });
     this.host.focusChanged();
   }
 
@@ -871,6 +892,7 @@ class EditorSession {
   }
 
   dispose(): void {
+    clearTimeout(this.agentTimer);
     this.leaveCollab(true, false);
     this.setFocused(false);
     for (const d of this.disposables.splice(0)) d.dispose();

@@ -3,7 +3,8 @@ import { parserCtx, serializerCtx } from "@milkdown/kit/core";
 import type { Node as ProseNode } from "@milkdown/kit/prose/model";
 import { editorViewCtx } from "@milkdown/kit/core";
 import { hunksForBlock, lineHunks, revertHunks } from "../../src/agentEdits";
-import { agentEdits, agentEditsPlugin, installAgentEdits, setAgentOriginal } from "../../webview/agentEdits";
+import { agentEdits, agentEditsPlugin, agentHunks, installAgentEdits, rebaseOriginal, setAgentOriginal } from "../../webview/agentEdits";
+import { diffBlocks } from "../../webview/diffModel";
 import { buildEditor } from "../../webview/editorSetup";
 import { printablePage } from "../../webview/print";
 import { stubLayout } from "./editorEnv";
@@ -95,5 +96,59 @@ describe("agent edits in the editor (webview/agentEdits.ts)", () => {
     expect(document.querySelector<HTMLElement>(".ken-agent-bar")!.hidden).toBe(true);
     await crepe.destroy();
     root.remove();
+  });
+});
+
+describe("copying the user's edits into the original (rebaseOriginal)", () => {
+  const ORIG = "# Guide\n\nIntro.\n\nRemoved first.\n\nMiddle.\n\nThe agent changed this.\n\nEnd.\n";
+  const MOD = "# Guide\n\nIntro.\n\nMiddle.\n\nThe agent rewrote this.\n\nAdded by the agent.\n\nEnd.\n";
+
+  async function setup() {
+    const root = document.createElement("div");
+    document.body.append(root);
+    const crepe = buildEditor({ root, markdown: MOD });
+    await crepe.create();
+    const view = crepe.editor.action((ctx) => ctx.get(editorViewCtx));
+    const parse = (md: string) => crepe.editor.action((ctx) => ctx.get(parserCtx)(md))!;
+    const md = (doc: ProseNode) => crepe.editor.action((ctx) => ctx.get(serializerCtx)(doc));
+    /** The end of the paragraph saying `text`, in the editor's document. */
+    const endOf = (text: string) => {
+      let at = -1;
+      view.state.doc.descendants((n, pos) => {
+        if (n.type.name === "paragraph" && n.textContent === text) at = pos + n.nodeSize - 1;
+      });
+      return at;
+    };
+    const runs = (original: ProseNode) => agentHunks(diffBlocks(original, view.state.doc));
+    return { view, md, original: parse(ORIG), endOf, runs, done: () => crepe.destroy() };
+  }
+
+  it("copies an edit of a block the agent didn't change", async () => {
+    const t = await setup();
+    const tr = t.view.state.tr.insertText(", edited", t.endOf("Middle.") - 1);
+    const next = rebaseOriginal(t.original, tr);
+    expect(t.md(next)).toBe(ORIG.replace("Middle.", "Middle, edited."));
+    await t.done();
+  });
+
+  it("puts a new paragraph on the side of a removed block where the editor shows it", async () => {
+    const t = await setup();
+    const before = t.runs(t.original);
+    // Enter at the end of "Intro.": the removed block stays after the new paragraph.
+    const at = t.endOf("Intro.");
+    const tr = t.view.state.tr.split(at);
+    tr.insertText("Mine", at + 2);
+    const next = rebaseOriginal(t.original, tr);
+    expect(t.md(next)).toBe(ORIG.replace("Intro.\n", "Intro.\n\nMine\n"));
+    t.view.dispatch(tr);
+    expect(t.runs(next).length).toBe(before.length);
+    await t.done();
+  });
+
+  it("leaves an edit of the agent's own blocks to be the agent's change", async () => {
+    const t = await setup();
+    const tr = t.view.state.tr.insertText(" tweaked", t.endOf("Added by the agent.") - 1);
+    expect(rebaseOriginal(t.original, tr)).toBe(t.original);
+    await t.done();
   });
 });

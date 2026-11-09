@@ -10,6 +10,7 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 
 ### Fixed
 
+- A chat agent's pending edits in the editor no longer flicker while you edit near them: your own edits beside the agent's changes no longer flash as the agent's (green, with Keep/Undo) until VS Code catches up, and keeping or undoing a change, or typing near one, no longer redraws the other changes' removed blocks and buttons.
 - Removed (red) content can be selected and copied: whole removed blocks, removed words, table rows and cells, and old frontmatter, in the diff view and in a chat agent's edits shown in the editor. Keys pressed while it is selected no longer edit the document at the caret elsewhere.
 
 ## [0.12.1] - 2026-11-08

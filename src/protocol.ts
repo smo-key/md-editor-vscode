@@ -118,7 +118,8 @@ export type HostMessage =
    * A chat agent's pending edits to this file (VS Code's Keep/Undo): the
    * file as it was before them, or null when there are none.
    */
-  | { type: "agentEdits"; original: string | null }
+  /** `text`: the file's text (LF) this original goes with. */
+  | { type: "agentEdits"; original: string | null; text?: string }
   | { type: "test"; id: number; action: TestAction };
 
 export type TestAction =

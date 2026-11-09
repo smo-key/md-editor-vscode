@@ -141,12 +141,19 @@ export function destroyRemovedBlock(dom: Node) {
   blockViews.delete(dom);
 }
 
-/** A widget key that changes whenever what the widget draws does (so its view is rebuilt), and only then. */
-export function removedKey(prefix: string, i: number, w: RemovedWidget): string {
+/**
+ * A widget key that changes whenever what the widget draws does (so its view
+ * is rebuilt), and only then: not when other changes come or go before it.
+ * `seen` counts keys already given, so identical blocks get distinct ones.
+ */
+export function removedKey(prefix: string, w: RemovedWidget, seen: Map<string, number>): string {
   const text = `${w.part?.kind ?? "block"}|${w.before?.type.name ?? ""}|${w.entry.node.toString()}|${JSON.stringify(w.words)}`;
   let h = 0;
   for (let k = 0; k < text.length; k++) h = (Math.imul(h, 31) + text.charCodeAt(k)) | 0;
-  return `${prefix}-${i}-${(h >>> 0).toString(36)}`;
+  const base = `${prefix}-${(h >>> 0).toString(36)}`;
+  const n = seen.get(base) ?? 0;
+  seen.set(base, n + 1);
+  return `${base}-${n}`;
 }
 
 /** The element a block is drawn as, for the rules that match on it: `p`, `ul`, `h2`… */
@@ -179,12 +186,13 @@ export function removedWidgets(host: EditorView, widgets: RemovedWidget[], prefi
   guardReadOnlyIslands();
   const size = host.state.doc.content.size;
   const out: Decoration[] = [];
+  const seen = new Map<string, number>();
   widgets.forEach((w, i) => {
     const pos = Math.min(w.pos, size);
     out.push(
       Decoration.widget(pos, () => wrap(removedBlock(host, w, skip)), {
         side: -1,
-        key: removedKey(prefix, i, w),
+        key: removedKey(prefix, w, seen),
         ignoreSelection: true,
         stopEvent: () => true,
         destroy: destroyRemovedBlock,

@@ -62,7 +62,7 @@ import { onLastHeadingLevel, setLastHeadingLevel } from "./headingControl";
 import { COMMANDS, command, execute, setClipboardReader, setExportHandler, setPrintHandler, setShortcutLabels } from "./commands";
 import { printablePage } from "./print";
 import { collectExportAssets } from "./exportAssets";
-import { agentEditsPlugin, installAgentEdits, setAgentOriginal } from "./agentEdits";
+import { EXTERNAL_META, agentEditsPlugin, installAgentEdits, setAgentOriginal } from "./agentEdits";
 import { closeShortcutsPanel, initShortcutsPanel, isShortcutsPanelOpen, toggleShortcutsPanel } from "./shortcutsPanel";
 import type { EditorConfig, HostMessage, TestAction, WebviewMessage } from "../src/protocol";
 import "@milkdown/crepe/theme/common/style.css";
@@ -692,6 +692,8 @@ function applyExternal(text: string) {
       }
       const tr = v.state.tr.replace(start, endA, next.slice(start, endB));
       tr.setMeta("addToHistory", false);
+      // The file's own change (an agent's writes among them), not the user's edit.
+      tr.setMeta(EXTERNAL_META, true);
       applyingExternal = true;
       try {
         v.dispatch(tr);
@@ -896,6 +898,10 @@ window.addEventListener("message", async (event: MessageEvent<HostMessage>) => {
       return;
     case "agentEdits":
       await created;
+      // An original that goes with older text than the editor's (edits still on
+      // their way to VS Code) would show those edits as the agent's until the next:
+      // the editor's own copy, which already has them, stands until one matches.
+      if (m.original !== null && m.text !== undefined && (dirty || m.text !== lastText)) return;
       setAgentOriginal(m.original);
       return;
     case "config":

@@ -4,6 +4,10 @@ All notable changes to **Ken Markdown Editor** are documented here. The format f
 
 ## [Unreleased]
 
+### Added
+
+- An outline of the document's headings, opened from a new toolbar button left of Undo (or **Show or Hide Outline** in the Command Palette). It sits at the left, indented by heading level, and highlights the section you are reading as you scroll; clicking a heading goes to it. The text moves right to make room. When the window is too narrow for both, the outline opens over the text instead and closes once you pick a heading, click outside it or press Escape.
+
 ## [0.12.1] - 2026-11-08
 
 ### Fixed

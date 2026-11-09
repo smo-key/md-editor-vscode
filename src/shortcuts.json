@@ -210,6 +210,11 @@
       "mac": "cmd+alt+m"
     },
     {
+      "command": "kenMarkdown.toggleOutline",
+      "editor": "outline",
+      "title": "Show or Hide Outline"
+    },
+    {
       "command": "kenMarkdown.toggleComments",
       "editor": "comments",
       "title": "Show or Hide Comments"

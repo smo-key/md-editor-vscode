@@ -20,6 +20,7 @@ import { installTooltips, setTooltip } from "./tooltip";
 const HEADING = "#heading";
 
 const MAIN = [
+  ["outline"],
   ["undo", "redo"],
   [HEADING],
   ["bold", "italic", "underline", "strike", "inline-code", "link"],
@@ -30,6 +31,7 @@ const MAIN = [
 ];
 
 const TABLE = [
+  ["outline"],
   ["undo", "redo"],
   ["bold", "italic", "underline", "strike", "inline-code", "link"],
   ["row-above", "row-below", "col-left", "col-right"],
@@ -48,6 +50,7 @@ class Toolbar {
   constructor(
     private readonly ctx: Ctx,
     private readonly host: HTMLElement,
+    private readonly outline: boolean,
   ) {
     this.el = document.createElement("div");
     this.el.className = "ken-toolbar";
@@ -85,7 +88,10 @@ class Toolbar {
     this.heading = null;
     this.el.replaceChildren();
     this.el.dataset.mode = mode;
-    const groups = mode === "table" ? TABLE : MAIN;
+    // The outline button only where there is an outline (not the diff view).
+    const groups = (mode === "table" ? TABLE : MAIN)
+      .map((ids) => ids.filter((id) => id !== "outline" || this.outline))
+      .filter((ids) => ids.length);
     if (mode === "table") {
       const label = document.createElement("span");
       label.className = "ken-toolbar-label";
@@ -168,13 +174,13 @@ class Toolbar {
 }
 
 /** Mounts the toolbar into `host` and keeps it in step with the editor. */
-export function toolbarPlugin(host: HTMLElement) {
+export function toolbarPlugin(host: HTMLElement, options: { outline?: boolean } = {}) {
   return $prose(
     (ctx) =>
       new Plugin({
         key: new PluginKey("ken-toolbar"),
         view: (view: EditorView) => {
-          const toolbar = new Toolbar(ctx, host);
+          const toolbar = new Toolbar(ctx, host, !!options.outline);
           toolbar.update(view.state);
           return {
             update: (v) => toolbar.update(v.state),

@@ -294,6 +294,11 @@
         "category": "Ken Markdown"
       },
       {
+        "command": "kenMarkdown.toggleOutline",
+        "title": "Show or Hide Outline",
+        "category": "Ken Markdown"
+      },
+      {
         "command": "kenMarkdown.toggleComments",
         "title": "Show or Hide Comments",
         "category": "Ken Markdown"
@@ -691,6 +696,10 @@
         },
         {
           "command": "kenMarkdown.addComment",
+          "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
+        },
+        {
+          "command": "kenMarkdown.toggleOutline",
           "when": "(activeCustomEditorId == 'kenMarkdown.editor' || activeWebviewPanelId == 'kenMarkdown.diff')"
         },
         {

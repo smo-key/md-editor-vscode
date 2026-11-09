@@ -45,6 +45,7 @@ import { configureMathText, isMathLanguage, mathPlugins, renderMathPreview } fro
 import { commentPlugins, commentSchemas } from "./comments/anchors";
 import { threadStore } from "./comments/store";
 import { toolbarPlugin } from "./toolbar";
+import { outlinePlugin } from "./outline";
 import { blockSelectionKeys, blockSelectionPlugin, stableTableView } from "./markdown/blockSelection";
 import { keySelectionSync } from "./keySelectionSync";
 import { configureTabIndent } from "./markdown/plainTab";
@@ -64,6 +65,8 @@ export interface EditorOptions {
   proxyDomURL?: (src: string) => string | Promise<string>;
   /** Where to mount the bottom toolbar; none without it. */
   toolbarHost?: HTMLElement;
+  /** The editor's scroll container: shows the outline (toolbar button) when given. */
+  outlineScroll?: HTMLElement;
   /** A comment's highlight was clicked (open its thread). */
   onCommentActivate?: (id: string | null) => void;
   /** Lucidchart previews (markdown/lucid.ts): the setting and the Edit/Open actions. */
@@ -195,7 +198,8 @@ export function buildEditor(options: EditorOptions): Crepe {
   // After every other view-level key handler, so it wraps them and runs first.
   crepe.editor.config(keySelectionSync);
   useTaskHandle(crepe.editor);
-  if (options.toolbarHost) crepe.editor.use(toolbarPlugin(options.toolbarHost));
+  if (options.toolbarHost) crepe.editor.use(toolbarPlugin(options.toolbarHost, { outline: !!options.outlineScroll }));
+  if (options.outlineScroll) crepe.editor.use(outlinePlugin(options.outlineScroll));
   crepe.editor.config(disableHeadingDowngrade);
   crepe.editor.config(configureTabIndent);
   // House style is `- ` bullets; remark-stringify would otherwise write `*`.

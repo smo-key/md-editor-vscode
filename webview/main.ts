@@ -598,6 +598,7 @@ async function createEditor(text: string) {
     onUpload: uploadFromImageBlock,
     proxyDomURL: proxyImageSrc,
     toolbarHost,
+    outlineScroll: scroll,
     onCommentActivate: (id) => commentsPanel?.open(id),
     lucid: {
       mode: () => lucidPreview,

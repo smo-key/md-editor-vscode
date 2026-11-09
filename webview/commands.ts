@@ -108,11 +108,13 @@ import {
   Check,
   CheckCheck,
   RotateCcw,
+  TableOfContents,
   type IconNode,
 } from "lucide";
 
 import { insertGithubAlertCommand, type GithubAlertKind } from "./markdown/githubAlert";
 import { insertTocCommand } from "./markdown/toc";
+import { outlineOpen, toggleOutline } from "./outline";
 import { tableAt, toggleTableFullWidthCommand } from "./markdown/tableFullWidth";
 import { hasFrontmatterPanel, openFrontmatter } from "./frontmatter";
 import { insertDiagram } from "./drawio";
@@ -123,7 +125,7 @@ import { withColumnWidths } from "./tableResize";
 import { handleTablePaste } from "./markdown/tablePaste";
 import { agentEdits } from "./agentEdits";
 
-export type CommandGroup = "history" | "edit" | "text" | "format" | "list" | "insert" | "alert" | "comment" | "table";
+export type CommandGroup = "view" | "history" | "edit" | "text" | "format" | "list" | "insert" | "alert" | "comment" | "table";
 
 export interface EditorCommand {
   id: string;
@@ -1238,6 +1240,16 @@ export const COMMANDS: EditorCommand[] = [
     keepFocus: true,
     run: () => addComment(),
     isEnabled: (state) => !state.selection.empty || state.selection.$from.parent.content.size > 0,
+  },
+  {
+    id: "outline",
+    label: "Outline",
+    icon: TableOfContents,
+    group: "view",
+    toolbar: true,
+    keepFocus: true,
+    run: () => toggleOutline(),
+    isActive: () => outlineOpen(),
   },
   {
     id: "comments",

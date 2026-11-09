@@ -2773,3 +2773,120 @@ body.ken-drag-selecting .ken-lucid-actions,
 body.ken-drag-selecting .ken-lucid-toolbar {
   visibility: hidden;
 }
+
+/* --- Outline (outline.ts) ---------------------------------------------------- */
+/* At the left; the text column makes room for it, unless the window is too
+   narrow, when it overlays the text until a heading is picked. */
+body.outline-open:not(.outline-overlay) .editor-scroll {
+  margin-left: 240px;
+}
+.ken-outline {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  width: 240px;
+  max-width: 85vw;
+  box-sizing: border-box;
+  border-right: 1px solid var(--vscode-editorGroup-border, var(--vscode-panel-border, transparent));
+  background: var(--vscode-sideBar-background, var(--vscode-editor-background));
+  color: var(--vscode-sideBar-foreground, var(--vscode-foreground));
+  font-family: var(--vscode-font-family);
+  font-size: 12.5px;
+}
+.ken-outline[hidden] {
+  display: none;
+}
+body.outline-overlay .ken-outline {
+  z-index: 60;
+  box-shadow: var(--shadow-overlay);
+}
+body[data-toolbar="bottom"] .ken-outline {
+  bottom: 34px;
+}
+body[data-toolbar="top"] .ken-outline {
+  top: 34px;
+}
+.ken-outline header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 8px 8px 12px;
+  border-bottom: 1px solid var(--vscode-editorGroup-border, var(--vscode-panel-border, transparent));
+}
+.ken-outline h2 {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.ken-outline-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.ken-outline-close:hover {
+  background: var(--vscode-toolbar-hoverBackground, transparent);
+}
+.ken-outline-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 6px 0;
+}
+.ken-outline-item {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 3px 10px 3px calc(12px + var(--depth, 0) * 12px);
+  border: none;
+  border-left: 2px solid transparent;
+  background: transparent;
+  color: var(--vscode-descriptionForeground, inherit);
+  font: inherit;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.ken-outline-item[data-top] {
+  color: var(--vscode-sideBar-foreground, var(--vscode-foreground));
+  font-weight: 600;
+}
+.ken-outline-item:hover {
+  background: var(--vscode-list-hoverBackground, transparent);
+  color: var(--vscode-list-hoverForeground, var(--vscode-foreground));
+}
+.ken-outline-item.untitled {
+  font-style: italic;
+  opacity: 0.7;
+}
+/* The section being read. */
+.ken-outline-item.active {
+  border-left-color: var(--vscode-focusBorder, var(--accent));
+  background: var(--vscode-list-inactiveSelectionBackground, color-mix(in srgb, var(--accent) 14%, transparent));
+  color: var(--vscode-list-inactiveSelectionForeground, var(--vscode-foreground));
+  font-weight: 600;
+}
+.ken-outline-empty {
+  margin: 8px 12px;
+  color: var(--vscode-descriptionForeground);
+  font-style: italic;
+}

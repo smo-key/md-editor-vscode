@@ -268,3 +268,56 @@ describe("an empty paragraph before a list in a cell", () => {
     });
   }
 });
+
+describe("code blocks in table cells", () => {
+  /** Type `text` at the caret, as the browser would (input rules included). */
+  function type(view: EditorView, text: string) {
+    for (const ch of text) {
+      const { from, to } = view.state.selection;
+      const handled = view.someProp("handleTextInput", (f) => f(view, from, to, ch, () => view.state.tr.insertText(ch, from, to)));
+      if (!handled) view.dispatch(view.state.tr.insertText(ch, from, to));
+    }
+  }
+  const codeBlocks = (view: EditorView) => {
+    const out: { language: string; text: string }[] = [];
+    view.state.doc.descendants((n) => {
+      if (n.type.name === "code_block") out.push({ language: String(n.attrs.language ?? ""), text: n.textContent });
+    });
+    return out;
+  };
+
+  it("starts one by typing ``` in a cell, as anywhere else", async () => {
+    await withEditor("| a | b |\n| - | - |\n| x | y |\n", (view, md) => {
+      caretAfter(view, "y");
+      view.dispatch(view.state.tr.insertText("", view.state.selection.from - 1, view.state.selection.from));
+      type(view, "```js ");
+      expect(codeBlocks(view)).toEqual([{ language: "js", text: "" }]);
+      expect(view.state.selection.$from.parent.type.name).toBe("code_block");
+      view.dispatch(view.state.tr.insertText("let a = 1;\nlet b = 2;"));
+      expect(row(md())).toBe('| x | <pre lang="js"><code>let a = 1;<br>let b = 2;</code></pre> |');
+    });
+  });
+
+  it("round-trips a code block, keeping what Markdown, the table or autolinks would act on as code", async () => {
+    const code = "a | b *c* _d_ <x> & `e` [f](g) ~h~ $5 \\n http://x.y www.z.com me@x.io !#";
+    const md = `| a |\n| - |\n| before<pre lang="ts"><code>${code.replace(/[&<>|\\`*_[\]~$:@!#]/g, (c) => `&#${c.charCodeAt(0)};`).replace(/www\./g, "www&#46;")}<br>  indented</code></pre>after |\n`;
+    await withEditor(md, (view, out) => {
+      expect(codeBlocks(view)).toEqual([{ language: "ts", text: `${code}\n  indented` }]);
+      // The cell is written back byte for byte (the header row is padded to its width, as for any table).
+      expect(row(out())).toBe(row(md));
+    });
+  });
+
+  it("reads a hand-written <pre> without a language or with plain characters", async () => {
+    const blocks = cellBlocks([
+      { type: "html", value: "<pre>" },
+      { type: "text", value: "x = 1" },
+      { type: "html", value: "<br>" },
+      { type: "emphasis", children: [{ type: "text", value: "y" }] },
+      { type: "html", value: "</pre>" },
+    ]);
+    expect(blocks).toEqual([{ type: "code", lang: null, meta: null, value: "x = 1\ny" }]);
+    // An unclosed <pre> leaves the cell as it was.
+    expect(cellBlocks([{ type: "html", value: "<pre>" }, { type: "text", value: "x" }])).toBeNull();
+  });
+});

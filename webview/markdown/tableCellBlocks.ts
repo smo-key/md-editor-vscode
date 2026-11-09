@@ -9,9 +9,14 @@
  * - Paragraphs (and hard line breaks) are separated by `<br>`.
  * - Bulleted and numbered lists are `<ul>`/`<ol>` with `<li>` items, nested as
  *   deep as needed; a checklist item starts with `[ ] ` or `[x] `.
+ * - A code block is `<pre lang="js"><code>…</code></pre>`, its lines joined by
+ *   `<br>`. The text between the tags is still Markdown (and the table's), so
+ *   every character either would act on is written as an entity: `*`, `_`,
+ *   `|`, `<`, the `:` of a URL and so on.
  *
  * In the editor a cell holds real blocks (`paragraph`, `bullet_list`,
- * `ordered_list`), so every list command works inside it. On the way in, a
+ * `ordered_list`, `code_block`), so every list command works inside it, and
+ * typing ``` starts a code block as it does anywhere else. On the way in, a
  * from-markdown transform rebuilds those blocks from the cell's HTML tags
  * before any remark transformer runs (Milkdown's own drops every `<br>`); a
  * cell whose tags don't nest properly is left exactly as it was.
@@ -23,7 +28,7 @@ import type { MarkdownNode, ParserState, SerializerState } from "@milkdown/kit/t
 import { $remark } from "@milkdown/kit/utils";
 
 /** What a table cell may hold in the editor. */
-export const CELL_CONTENT = "(paragraph | bullet_list | ordered_list)+";
+export const CELL_CONTENT = "(paragraph | bullet_list | ordered_list | code_block)+";
 
 interface Md {
   type: string;
@@ -33,6 +38,23 @@ interface Md {
 }
 
 const TAG = /^<\s*(\/?)\s*(ul|ol|li|br)\s*\/?\s*>$/i;
+/** `<pre>` (with any attributes; `lang` is the language) and `</pre>`; `<code>` inside it is skipped. */
+const PRE = /^<\s*(\/?)\s*pre\b([^>]*)>$/i;
+const CODE = /^<\s*\/?\s*code\b[^>]*>$/i;
+const LANG = /\blang\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i;
+
+/** The text of an mdast node (a code block's content parsed as Markdown by mistake, e.g. hand-written). */
+function plain(node: Md): string {
+  if (node.type === "html") {
+    const v = (node.value ?? "").trim();
+    if (/^<\s*br\s*\/?\s*>$/i.test(v)) return "\n";
+    if (CODE.test(v)) return "";
+    return node.value ?? "";
+  }
+  if (node.type === "break") return "\n";
+  if (typeof node.value === "string") return node.value;
+  return (node.children ?? []).map(plain).join("");
+}
 
 interface Container {
   blocks: Md[];
@@ -76,11 +98,29 @@ function closeItem(c: Container) {
  * `<br>`/list tags (or they don't nest properly) and stays as it is.
  */
 export function cellBlocks(children: Md[]): Md[] | null {
-  if (!children.some((c) => c.type === "html" && TAG.test((c.value ?? "").trim()))) return null;
+  if (!children.some((c) => c.type === "html" && (TAG.test((c.value ?? "").trim()) || PRE.test((c.value ?? "").trim())))) return null;
   const root: Container = { blocks: [], inline: [], pending: false };
   const stack: Frame[] = [root];
+  /** An open `<pre>`: its language and the nodes inside it so far. */
+  let pre: { lang: string; nodes: Md[] } | null = null;
   for (const node of children) {
     const top = stack[stack.length - 1]!;
+    const p = node.type === "html" ? PRE.exec((node.value ?? "").trim()) : null;
+    if (pre) {
+      if (p && p[1] === "/") {
+        // Opened only in a container (never directly in a list), which is still on top.
+        (top as Container).blocks.push({ type: "code", lang: pre.lang || null, meta: null, value: pre.nodes.map(plain).join("") });
+        pre = null;
+      } else pre.nodes.push(node);
+      continue;
+    }
+    if (p) {
+      if (p[1] === "/" || isList(top)) return null;
+      flush(top);
+      const m = LANG.exec(p[2] ?? "");
+      pre = { lang: m ? (m[1] ?? m[2] ?? m[3] ?? "") : "", nodes: [] };
+      continue;
+    }
     const m = node.type === "html" ? TAG.exec((node.value ?? "").trim()) : null;
     if (!m) {
       if (isList(top)) {
@@ -126,7 +166,7 @@ export function cellBlocks(children: Md[]): Md[] | null {
       stack.pop();
     }
   }
-  if (stack.length !== 1) return null;
+  if (stack.length !== 1 || pre) return null;
   flush(root);
   if (root.blocks.length === 0) root.blocks.push({ type: "paragraph", children: [] });
   return root.blocks;
@@ -178,6 +218,28 @@ function writeInline(state: SerializerState, para: ProseNode) {
   out();
 }
 
+/**
+ * Code as text a table cell keeps as it is: every character Markdown, the
+ * table or an autolink would act on as an entity, lines joined by `<br>`.
+ */
+export function cellCode(code: string): string {
+  return code
+    .split("\n")
+    .map((line) =>
+      line
+        .replace(/[&<>|\\`*_[\]~$:@!#]/g, (c) => `&#${c.charCodeAt(0)};`)
+        // `www.` would become a link.
+        .replace(/www\./gi, (w) => `${w.slice(0, 3)}&#46;`),
+    )
+    .join("<br>");
+}
+
+/** A code block as one piece of inline HTML, which GitHub shows as a code block in the cell. */
+function writeCode(state: SerializerState, block: ProseNode) {
+  const lang = String(block.attrs.language ?? "").replace(/[^\w+#.-]/g, "");
+  html(state, `<pre${lang ? ` lang="${lang}"` : ""}><code>${cellCode(block.textContent)}</code></pre>`);
+}
+
 function writeBlocks(state: SerializerState, container: ProseNode) {
   let prev: string | null = null;
   container.forEach((child) => {
@@ -185,6 +247,8 @@ function writeBlocks(state: SerializerState, container: ProseNode) {
     if (kind === "paragraph") {
       if (prev === "paragraph") html(state, "<br>");
       writeInline(state, child);
+    } else if (kind === "code_block") {
+      writeCode(state, child);
     } else if (kind === "bullet_list" || kind === "ordered_list") {
       const tag = kind === "ordered_list" ? "ol" : "ul";
       html(state, `<${tag}>`);

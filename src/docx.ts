@@ -139,6 +139,8 @@ class Writer {
   private slugs: string[];
   private slugIndex = 0;
   private underline = false;
+  /** Inside a table cell's `<pre>` (a code block, written as inline HTML): its text is code. */
+  private pre = false;
   private vert: "superscript" | "subscript" | null = null;
   /** The settings a `<!-- ken:table … -->` marker gave the table that follows it. */
   private tableFlags: { noHeader: boolean; total: boolean; full: boolean } | null = null;
@@ -162,7 +164,7 @@ class Writer {
 
   private run(text: string, st: RunStyle): string {
     const props: string[] = [];
-    if (st.code) props.push('<w:rStyle w:val="InlineCode"/>');
+    if (st.code || this.pre) props.push('<w:rStyle w:val="InlineCode"/>');
     else if (st.link) props.push('<w:rStyle w:val="Hyperlink"/>');
     if (st.b) props.push("<w:b/>");
     if (st.i) props.push("<w:i/>");
@@ -227,6 +229,10 @@ class Writer {
         }
         if (/^<\/(sup|sub)>$/i.test(v)) {
           this.vert = null;
+          return "";
+        }
+        if (/^<pre\b[^>]*>$/i.test(v) || /^<\/pre>$/i.test(v)) {
+          this.pre = !/^<\//.test(v);
           return "";
         }
         if (/^<li>$/i.test(v)) return `<w:r><w:br/></w:r>${this.run("•  ", st)}`;

@@ -72,6 +72,16 @@ describe("DOCX export", () => {
     expect(rels).toMatch(/Target="https:\/\/x.com\/a.svg" TargetMode="External"/);
   });
 
+  it("writes a table cell's code block (inline <pre>) as code, its lines as breaks", async () => {
+    const { doc } = await convert('| A |\n| - |\n| x<pre lang="js"><code>a &#42; b<br>c</code></pre>y |\n');
+    const cell = doc.split("<w:tc>")[2]!;
+    expect(cell).toMatch(/<w:rStyle w:val="InlineCode"\/><\/w:rPr><w:t[^>]*>a \* b<\/w:t>/);
+    expect(cell).toContain("<w:br/>");
+    // Before and after it: ordinary text.
+    expect(cell).toMatch(/<w:t[^>]*>y<\/w:t>/);
+    expect(cell).not.toMatch(/InlineCode"\/><\/w:rPr><w:t[^>]*>y</);
+  });
+
   it("leaves out frontmatter and Ken's comments", () => {
     expect(exportableMarkdown("---\ntitle: x\n---\n\nBody\n\n<!-- ken:comments\n{}\n-->\n")).toBe("\nBody\n\n");
   });
